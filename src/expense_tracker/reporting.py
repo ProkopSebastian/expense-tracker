@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from decimal import Decimal
 
 from .ledger import merchant_key
@@ -22,6 +21,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
                 {
                     "date": row["booking_date"],
                     "amount": -amount,
+                    "currency": row["currency"],
                     "kind": "expense",
                     "category": category,
                     "label": label,
@@ -33,6 +33,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
                 {
                     "date": row["booking_date"],
                     "amount": amount,
+                    "currency": row["currency"],
                     "kind": "income",
                     "category": category,
                     "label": label,
@@ -47,6 +48,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
             {
                 "date": case["booking_date"],
                 "amount": abs(amount),
+                "currency": case["currency"],
                 "kind": "expense" if amount > 0 else "income",
                 "category": case["category_key"] or "uncategorized_expense",
                 "label": case["category_label"] or "Niesklasyfikowane wydatki",
@@ -60,14 +62,6 @@ def summary(items: list[dict[str, object]]) -> dict[str, Decimal]:
     expenses = sum((item["amount"] for item in items if item["kind"] == "expense"), Decimal())
     income = sum((item["amount"] for item in items if item["kind"] == "income"), Decimal())
     return {"expenses": expenses, "income": income, "balance": income - expenses}
-
-
-def by_category(items: list[dict[str, object]]) -> list[dict[str, object]]:
-    totals: defaultdict[str, Decimal] = defaultdict(Decimal)
-    for item in items:
-        if item["kind"] == "expense":
-            totals[str(item["label"])] += item["amount"]
-    return [{"Kategoria": label, "Wydatki": float(amount)} for label, amount in sorted(totals.items())]
 
 
 def _merchant_display(description: str) -> str:
