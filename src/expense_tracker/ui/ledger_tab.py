@@ -57,7 +57,16 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
         "🔗 nagłówek sprawy (liczy się do sumy) · ↳ transakcja wchodząca w jej skład (widoczna, ale nie liczona osobno)"
     )
     event = st.dataframe(
-        styled, on_select="rerun", selection_mode="multi-row", hide_index=True, key="ledger_table", height=420
+        styled,
+        column_config={
+            "Kwota": st.column_config.NumberColumn(format="%.2f"),
+            "Kwota rzeczywista": st.column_config.NumberColumn(format="%.2f"),
+        },
+        on_select="rerun",
+        selection_mode="multi-row",
+        hide_index=True,
+        key="ledger_table",
+        height=420,
     )
     if event and event.selection.rows:
         return df.iloc[event.selection.rows]

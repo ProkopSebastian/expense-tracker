@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 import pandas as pd
 import streamlit as st
 
 from ..ledger import delete_merchant_rule, merchant_rules, save_decision
+from ..text_utils import clean_description
 from .formatting import category_options
 
 SOURCE_LABELS = {"manual": "Ręcznie", "rule": "Reguła", "llm": "AI"}
@@ -23,8 +25,8 @@ def _decided_editor(connection: sqlite3.Connection, data: dict[str, object]) -> 
         {
             "transaction_id": transaction_id,
             "Data": row["booking_date"],
-            "Opis": row["description"],
-            "Kwota": f"{row['amount']} {row['currency']}",
+            "Opis": clean_description(str(row["description"])),
+            "Kwota": f"{Decimal(str(row['amount'])):.2f} {row['currency']}",
             "Kategoria": label_by_key.get(row["category_key"], "Do przypisania"),
             "Źródło": SOURCE_LABELS.get(row["decision_source"], "—"),
         }

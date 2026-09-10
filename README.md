@@ -6,9 +6,8 @@ zapytania do AI wychodzą tylko po ręcznym kliknięciu w zakładce „Do klasyf
 
 ## Import wyciągów
 
-Obsługiwane są eksporty CSV z Nest Banku i Revoluta. Wrzuć plik do folderu `data/` — dashboard
-sam sprawdza ten folder i importuje nowe pliki przy każdym uruchomieniu/odświeżeniu, bez
-klikania czegokolwiek. Można też zrobić to ręcznie z terminala:
+Obsługiwane są eksporty CSV z Nest Banku i Revoluta. Wrzuć plik do folderu `data/` i kliknij
+„🔄 Odśwież dane” przy tytule dashboardu. Można też zrobić to z terminala:
 
 ```bash
 uv run expense-tracker sync
@@ -63,10 +62,14 @@ merchanta klasyfikują się automatycznie, bez pytania AI ponownie.
 ## Asystent AI
 
 W pliku `.env` ustaw `OPENAI_API_KEY=...` (plik jest ignorowany przez Git). W zakładce „Do klasyfikacji”
-dwa przyciski uruchamiają: klasyfikację maksymalnie 20 nieznanych merchantów (z opcjonalnym wyszukiwaniem
-internetowym) oraz analizę powiązań między transakcjami (wspólne zakupy, zwroty, rozliczenia, przelewy
-własne). Opisy i kontrahenci wysyłane do AI są wcześniej redagowane (`llm/redaction.py`) — numery kont,
-kart, telefonów i e-maile są usuwane przed wysyłką.
+dwa przyciski uruchamiają: klasyfikację merchantów (jedna partia to maksymalnie 20 różnych sprzedawców —
+jeśli zostanie więcej, aplikacja mówi wprost ile i trzeba kliknąć ponownie) oraz analizę powiązań między
+transakcjami (wspólne zakupy, zwroty, rozliczenia, przelewy własne) — ta druga bierze pod uwagę wszystkie
+transakcje spoza już istniejących spraw, niezależnie od tego, czy mają już przypisaną kategorię. AI dostaje
+też wpływy (nie tylko wydatki) i wybiera dla nich odpowiednią kategorię przychodową. Opisy i kontrahenci
+wysyłane do AI są wcześniej redagowane (`llm/redaction.py`) — numery kont, kart, telefonów i e-maile są
+usuwane przed wysyłką; **imiona i nazwy firm nie są redagowane** (to wymagałoby rozpoznawania nazw własnych,
+poza zakresem tego narzędzia) — jeśli to istotne, sprawdź dokładne pola w `HANDOFF.md`.
 
 Każde wywołanie tworzy lokalne sugestie widoczne w zakładce „Do klasyfikacji” — nic nie zmienia się bez
 zatwierdzenia. Zatwierdzona klasyfikacja może od razu utworzyć regułę merchanta.

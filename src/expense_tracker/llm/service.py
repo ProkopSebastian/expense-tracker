@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -31,25 +32,31 @@ MAX_MERCHANTS_PER_REQUEST = 20
 MAX_RELATION_TRANSACTIONS = 100
 
 
-def analyze_merchants(connection: sqlite3.Connection) -> int:
-    rows = [
-        row
-        for row in transactions(connection)
-        if Decimal(str(row["amount"])) < 0 and not row["category_key"] and not row["case_id"]
-    ]
+@dataclass
+class MerchantAnalysisResult:
+    saved: int
+    groups_processed: int
+    groups_remaining: int
+
+
+def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
+    # Both expenses (negative) and income (positive) are sent — the LLM is told to pick an
+    # income-kind category for positive amounts instead of skipping them entirely.
+    rows = [row for row in transactions(connection) if not row["category_key"] and not row["case_id"]]
     groups: defaultdict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
         groups[(merchant_key(str(row["description"])), str(row["currency"]))].append(row)
-    merchant_groups = list(groups.values())[:MAX_MERCHANTS_PER_REQUEST]
+    all_groups = list(groups.values())
+    merchant_groups = all_groups[:MAX_MERCHANTS_PER_REQUEST]
     if not merchant_groups:
-        return 0
+        return MerchantAnalysisResult(saved=0, groups_processed=0, groups_remaining=0)
     payload = [
         MerchantInput(
             transaction_ids=[int(row["id"]) for row in group],
             merchant=redact_text(str(group[0]["description"])),
             counterparty=redact_text(str(group[0]["counterparty"])) if group[0]["counterparty"] else None,
             operation_types=sorted({str(row["transaction_type"] or "unknown") for row in group}),
-            sample_amounts=[float(abs(Decimal(str(row["amount"])))) for row in group[:5]],
+            sample_amounts=[float(Decimal(str(row["amount"]))) for row in group[:5]],
             currency=str(group[0]["currency"]),
         )
         for group in merchant_groups
@@ -62,9 +69,13 @@ def analyze_merchants(connection: sqlite3.Connection) -> int:
         4,
     )
     category_keys = set(category_keys_tuple)
+    is_income_by_id = {int(row["id"]): Decimal(str(row["amount"])) > 0 for group in merchant_groups for row in group}
     saved = 0
     for item in response.classifications:
-        category_key = item.category_key if item.category_key in category_keys else "uncategorized_expense"
+        if item.category_key in category_keys:
+            category_key = item.category_key
+        else:
+            category_key = "income" if is_income_by_id.get(item.transaction_ids[0], False) else "uncategorized_expense"
         saved += _save_suggestion(
             connection,
             "merchant_classification",
@@ -77,7 +88,9 @@ def analyze_merchants(connection: sqlite3.Connection) -> int:
             },
         )
     connection.commit()
-    return saved
+    return MerchantAnalysisResult(
+        saved=saved, groups_processed=len(merchant_groups), groups_remaining=len(all_groups) - len(merchant_groups)
+    )
 
 
 def analyze_relations(connection: sqlite3.Connection) -> int:

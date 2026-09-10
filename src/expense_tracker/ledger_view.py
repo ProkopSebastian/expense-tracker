@@ -3,6 +3,21 @@ from __future__ import annotations
 from collections import defaultdict
 from decimal import Decimal
 
+from .text_utils import clean_description, is_card_operation
+
+
+def _visible_counterparty(row: dict[str, object]) -> str:
+    # For a card payment, "counterparty" is the card acquirer/bank, not the merchant (which is
+    # already in the description) — showing it is noise. For a transfer, it's the actual person
+    # or company the money moved to/from, which is genuinely useful (e.g. spotting a rent payment).
+    # Nest formats it as "NAME|ADDRESS" — only the name is worth showing.
+    if is_card_operation(row.get("transaction_type")):
+        return "—"
+    counterparty = row["counterparty"]
+    if not counterparty:
+        return "—"
+    return str(counterparty).split("|")[0].strip() or "—"
+
 
 def _standalone_row(row: dict[str, object]) -> dict[str, object]:
     amount = Decimal(str(row["amount"]))
@@ -12,8 +27,8 @@ def _standalone_row(row: dict[str, object]) -> dict[str, object]:
         "_kind": "standalone",
         "Data": row["booking_date"],
         "Konto": row["account"],
-        "Opis": row["description"],
-        "Kontrahent": row["counterparty"] or "—",
+        "Opis": clean_description(str(row["description"])),
+        "Kontrahent": _visible_counterparty(row),
         "Kwota": float(amount),
         "Waluta": row["currency"],
         "Kategoria": row["category_label"] or "Do przypisania",
@@ -28,8 +43,8 @@ def _member_row(row: dict[str, object], case: dict[str, object]) -> dict[str, ob
         "_kind": "case_member",
         "Data": row["booking_date"],
         "Konto": row["account"],
-        "Opis": f"↳ {row['description']}",
-        "Kontrahent": row["counterparty"] or "—",
+        "Opis": f"↳ {clean_description(str(row['description']))}",
+        "Kontrahent": _visible_counterparty(row),
         "Kwota": float(Decimal(str(row["amount"]))),
         "Waluta": row["currency"],
         "Kategoria": case["category_label"] or "Do przypisania",
