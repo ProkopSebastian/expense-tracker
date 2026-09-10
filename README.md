@@ -44,12 +44,15 @@ Nasłuchuje wyłącznie na `127.0.0.1`. Cztery zakładki:
 - **Podsumowanie** — wykres kołowy/słupkowy wydatków wg kategorii z wyborem miesiąca; kliknięcie w kategorię
   (albo wybór z listy, jeśli klik nie zadziała w Twojej przeglądarce) pokazuje jej podkategorie, a potem
   podział na konkretnych sprzedawców (np. Jedzenie → Zakupy spożywcze → Żabka/Biedronka).
-- **Historia transakcji** — pełny rejestr transakcji; „grupy” łączące kilka transakcji w jeden realny koszt
-  są wyróżnione kolorem i pokazane jako nagłówek z wciętymi pozycjami pod spodem. Zaznacz jedną transakcję,
-  żeby od razu (bez dodatkowego przycisku) zmienić jej kategorię; zaznacz kilka, żeby połączyć je w grupę.
-  Tu też: ręczne dodawanie wydatków (np. gotówkowych) i lista istniejących grup.
-- **Do klasyfikacji** — klasyfikacja merchantów i wykrywanie powiązań przez AI, oraz jedna tabela do
-  ręcznej korekty przypisanych kategorii.
+- **Historia transakcji** — pełny rejestr transakcji z filtrem kierunku (Wszystkie/Wydatki/Wpływy) i
+  kategorii; „grupy” łączące kilka transakcji w jeden realny koszt są wyróżnione kolorem i pokazane jako
+  nagłówek z wciętymi pozycjami pod spodem — grupa liczy się zawsze jako jedna pozycja, w jednej kategorii,
+  albo wydatek, albo wpływ. Zaznacz jedną transakcję, żeby od razu (bez dodatkowego przycisku) zmienić jej
+  kategorię; zaznacz kilka, żeby połączyć je w grupę. Tu też: ręczne dodawanie wydatków (np. gotówkowych) i
+  lista istniejących grup.
+- **Do klasyfikacji** — klasyfikacja merchantów (wraz z tym, ile razy AI skorzystało z wyszukiwania
+  internetowego) i wykrywanie powiązań przez AI (jedno zapytanie, do 100 najnowszych transakcji spoza
+  istniejących grup — starsze nie są jeszcze sprawdzane), oraz jedna tabela do ręcznej korekty kategorii.
 - **Reguły sprzedawców** — podgląd zapamiętanych reguł z możliwością zmiany kategorii (poprawka cofa się
   też na transakcje, które ta reguła już wcześniej automatycznie sklasyfikowała) albo usunięcia reguły.
 

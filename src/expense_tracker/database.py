@@ -81,6 +81,7 @@ CATEGORIES = (
     ("gifts", "Prezenty i darowizny", None, "expense"),
     ("savings", "Oszczędności i inwestycje", None, "expense"),
     ("pets", "Zwierzęta", None, "expense"),
+    ("cash_withdrawal", "Wypłata gotówki", None, "expense"),
     ("income", "Przychody", None, "income"),
     ("income_salary", "Wynagrodzenie", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
