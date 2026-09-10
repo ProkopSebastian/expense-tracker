@@ -10,27 +10,37 @@ from expense_tracker.ui import classification_tab, classified_tab, ledger_tab, s
 from expense_tracker.ui.state import get_database
 
 
-def _auto_sync(database: Database) -> None:
-    result = sync_data_directory(database, settings.data_dir)
+def _handle_refresh(database: Database) -> None:
+    with st.spinner("Sprawdzam nowe pliki w folderze data..."):
+        result = sync_data_directory(database, settings.data_dir)
+    if not result.new_files and not result.unsupported_files and not result.error_files:
+        st.info("Wszystko jest już aktualne.")
     if result.new_files:
-        st.toast(f"Zaimportowano {result.transactions_inserted} nowych transakcji z {len(result.new_files)} plików.")
+        st.success(f"Dodano {result.transactions_inserted} nowych transakcji z {len(result.new_files)} plików.")
     for name in result.unsupported_files:
         st.warning(f"Nie rozpoznano formatu pliku „{name}”. Sprawdź, czy pochodzi z obsługiwanego banku.")
     for name, error in result.error_files:
         st.error(f"Błąd w pliku „{name}”: {error}")
+    st.rerun()
 
 
 def main() -> None:
     st.set_page_config(page_title="Analiza wydatków", page_icon="💳", layout="wide")
-    st.title("Analiza wydatków")
-    st.caption("Wszystkie dane zostają na Twoim komputerze. Nowe pliki z folderu `data` wczytują się automatycznie.")
+    title_col, button_col = st.columns([5, 1])
+    title_col.title("Analiza wydatków")
+    title_col.caption("Wszystkie dane zostają na Twoim komputerze.")
 
     database = get_database()
-    _auto_sync(database)
+    if button_col.button("🔄 Odśwież dane", width="stretch"):
+        _handle_refresh(database)
+
     data = snapshot(database.connection)
 
     if not data["transactions"]:
-        st.info("Nie masz jeszcze żadnych transakcji. Wrzuć plik z historią konta do folderu `data` i odśwież stronę.")
+        st.info(
+            "Nie masz jeszcze żadnych transakcji. Wrzuć plik z historią konta do folderu `data` "
+            "i kliknij „🔄 Odśwież dane”."
+        )
         return
 
     summary_view, ledger_view, classification_view, classified_view = st.tabs(

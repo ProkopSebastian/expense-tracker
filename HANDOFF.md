@@ -4,7 +4,7 @@
 
 This is a local-first personal-finance application for importing bank exports, understanding actual personal expenses, and reviewing uncertain cases in a Polish dashboard. The application must retain every imported record locally and keep an audit trail for every derived decision.
 
-The source has Nest Bank and Revolut CSV importers, a normalized transaction model, SQLite database, a Polish Streamlit dashboard (four tabs: Podsumowanie, Historia transakcji, Do klasyfikacji, Zaklasyfikowane; no sidebar), local decisions, merchant rules, approved expense cases, and a live OpenAI Responses API integration for merchant classification and relation detection. `data/` is scanned and imported automatically on every app load/rerun (`ui/app.py`'s `_auto_sync`, backed by `data_sync.sync_data_directory`) — no button click is required.
+The source has Nest Bank and Revolut CSV importers, a normalized transaction model, SQLite database, a Polish Streamlit dashboard (four tabs: Podsumowanie, Historia transakcji, Do klasyfikacji, Zaklasyfikowane; no sidebar), local decisions, merchant rules, approved expense cases, and a live OpenAI Responses API integration for merchant classification and relation detection. `data/` is scanned and imported when the user clicks "🔄 Odśwież dane" next to the title (`ui/app.py`'s `_handle_refresh`, backed by `data_sync.sync_data_directory`) — deliberately not automatic, so the user sees the spinner and an explicit result rather than data silently appearing.
 
 ## Product principles
 
@@ -42,7 +42,7 @@ src/expense_tracker/
   matching.py             basic own-transfer candidates (CLI-only, not wired into suggestions)
   dashboard_data.py       snapshot(connection) assembling everything the UI needs
   ui/
-    app.py                 Streamlit entry point (st.set_page_config, auto-sync, tabs) — no sidebar
+    app.py                 Streamlit entry point (st.set_page_config, "Odśwież dane" button, tabs) — no sidebar
     state.py                cached Database connection (st.cache_resource)
     formatting.py            pln(), category_options(), fixed categorical color map + top-N-and-Inne folding
     summary_tab.py            Podsumowanie: pie/bar toggle with click-to-drill-down (Plotly) + a reliable
@@ -132,18 +132,38 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
 ## LLM policy and implemented workflow
 
 - The user has explicitly authorized bounded transaction context for OpenAI analysis, after local redaction.
+- **Exactly what leaves the machine, per call** (see `llm/service.py` for the literal field lists):
+  - Merchant classification (`analyze_merchants`, `MerchantInput`): per unresolved merchant group (max 20
+    groups per click, grouped by normalized description+currency) — the redacted description, redacted
+    counterparty (or null), the set of operation types seen, up to 5 signed sample amounts, currency, and
+    the transaction ids (used only to write the decision back locally, never meaningful to OpenAI). Plus the
+    full category catalog (key/label/parent_key/kind) so the model can only choose from it.
+  - Relation analysis (`analyze_relations`): up to 100 transactions not yet in a case (regardless of whether
+    they already have a category) — for each: booking date, **signed exact amount**, currency, the internal
+    account label ("nest"/"revolut", not an account number), operation type, redacted description, redacted
+    counterparty, and current category/decision status. Plus the same category catalog.
+  - `redact_text()` strips account numbers, card fragments, phone numbers, and emails from description/
+    counterparty before either call — it does **not** strip personal names (that needs NER, out of scope),
+    so a counterparty like "Magda Laskowska" or an employer's registered name reaches OpenAI as-is. This is
+    a known, accepted limitation, not an oversight — surfaced explicitly here and to the user on request.
+  - Nothing else leaves the machine: no raw CSV file, no bank account numbers/IBANs, no balances.
 - Merchant classification sends at most 20 unique unresolved merchant groups per button click, with the
   redacted description/counterparty, operation type, currency, and up to five sample amounts. The model may
   use at most four web searches, only where needed to identify a merchant.
-- Relation analysis is a separate, no-web, single request over up to 100 local, redacted transaction rows.
+- Relation analysis is a separate, no-web, single request over up to 100 local, redacted transaction rows —
+  it considers any transaction not yet grouped into a case, whether or not it already has a category, so it
+  is not limited to "before you've classified anything."
 - The LLM returns strict structured data; `category_key` is constrained to the live category list at the JSON
   Schema level (`Literal[...]` built per request from `categories(connection)`), not just checked afterward.
 - `store=False` is set explicitly (the Responses API defaults to storing otherwise).
 - Web search is enabled by default for merchant classification (`OPENAI_WEB_SEARCH=false` to disable). Not
   used in relation analysis.
-- `MERCHANT_INSTRUCTIONS` (prompt v2) explicitly asks the model to recognize transfers to the account
-  owner's own other accounts (counterparty name matching the owner, or wording like "wypłata"/"oszczędności"/
-  "lokata"/"IKE"/"IKZE") and classify those as `transfer_own`. This is inherently a one-sided judgment call —
+- `MERCHANT_INSTRUCTIONS` (prompt v3) is structured as numbered hard rules plus worked examples: it tells
+  the model sample amounts are signed (positive = income, negative = expense) and to pick an income-kind
+  category for positive amounts instead of skipping them; it explicitly asks the model to recognize transfers
+  to the account owner's own other accounts (counterparty name matching the owner, or wording like
+  "wypłata"/"oszczędności"/"lokata"/"IKE"/"IKZE") and classify those as `transfer_own`. This is inherently a
+  one-sided judgment call —
   a transfer to an account that isn't itself imported into this app has no matching opposite-signed leg for
   `matching.py`'s deterministic pairing to find — so it can miss cases the prompt wording doesn't anticipate.
   The `merchant_rules` cache (see above) is the fallback: one manual correction with "zapamiętaj regułę"
@@ -163,15 +183,17 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
 ## Verified state
 
 - `uv run ruff format .` / `uv run ruff check .` — clean.
-- `uv run pytest -q` — passing (27 tests: CSV import for both banks, redaction incl. an LLM-payload
+- `uv run pytest -q` — passing (33 tests: CSV import for both banks, redaction incl. an LLM-payload
   integration check, reporting/case math incl. the 3-level category/subcategory/merchant breakdown,
-  ledger_view grouping, manual entry, data_sync, database migrations, dynamic category-enum schema
-  validation, merchant-rule listing/deletion, edit-before-approve on a suggestion).
+  ledger_view grouping and counterparty visibility rules, manual entry, data_sync, database migrations,
+  dynamic category-enum schema validation, merchant-rule listing/deletion, edit-before-approve on a
+  suggestion, description cleaning, income transactions reaching `analyze_merchants`).
 - Migration verified against a copy of the pre-existing production database: 39 transactions, 1 case, 40
   suggestions all preserved; `links`/`classifications` dropped; idempotent on repeated opens.
-- End-to-end auto-sync verified via `streamlit.testing.v1.AppTest` against a fresh database pointed at both
-  sample files in `data/`: both Nest (39 rows) and Revolut (4 rows, including a `PENDING` one) import with
-  zero clicks required, across all four tabs, with no exceptions.
+- End-to-end refresh flow verified via `streamlit.testing.v1.AppTest` against a fresh database pointed at
+  both sample files in `data/`: clicking "🔄 Odśwież dane" imports both Nest (39 rows) and Revolut (4 rows,
+  including a `PENDING` one), across all four tabs, with no exceptions; a fresh app load with no click yet
+  correctly shows the empty-state prompt instead of silently importing anything.
 - The production `expense-tracker.sqlite3` was deliberately deleted once (2026-09-10) at the user's request,
-  since it only ever held data reconstructible from the two files in `data/` — it recreates itself and
-  re-imports both files automatically on next app load.
+  since it only ever held data reconstructible from the two files in `data/` — clicking "Odśwież dane"
+  recreates it and re-imports both files.

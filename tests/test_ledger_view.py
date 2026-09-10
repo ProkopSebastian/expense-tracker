@@ -48,3 +48,34 @@ def test_transfer_own_shows_zero_real_amount(database: Database) -> None:
 
     assert built[0]["Kwota"] == -500.0
     assert built[0]["Kwota rzeczywista"] == 0.0
+
+
+def test_counterparty_hidden_for_card_payments_but_shown_for_transfers(database: Database) -> None:
+    database.insert_transactions(
+        [
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 10),
+                amount=Decimal("-35"),
+                currency="PLN",
+                description="MR.ROLLO WARSZAWA Nr karty ...4724",
+                counterparty="Nest Bank S.A.|ul Wołoska 24",
+                raw={"Rodzaj operacji": "Płatności kartą"},
+            ),
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 10),
+                amount=Decimal("-1000"),
+                currency="PLN",
+                description="Czynsz za garaż",
+                counterparty="Agnieszka Nowak",
+                raw={"Rodzaj operacji": "Przelewy wychodzące"},
+            ),
+        ]
+    )
+
+    built = build_rows(transactions(database.connection), approved_cases(database.connection))
+    by_opis = {row["Opis"]: row for row in built}
+
+    assert by_opis["MR.ROLLO WARSZAWA"]["Kontrahent"] == "—"
+    assert by_opis["Czynsz za garaż"]["Kontrahent"] == "Agnieszka Nowak"
