@@ -1,0 +1,33 @@
+[project]
+name = "expense-tracker"
+version = "0.1.0"
+description = "Local-first personal expense analysis"
+readme = "README.md"
+authors = [
+    { name = "Sebastian Prokop", email = "sebaprokoppp@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "openai>=2.30.0",
+    "pandas>=3.0.5",
+    "plotly>=7.0.0",
+    "pydantic-settings>=2.12.0",
+    "streamlit>=1.55.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.15.0"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[project.scripts]
+expense-tracker = "expense_tracker:main"
+
+[build-system]
+requires = ["uv_build>=0.12.8,<0.13.0"]
+build-backend = "uv_build"
