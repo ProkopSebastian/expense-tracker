@@ -34,6 +34,11 @@ ROLE_LABELS = {
 }
 
 
+DIRECTION_ALL = "Wszystkie"
+DIRECTION_EXPENSE = "Wydatki"
+DIRECTION_INCOME = "Wpływy"
+
+
 def _row_style(kind: str, width: int) -> list[str]:
     if kind == "case_summary":
         return ["background-color: rgba(99, 102, 241, 0.35); font-weight: 700"] * width
@@ -42,16 +47,44 @@ def _row_style(kind: str, width: int) -> list[str]:
     return [""] * width
 
 
+def _block_direction(df: pd.DataFrame) -> pd.Series:
+    # A group's real signed amount only lives on one row (the standalone row itself, or the case's
+    # header row) — member rows carry None. Broadcast that one value to every row sharing the same
+    # _group_id, so filtering by direction includes or excludes a whole group together.
+    return df.groupby("_group_id")["Kwota rzeczywista"].transform(
+        lambda amounts: next((amount for amount in amounts if pd.notna(amount)), 0.0)
+    )
+
+
 def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
-    search = st.text_input("Szukaj w opisie lub kontrahencie")
     df = pd.DataFrame(rows)
+    block_amount = _block_direction(df)
+
+    search = st.text_input("Szukaj w opisie lub kontrahencie")
+    filter_col1, filter_col2 = st.columns([1, 2])
+    direction = filter_col1.radio("Kierunek", [DIRECTION_ALL, DIRECTION_EXPENSE, DIRECTION_INCOME], horizontal=True)
+    category_choices = sorted(df["Kategoria"].unique())
+    selected_categories = filter_col2.multiselect("Filtruj po kategorii", category_choices)
+
+    mask = pd.Series(True, index=df.index)
     if search:
         needle = search.casefold()
-        mask = df["Opis"].str.casefold().str.contains(needle, na=False) | df["Kontrahent"].str.casefold().str.contains(
+        mask &= df["Opis"].str.casefold().str.contains(needle, na=False) | df["Kontrahent"].str.casefold().str.contains(
             needle, na=False
         )
-        df = df[mask]
-    display = df.drop(columns=["id", "_kind", "_category_key"])
+    if direction == DIRECTION_EXPENSE:
+        mask &= block_amount < 0
+    elif direction == DIRECTION_INCOME:
+        mask &= block_amount > 0
+    if selected_categories:
+        mask &= df["Kategoria"].isin(selected_categories)
+    df = df[mask]
+
+    if df.empty:
+        st.info("Brak transakcji pasujących do filtrów.")
+        return df.iloc[0:0]
+
+    display = df.drop(columns=["id", "_kind", "_category_key", "_group_id"])
     kinds = df["_kind"]
     styled = display.style.apply(lambda row: _row_style(kinds.loc[row.name], len(row)), axis=1)
     st.caption(
@@ -113,10 +146,13 @@ def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categori
         st.warning("Zaznaczone transakcje muszą być w jednej walucie.")
         return
     currency = str(selected["Waluta"].iloc[0])
+    raw_total = sum((Decimal(str(amount)) for amount in selected["Kwota"]), Decimal(0))
     st.subheader("Połącz zaznaczone transakcje w grupę")
     st.caption(
-        "Grupa łączy kilka ruchów bankowych opisujących jedno zdarzenie (np. zapłaciłeś za lot, znajomy oddał "
-        "Ci część) w jeden realny koszt — surowe transakcje zostają widoczne, ale do sumy liczy się tylko on."
+        f"Zaznaczyłeś {len(selected)} transakcji, suma surowych kwot: {raw_total:.2f} {currency}. Grupa liczy "
+        "się jako JEDNA pozycja w JEDNEJ kategorii — albo wydatek, albo wpływ, nigdy oba naraz — na kwotę "
+        "„Twój rzeczywisty koszt” podaną niżej. Surowe transakcje zostają widoczne w Historii dla wglądu, ale "
+        "do sum i wykresów wchodzi tylko ta jedna, ustalona niżej kwota."
     )
     with st.form("merge_case", clear_on_submit=True):
         title = st.text_input("Nazwa grupy", placeholder="Loty do Lizbony")

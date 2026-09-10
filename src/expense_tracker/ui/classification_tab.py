@@ -35,6 +35,11 @@ def _ai_buttons(connection: sqlite3.Connection, data: dict[str, object]) -> None
         "AI sprawdza za jednym razem maksymalnie 20 różnych sprzedawców. Jeśli zostanie ich więcej, "
         "kliknij przycisk ponownie, żeby przetworzyć kolejną partię."
     )
+    st.caption(
+        "„Wykryj powiązania” analizuje za jednym razem do 100 najnowszych transakcji, które nie są jeszcze "
+        "w żadnej grupie (niezależnie od tego, czy mają już kategorię) — jedno zapytanie, bez podziału na "
+        "partie i bez wyszukiwania w internecie. Starsze niż 100. transakcje nie są jeszcze sprawdzane."
+    )
     button_col1, button_col2 = st.columns(2)
     if button_col1.button("Klasyfikuj merchantów przez AI", type="primary", disabled=not unclassified):
         with st.spinner("AI klasyfikuje kolejną partię merchantów i w razie potrzeby sprawdza ich w internecie..."):
@@ -43,13 +48,17 @@ def _ai_buttons(connection: sqlite3.Connection, data: dict[str, object]) -> None
             except Exception as error:
                 st.error(f"Nie udało się uzyskać sugestii AI: {error}")
                 return
+        search_note = f" AI wyszukało w internecie {result.web_searches}×." if result.web_searches else ""
         if result.groups_remaining:
             st.toast(
-                f"Sprawdzono {result.groups_processed} sprzedawców (nowe sugestie: {result.saved}). "
-                f"Zostało jeszcze {result.groups_remaining} — kliknij ponownie, żeby przetworzyć kolejną partię."
+                f"Sprawdzono {result.groups_processed} sprzedawców (nowe sugestie: {result.saved})."
+                f"{search_note} Zostało jeszcze {result.groups_remaining} — kliknij ponownie."
             )
         else:
-            st.toast(f"Sprawdzono wszystkich {result.groups_processed} sprzedawców, nowe sugestie: {result.saved}.")
+            st.toast(
+                f"Sprawdzono wszystkich {result.groups_processed} sprzedawców, nowe sugestie: "
+                f"{result.saved}.{search_note}"
+            )
         st.rerun()
     if button_col2.button("Wykryj powiązania między transakcjami"):
         with st.spinner("AI analizuje transakcje i szuka wspólnych grup..."):
@@ -74,10 +83,19 @@ def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) ->
     for suggestion in suggestions:
         payload = suggestion["payload"]
         transaction_ids = [int(tid) for tid in payload["transaction_ids"]]
-        sample = transactions_by_id.get(transaction_ids[0])
+        # A suggestion covers every transaction sharing the same normalized merchant — e.g. two
+        # separate "Apple Pay deposit" top-ups get one shared suggestion. "N×" in the description
+        # is that count, and the amount shown is their sum (labelled Σ), not just the first one.
+        group_rows = [transactions_by_id[tid] for tid in transaction_ids if tid in transactions_by_id]
+        sample = group_rows[0] if group_rows else None
         opis = clean_description(str(sample["description"])) if sample else "—"
         if len(transaction_ids) > 1:
             opis = f"{len(transaction_ids)}× {opis}"
+        if sample:
+            total = sum((Decimal(str(row["amount"])) for row in group_rows), Decimal(0))
+            kwota_display = f"{'Σ ' if len(group_rows) > 1 else ''}{total:.2f} {sample['currency']}"
+        else:
+            kwota_display = "—"
         # An AI guess of "uncategorized" is not a real answer — don't pre-fill it as if it were
         # a confident choice, or clicking "Zapisz zmiany" without touching anything silently
         # writes a decision the user never actually made.
@@ -92,7 +110,7 @@ def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) ->
                 "Data": sample["booking_date"] if sample else "—",
                 "Opis": opis,
                 "Kontrahent": visible_counterparty(sample) if sample else "—",
-                "Kwota": f"{Decimal(str(sample['amount'])):.2f} {sample['currency']}" if sample else "—",
+                "Kwota": kwota_display,
                 "Sugestia AI": payload.get("rationale", "—"),
                 "Pewność": f"{payload.get('confidence', 0):.0%}",
                 "Kategoria": default_category,
@@ -152,7 +170,9 @@ def _classification_editor(connection: sqlite3.Connection, data: dict[str, objec
             "Data": st.column_config.TextColumn(disabled=True),
             "Opis": st.column_config.TextColumn(disabled=True, width="medium"),
             "Kontrahent": st.column_config.TextColumn(disabled=True),
-            "Kwota": st.column_config.TextColumn(disabled=True),
+            "Kwota": st.column_config.TextColumn(
+                disabled=True, help="Σ oznacza sumę kilku transakcji tego samego sprzedawcy (patrz „N×” w opisie)."
+            ),
             "Sugestia AI": st.column_config.TextColumn(
                 disabled=True, width="large", help="Uzasadnienie podane przez AI (puste dla ręcznie dodanych wierszy)."
             ),

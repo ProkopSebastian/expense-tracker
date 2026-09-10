@@ -37,6 +37,7 @@ class MerchantAnalysisResult:
     saved: int
     groups_processed: int
     groups_remaining: int
+    web_searches: int
 
 
 def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
@@ -57,7 +58,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     all_groups = list(groups.values())
     merchant_groups = all_groups[:MAX_MERCHANTS_PER_REQUEST]
     if not merchant_groups:
-        return MerchantAnalysisResult(saved=0, groups_processed=0, groups_remaining=0)
+        return MerchantAnalysisResult(saved=0, groups_processed=0, groups_remaining=0, web_searches=0)
     payload = [
         MerchantInput(
             transaction_ids=[int(row["id"]) for row in group],
@@ -70,7 +71,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
         for group in merchant_groups
     ]
     category_keys_tuple = tuple(str(category["key"]) for category in categories(connection))
-    response = _request(
+    response, web_searches = _request(
         build_merchant_analysis_model(category_keys_tuple),
         MERCHANT_INSTRUCTIONS,
         merchant_input(categories(connection), payload),
@@ -97,7 +98,10 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
         )
     connection.commit()
     return MerchantAnalysisResult(
-        saved=saved, groups_processed=len(merchant_groups), groups_remaining=len(all_groups) - len(merchant_groups)
+        saved=saved,
+        groups_processed=len(merchant_groups),
+        groups_remaining=len(all_groups) - len(merchant_groups),
+        web_searches=web_searches,
     )
 
 
@@ -121,7 +125,7 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
         for row in rows
     ]
     category_keys_tuple = tuple(str(category["key"]) for category in categories(connection))
-    response = _request(
+    response, _ = _request(
         build_relation_analysis_model(category_keys_tuple),
         RELATION_INSTRUCTIONS,
         relation_input(categories(connection), payload),
@@ -140,7 +144,7 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
     return saved
 
 
-def _request(model: type[BaseModel], instructions: str, input_text: str, max_tool_calls: int) -> Any:
+def _request(model: type[BaseModel], instructions: str, input_text: str, max_tool_calls: int) -> tuple[Any, int]:
     api_key = settings.openai_api_key
     if api_key is None:
         raise ValueError("Brakuje OPENAI_API_KEY w pliku .env.")
@@ -167,7 +171,8 @@ def _request(model: type[BaseModel], instructions: str, input_text: str, max_too
     response = OpenAI(api_key=api_key.get_secret_value()).responses.create(
         **request,
     )
-    return model.model_validate_json(response.output_text)
+    web_searches = sum(1 for item in response.output if getattr(item, "type", None) == "web_search_call")
+    return model.model_validate_json(response.output_text), web_searches
 
 
 def _save_suggestion(connection: sqlite3.Connection, kind: str, payload: dict[str, object]) -> int:

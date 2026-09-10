@@ -51,12 +51,20 @@ src/expense_tracker/
                                -> merchant (grouped by merchant_key())
     ledger_tab.py              Historia transakcji: grouped ledger (case header row highlighted, styled
                                background, members indented below it, user-facing label "Grupa" — internal
-                               table/column names stay "cases"/"case_members"), select one row to recategorize
-                               it instantly (plain st.selectbox + on_change, no save button — data_editor
-                               doesn't support row selection so this couldn't reuse the same widget as the
-                               merge flow), select 2+ to merge-into-case, manual entry, cases list
+                               table/column names stay "cases"/"case_members"), direction (Wszystkie/Wydatki/
+                               Wpływy) and category filters (_block_direction() broadcasts a group's one real
+                               signed amount to its member rows via the row-level _group_id field, so a whole
+                               group is included/excluded together rather than orphaning a header from its
+                               members), select one row to recategorize it instantly (plain st.selectbox +
+                               on_change, no save button — data_editor doesn't support row selection so this
+                               couldn't reuse the same widget as the merge flow), select 2+ to merge-into-case
+                               (with an upfront plain-language summary of what will be counted, since "a group
+                               is one line item in one category, either wholly expense or wholly income" was
+                               not obvious from the form alone), manual entry, cases list
     classification_tab.py       Do klasyfikacji: AI triggers + unified review data_editor (Data/Opis/
-                                 Kontrahent/Kwota as separate columns, not one crammed string)
+                                 Kontrahent/Kwota as separate columns, not one crammed string; a suggestion
+                                 covering N grouped transactions shows "N times" plus their summed amount (Σ),
+                                 not just the first transaction's amount) + web-search-usage count in the toast
     classified_tab.py            Reguły sprzedawców tab: merchant-rule manager only (edit category —
                                   retroactively fixes transactions that rule itself auto-classified, via
                                   ledger.update_merchant_rule — or delete). The "already-decided transactions,
@@ -174,17 +182,27 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
   Schema level (`Literal[...]` built per request from `categories(connection)`), not just checked afterward.
 - `store=False` is set explicitly (the Responses API defaults to storing otherwise).
 - Web search is enabled by default for merchant classification (`OPENAI_WEB_SEARCH=false` to disable). Not
-  used in relation analysis.
-- `MERCHANT_INSTRUCTIONS` (prompt v3) is structured as numbered hard rules plus worked examples: it tells
+  used in relation analysis. `_request()` counts `response.output` items with `type == "web_search_call"`
+  (the discriminated literal on `openai.types.responses.ResponseFunctionWebSearch`) and returns that count
+  alongside the parsed model; `MerchantAnalysisResult.web_searches` surfaces it in the UI toast so the user
+  can see, per click, whether the model actually searched or just answered from what it already "knew" — the
+  tool being enabled doesn't mean every call uses it.
+- `MERCHANT_INSTRUCTIONS` (prompt v4) is structured as numbered hard rules plus worked examples: it tells
   the model sample amounts are signed (positive = income, negative = expense) and to pick an income-kind
   category for positive amounts instead of skipping them; it explicitly asks the model to recognize transfers
   to the account owner's own other accounts (counterparty name matching the owner, or wording like
-  "wypłata"/"oszczędności"/"lokata"/"IKE"/"IKZE") and classify those as `transfer_own`. This is inherently a
-  one-sided judgment call —
-  a transfer to an account that isn't itself imported into this app has no matching opposite-signed leg for
-  `matching.py`'s deterministic pairing to find — so it can miss cases the prompt wording doesn't anticipate.
-  The `merchant_rules` cache (see above) is the fallback: one manual correction with "zapamiętaj regułę"
-  fixes it permanently for that description.
+  "wypłata"/"oszczędności"/"lokata"/"IKE"/"IKZE") and classify those as `transfer_own`; and separately
+  recognizes physical ATM cash withdrawals ("bankomat"/"ATM"/"wypłata gotówki") as `cash_withdrawal` — a
+  distinct, deliberately new expense category, not `transfer_own`, since cash leaving the account is a real
+  expense the app can no longer see the destination of, unlike a transfer to another own account. Self-
+  transfer detection is inherently a one-sided judgment call — a transfer to an account that isn't itself
+  imported into this app has no matching opposite-signed leg for `matching.py`'s deterministic pairing to
+  find — so it can miss cases the prompt wording doesn't anticipate. The `merchant_rules` cache (see above)
+  is the fallback: one manual correction with "zapamiętaj regułę" fixes it permanently for that description.
+- The model itself (`OPENAI_MODEL` in `.env`) and its cost/reasoning-effort settings (`reasoning.effort=low`,
+  `max_output_tokens=4000` in `_request()`) were inherited from the original vibecoded setup, not chosen
+  during this rewrite — check OpenAI's own pricing page for the configured model if cost matters; this repo
+  has no visibility into or opinion on it.
 
 ## Implementation order (original roadmap, mostly complete)
 
@@ -200,13 +218,14 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
 ## Verified state
 
 - `uv run ruff format .` / `uv run ruff check .` — clean.
-- `uv run pytest -q` — passing (39 tests: CSV import for both banks, redaction incl. an LLM-payload
+- `uv run pytest -q` — passing (41 tests: CSV import for both banks, redaction incl. an LLM-payload
   integration check, reporting/case math incl. the 3-level category/subcategory/merchant breakdown,
   ledger_view grouping and counterparty visibility rules, manual entry, data_sync, database migrations,
   dynamic category-enum schema validation, merchant-rule listing/deletion/retroactive-update,
   edit-before-approve on a suggestion with correct `source='llm'`, description cleaning, income
   transactions reaching `analyze_merchants`, no duplicate suggestion on a repeat classify click,
-  `merchant_key()` domain-extraction).
+  `merchant_key()` domain-extraction, web-search-call counting from a fake Responses API item list,
+  the ledger direction filter's group-aware amount broadcasting).
 - Single-row quick recategorize (Historia transakcji, `st.selectbox(..., on_change=...)`, no save button)
   verified via `streamlit.testing.v1.AppTest` with a programmatic dataframe-selection state assignment
   (`at.session_state["ledger_table"] = {"selection": {"rows": [...]}}`) followed by `.select(...).run()` on

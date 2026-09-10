@@ -37,7 +37,7 @@ def test_merchant_classification_payload_never_contains_raw_pii(database: Databa
 
     def fake_request(model, instructions, input_text, max_tool_calls):
         captured["input_text"] = input_text
-        return model.model_validate({"classifications": []})
+        return model.model_validate({"classifications": []}), 0
 
     with patch.object(service, "_request", fake_request):
         service.analyze_merchants(database.connection)

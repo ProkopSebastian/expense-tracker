@@ -6,6 +6,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from pydantic import SecretStr
+
 from expense_tracker.database import Database
 from expense_tracker.llm import service
 from expense_tracker.models import Transaction
@@ -28,7 +30,7 @@ def test_analyze_merchants_includes_income_transactions(database: Database) -> N
 
     def fake_request(model, instructions, input_text, max_tool_calls):
         captured["input_text"] = input_text
-        return model.model_validate({"classifications": []})
+        return model.model_validate({"classifications": []}), 0
 
     with patch.object(service, "_request", fake_request):
         result = service.analyze_merchants(database.connection)
@@ -62,7 +64,7 @@ def test_analyze_merchants_falls_back_to_income_category_for_positive_amount(dat
             rationale="unclear",
             should_create_rule=False,
         )
-        return SimpleNamespace(classifications=[item])
+        return SimpleNamespace(classifications=[item]), 0
 
     with patch.object(service, "_request", fake_request):
         result = service.analyze_merchants(database.connection)
@@ -101,7 +103,7 @@ def test_analyze_merchants_does_not_resend_transactions_with_a_pending_suggestio
             rationale=f"guess #{call_count}",
             should_create_rule=False,
         )
-        return SimpleNamespace(classifications=[item])
+        return SimpleNamespace(classifications=[item]), 0
 
     with patch.object(service, "_request", fake_request):
         first = service.analyze_merchants(database.connection)
@@ -113,3 +115,35 @@ def test_analyze_merchants_does_not_resend_transactions_with_a_pending_suggestio
         "SELECT COUNT(*) AS n FROM suggestions WHERE kind = 'merchant_classification'"
     ).fetchone()["n"]
     assert count == 1
+
+
+def test_request_counts_web_search_calls_from_the_response(database: Database) -> None:
+    database.insert_transactions(
+        [
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 1),
+                amount=Decimal("-40"),
+                currency="PLN",
+                description="OBSCURE MERCHANT XYZ",
+            )
+        ]
+    )
+
+    fake_response = SimpleNamespace(
+        output=[
+            SimpleNamespace(type="web_search_call"),
+            SimpleNamespace(type="reasoning"),
+            SimpleNamespace(type="web_search_call"),
+        ],
+        output_text='{"classifications": []}',
+    )
+    fake_client = SimpleNamespace(responses=SimpleNamespace(create=lambda **kwargs: fake_response))
+
+    with (
+        patch.object(service, "OpenAI", lambda api_key: fake_client),
+        patch.object(service.settings, "openai_api_key", SecretStr("test-key")),
+    ):
+        result = service.analyze_merchants(database.connection)
+
+    assert result.web_searches == 2
