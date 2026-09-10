@@ -12,7 +12,13 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from ..config import settings
-from ..ledger import categories, merchant_key, pending_merchant_suggestion_transaction_ids, transactions
+from ..ledger import (
+    categories,
+    merchant_key,
+    pending_merchant_suggestion_transaction_ids,
+    pending_relation_suggestion_transaction_ids,
+    transactions,
+)
 from .contracts import (
     MerchantInput,
     TransactionContext,
@@ -106,7 +112,10 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
 
 
 def analyze_relations(connection: sqlite3.Connection) -> int:
-    rows = [row for row in transactions(connection) if not row["case_id"]][:MAX_RELATION_TRANSACTIONS]
+    already_suggested = pending_relation_suggestion_transaction_ids(connection)
+    rows = [row for row in transactions(connection) if not row["case_id"] and int(row["id"]) not in already_suggested][
+        :MAX_RELATION_TRANSACTIONS
+    ]
     if len(rows) < 2:
         return 0
     payload = [
@@ -132,14 +141,27 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
         0,
     )
     transaction_ids = {int(row["id"]) for row in rows}
+    rows_by_id = {int(row["id"]): row for row in rows}
     category_keys = set(category_keys_tuple)
+    claimed_ids: set[int] = set()
     saved = 0
     for item in response.suggestions:
-        if not set(item.transaction_ids).issubset(transaction_ids):
+        item_ids = set(item.transaction_ids)
+        if len(item_ids) < 2 or len(item_ids) != len(item.transaction_ids):
+            continue
+        if not item_ids.issubset(transaction_ids) or item_ids & claimed_ids:
             continue
         if item.category_key and item.category_key not in category_keys:
             continue
-        saved += _save_suggestion(connection, "relation", item.model_dump())
+        if any(str(rows_by_id[transaction_id]["currency"]) != item.currency for transaction_id in item_ids):
+            continue
+        payload = item.model_dump()
+        if item.kind == "own_transfer":
+            payload["personal_amount"] = 0.0
+            payload["category_key"] = "transfer_own"
+        if _save_suggestion(connection, "relation", payload):
+            claimed_ids.update(item_ids)
+            saved += 1
     connection.commit()
     return saved
 

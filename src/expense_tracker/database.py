@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 
 from .models import Transaction
@@ -124,7 +125,7 @@ def fingerprint(transaction: Transaction) -> str:
     return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()
 
 
-def insert_transaction(connection: sqlite3.Connection, transaction: Transaction) -> int | None:
+def insert_transaction(connection: sqlite3.Connection, transaction: Transaction, *, commit: bool = True) -> int | None:
     raw = transaction.raw or {}
     cursor = connection.execute(
         """INSERT OR IGNORE INTO transactions
@@ -146,7 +147,8 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction)
             fingerprint(transaction),
         ),
     )
-    connection.commit()
+    if commit:
+        connection.commit()
     return cursor.lastrowid if cursor.rowcount else None
 
 
@@ -178,11 +180,12 @@ class Database:
     def insert_transaction(self, transaction: Transaction) -> int | None:
         return insert_transaction(self.connection, transaction)
 
-    def insert_transactions(self, transactions: list[Transaction]) -> tuple[int, int]:
+    def insert_transactions(self, transactions: list[Transaction], *, commit: bool = True) -> tuple[int, int]:
         inserted = skipped = 0
-        for transaction in transactions:
-            if insert_transaction(self.connection, transaction) is None:
-                skipped += 1
-            else:
-                inserted += 1
+        with self.connection if commit else nullcontext():
+            for transaction in transactions:
+                if insert_transaction(self.connection, transaction, commit=False) is None:
+                    skipped += 1
+                else:
+                    inserted += 1
         return inserted, skipped

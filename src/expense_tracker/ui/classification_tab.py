@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from ..config import settings
+from ..dashboard_data import ClassificationData
 from ..ledger import (
     apply_rules,
     approve_merchant_suggestion_with_category,
@@ -22,7 +23,7 @@ from .formatting import category_options
 UNASSIGNED = "Do przypisania"
 
 
-def _ai_buttons(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+def _ai_buttons(connection: sqlite3.Connection, data: ClassificationData) -> None:
     if not settings.openai_api_key:
         st.info("Funkcje AI są wyłączone — brakuje klucza w pliku `.env`. Dodaj go i uruchom aplikację ponownie.")
         return
@@ -74,7 +75,7 @@ def _ai_buttons(connection: sqlite3.Connection, data: dict[str, object]) -> None
         st.rerun()
 
 
-def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) -> list[dict[str, object]]:
+def _build_editor_rows(data: ClassificationData, label_by_key: dict[str, str]) -> list[dict[str, object]]:
     transactions_by_id = {int(row["id"]): row for row in data["transactions"]}
     suggestions = [s for s in data["suggestions"] if s["kind"] == "merchant_classification"]
     covered_ids = {int(tid) for s in suggestions for tid in s["payload"]["transaction_ids"]}
@@ -140,7 +141,7 @@ def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) ->
     return rows
 
 
-def _classification_editor(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+def _classification_editor(connection: sqlite3.Connection, data: ClassificationData) -> None:
     options = category_options(data["categories"])
     label_by_key = {key: label for label, key in options.items()}
     rows = _build_editor_rows(data, label_by_key)
@@ -223,7 +224,7 @@ def _classification_editor(connection: sqlite3.Connection, data: dict[str, objec
         st.rerun()
 
 
-def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+def render(connection: sqlite3.Connection, data: ClassificationData) -> None:
     _ai_buttons(connection, data)
     st.divider()
     _classification_editor(connection, data)

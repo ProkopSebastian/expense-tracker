@@ -5,11 +5,12 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 
+from ..dashboard_data import RulesData
 from ..ledger import delete_merchant_rule, merchant_rules, update_merchant_rule
 from .formatting import category_options
 
 
-def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+def render(connection: sqlite3.Connection, data: RulesData) -> None:
     st.subheader("Zapamiętane reguły sprzedawców")
     st.caption(
         "Raz zapisana reguła klasyfikuje automatycznie każdą przyszłą transakcję tego samego sprzedawcy, bez "

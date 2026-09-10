@@ -3,7 +3,13 @@ from __future__ import annotations
 import streamlit as st
 
 from expense_tracker.config import settings
-from expense_tracker.dashboard_data import snapshot
+from expense_tracker.dashboard_data import (
+    classification_data,
+    has_transactions,
+    ledger_data,
+    rules_data,
+    summary_data,
+)
 from expense_tracker.data_sync import sync_data_directory
 from expense_tracker.database import Database
 from expense_tracker.ui import classification_tab, classified_tab, ledger_tab, summary_tab
@@ -34,9 +40,7 @@ def main() -> None:
     if button_col.button("🔄 Odśwież dane", width="stretch"):
         _handle_refresh(database)
 
-    data = snapshot(database.connection)
-
-    if not data["transactions"]:
+    if not has_transactions(database.connection):
         st.info(
             "Nie masz jeszcze żadnych transakcji. Wrzuć plik z historią konta do folderu `data` "
             "i kliknij „🔄 Odśwież dane”."
@@ -44,16 +48,22 @@ def main() -> None:
         return
 
     summary_view, ledger_view, classification_view, classified_view = st.tabs(
-        ["Podsumowanie", "Historia transakcji", "Do klasyfikacji", "Reguły sprzedawców"]
+        ["Podsumowanie", "Historia transakcji", "Do klasyfikacji", "Reguły sprzedawców"],
+        key="main_navigation",
+        on_change="rerun",
     )
-    with summary_view:
-        summary_tab.render(data)
-    with ledger_view:
-        ledger_tab.render(database.connection, data)
-    with classification_view:
-        classification_tab.render(database.connection, data)
-    with classified_view:
-        classified_tab.render(database.connection, data)
+    if summary_view.open:
+        with summary_view:
+            summary_tab.render(summary_data(database.connection))
+    elif ledger_view.open:
+        with ledger_view:
+            ledger_tab.render(database.connection, ledger_data(database.connection))
+    elif classification_view.open:
+        with classification_view:
+            classification_tab.render(database.connection, classification_data(database.connection))
+    elif classified_view.open:
+        with classified_view:
+            classified_tab.render(database.connection, rules_data(database.connection))
 
 
 if __name__ == "__main__":
