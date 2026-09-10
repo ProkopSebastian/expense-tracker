@@ -16,3 +16,6 @@ data/*.csv
 *.sqlite3-wal
 *.sqlite3-shm
 *.sqlite3.bak
+
+# AI
+HANDOFF.md
