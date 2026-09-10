@@ -11,8 +11,17 @@ from decimal import Decimal
 from .database import insert_transaction
 from .models import Transaction
 
+_DOMAIN = re.compile(r"\b([a-z0-9-]+\.(?:pl|com|net|org|eu|shop|store|io))\b", re.IGNORECASE)
+
 
 def merchant_key(description: str) -> str:
+    # An online/BLIK payment description is often mostly payment-processor and reference noise
+    # (e.g. "WWW.VIVACUBA.PL|PAYPRO S.A. ... NUMER TRANSAKCJI BLIK: ...") that differs on every
+    # transaction even for the same merchant. A domain name is a much stronger, stable identity
+    # signal than the surrounding text, so prefer it outright when one is present.
+    domain_match = _DOMAIN.search(description)
+    if domain_match:
+        return domain_match.group(1).casefold()
     value = unicodedata.normalize("NFKD", description)
     value = "".join(character for character in value if not unicodedata.combining(character))
     value = re.sub(r"\b(?:nr\s*karty|card)\b.*$", "", value, flags=re.IGNORECASE)
@@ -33,6 +42,32 @@ def merchant_rules(connection: sqlite3.Connection) -> list[dict[str, object]]:
 def delete_merchant_rule(connection: sqlite3.Connection, rule_id: int) -> None:
     connection.execute("UPDATE merchant_rules SET is_active = 0 WHERE id = ?", (rule_id,))
     connection.commit()
+
+
+def update_merchant_rule(connection: sqlite3.Connection, rule_id: int, category_key: str) -> None:
+    row = connection.execute("SELECT merchant_key FROM merchant_rules WHERE id = ?", (rule_id,)).fetchone()
+    if row is None:
+        raise ValueError("Reguła nie istnieje.")
+    connection.execute("UPDATE merchant_rules SET category_key = ? WHERE id = ?", (category_key, rule_id))
+    # Retroactively fix transactions this exact rule previously auto-classified (source='rule') —
+    # but never touch a decision a human or the AI confirmed explicitly, that stays as chosen.
+    connection.execute(
+        """UPDATE transaction_decisions SET category_key = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE merchant_key = ? AND source = 'rule'""",
+        (category_key, row["merchant_key"]),
+    )
+    connection.commit()
+
+
+def pending_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
+    rows = connection.execute(
+        "SELECT payload_json FROM suggestions WHERE kind = 'merchant_classification' AND status = 'suggested'"
+    ).fetchall()
+    ids: set[int] = set()
+    for row in rows:
+        payload = json.loads(row["payload_json"])
+        ids.update(int(transaction_id) for transaction_id in payload["transaction_ids"])
+    return ids
 
 
 def categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
@@ -87,7 +122,7 @@ def approve_suggestion(connection: sqlite3.Connection, suggestion_id: int) -> No
     if row["kind"] == "merchant_classification":
         transaction_ids = [int(transaction_id) for transaction_id in payload["transaction_ids"]]
         for transaction_id in transaction_ids:
-            save_decision(connection, transaction_id, payload["category_key"], payload["rationale"])
+            save_decision(connection, transaction_id, payload["category_key"], payload["rationale"], source="llm")
         if payload["should_create_rule"] and transaction_ids:
             save_merchant_rule(connection, transaction_ids[0], payload["category_key"])
             apply_rules(connection)
@@ -121,6 +156,7 @@ def save_decision(
     transaction_id: int,
     category_key: str,
     explanation: str = "Ręcznie zatwierdzone w dashboardzie",
+    source: str = "manual",
 ) -> None:
     row = connection.execute("SELECT description FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
     if row is None:
@@ -128,12 +164,12 @@ def save_decision(
     connection.execute(
         """INSERT INTO transaction_decisions
         (transaction_id, category_key, source, status, confidence, explanation, merchant_key)
-        VALUES (?, ?, 'manual', 'approved', 1, ?, ?)
+        VALUES (?, ?, ?, 'approved', 1, ?, ?)
         ON CONFLICT(transaction_id) DO UPDATE SET category_key = excluded.category_key,
             source = excluded.source, status = excluded.status, confidence = excluded.confidence,
             explanation = excluded.explanation, merchant_key = excluded.merchant_key,
             updated_at = CURRENT_TIMESTAMP""",
-        (transaction_id, category_key, explanation, merchant_key(row["description"])),
+        (transaction_id, category_key, source, explanation, merchant_key(row["description"])),
     )
     connection.commit()
 
@@ -254,7 +290,7 @@ def approve_merchant_suggestion_with_category(
     payload = json.loads(row["payload_json"])
     transaction_ids = [int(transaction_id) for transaction_id in payload["transaction_ids"]]
     for transaction_id in transaction_ids:
-        save_decision(connection, transaction_id, category_key, payload.get("rationale", "Sugestia AI"))
+        save_decision(connection, transaction_id, category_key, payload.get("rationale", "Sugestia AI"), source="llm")
     if should_create_rule and transaction_ids:
         save_merchant_rule(connection, transaction_ids[0], category_key)
         apply_rules(connection)

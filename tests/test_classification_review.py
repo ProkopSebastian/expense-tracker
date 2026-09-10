@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from expense_tracker.database import Database
 from expense_tracker.ledger import (
+    apply_rules,
     approve_merchant_suggestion_with_category,
     create_case,
     delete_merchant_rule,
@@ -13,6 +14,7 @@ from expense_tracker.ledger import (
     save_decision,
     save_merchant_rule,
     transactions,
+    update_merchant_rule,
 )
 from expense_tracker.models import Transaction
 
@@ -56,6 +58,7 @@ def test_approving_with_edited_category_overrides_the_ai_suggestion(database: Da
 
     row = transactions(database.connection)[0]
     assert row["category_key"] == "food_restaurants"
+    assert row["decision_source"] == "llm"
     status = database.connection.execute("SELECT status FROM suggestions WHERE id = ?", (suggestion_id,)).fetchone()
     assert status["status"] == "approved"
     rule = database.connection.execute("SELECT category_key FROM merchant_rules").fetchone()
@@ -119,3 +122,45 @@ def test_merchant_rules_can_be_listed_and_deleted(database: Database) -> None:
     delete_merchant_rule(database.connection, int(rules[0]["id"]))
 
     assert merchant_rules(database.connection) == []
+
+
+def test_updating_a_rule_retroactively_fixes_rule_classified_transactions(database: Database) -> None:
+    database.insert_transactions(
+        [
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 1),
+                amount=Decimal("-30"),
+                currency="PLN",
+                description="Zabka",
+            )
+        ]
+    )
+    manual_id = int(transactions(database.connection)[0]["id"])
+    # A manual decision made before the rule existed — untouched by apply_rules and must survive
+    # the retroactive fix below, even though its category happens to match the rule's old value.
+    save_decision(database.connection, manual_id, "shopping")
+    save_merchant_rule(database.connection, manual_id, "shopping")
+
+    database.insert_transactions(
+        [
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 2),
+                amount=Decimal("-20"),
+                currency="PLN",
+                description="Zabka",
+            )
+        ]
+    )
+    rule_classified_id = next(int(row["id"]) for row in transactions(database.connection) if row["id"] != manual_id)
+    apply_rules(database.connection)
+    rows = {int(row["id"]): row for row in transactions(database.connection)}
+    assert rows[rule_classified_id]["decision_source"] == "rule"
+
+    rule_id = int(merchant_rules(database.connection)[0]["id"])
+    update_merchant_rule(database.connection, rule_id, "groceries")
+
+    rows = {int(row["id"]): row for row in transactions(database.connection)}
+    assert rows[rule_classified_id]["category_key"] == "groceries"
+    assert rows[manual_id]["category_key"] == "shopping"

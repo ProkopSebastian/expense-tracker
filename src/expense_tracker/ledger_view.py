@@ -6,7 +6,7 @@ from decimal import Decimal
 from .text_utils import clean_description, is_card_operation
 
 
-def _visible_counterparty(row: dict[str, object]) -> str:
+def visible_counterparty(row: dict[str, object]) -> str:
     # For a card payment, "counterparty" is the card acquirer/bank, not the merchant (which is
     # already in the description) — showing it is noise. For a transfer, it's the actual person
     # or company the money moved to/from, which is genuinely useful (e.g. spotting a rent payment).
@@ -25,14 +25,15 @@ def _standalone_row(row: dict[str, object]) -> dict[str, object]:
     return {
         "id": row["id"],
         "_kind": "standalone",
+        "_category_key": row["category_key"],
         "Data": row["booking_date"],
         "Konto": row["account"],
         "Opis": clean_description(str(row["description"])),
-        "Kontrahent": _visible_counterparty(row),
+        "Kontrahent": visible_counterparty(row),
         "Kwota": float(amount),
         "Waluta": row["currency"],
         "Kategoria": row["category_label"] or "Do przypisania",
-        "Sprawa": "—",
+        "Grupa": "—",
         "Kwota rzeczywista": float(real),
     }
 
@@ -41,14 +42,15 @@ def _member_row(row: dict[str, object], case: dict[str, object]) -> dict[str, ob
     return {
         "id": row["id"],
         "_kind": "case_member",
+        "_category_key": case["category_key"],
         "Data": row["booking_date"],
         "Konto": row["account"],
         "Opis": f"↳ {clean_description(str(row['description']))}",
-        "Kontrahent": _visible_counterparty(row),
+        "Kontrahent": visible_counterparty(row),
         "Kwota": float(Decimal(str(row["amount"]))),
         "Waluta": row["currency"],
         "Kategoria": case["category_label"] or "Do przypisania",
-        "Sprawa": case["title"],
+        "Grupa": case["title"],
         "Kwota rzeczywista": None,
     }
 
@@ -58,6 +60,7 @@ def _summary_row(case: dict[str, object]) -> dict[str, object]:
     return {
         "id": None,
         "_kind": "case_summary",
+        "_category_key": case["category_key"],
         "Data": case["booking_date"],
         "Konto": "—",
         "Opis": f"🔗 {case['title']}",
@@ -65,7 +68,7 @@ def _summary_row(case: dict[str, object]) -> dict[str, object]:
         "Kwota": None,
         "Waluta": case["currency"],
         "Kategoria": case["category_label"] or "Do przypisania",
-        "Sprawa": case["title"],
+        "Grupa": case["title"],
         "Kwota rzeczywista": float(-personal_amount),
     }
 

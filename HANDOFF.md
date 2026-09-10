@@ -4,7 +4,7 @@
 
 This is a local-first personal-finance application for importing bank exports, understanding actual personal expenses, and reviewing uncertain cases in a Polish dashboard. The application must retain every imported record locally and keep an audit trail for every derived decision.
 
-The source has Nest Bank and Revolut CSV importers, a normalized transaction model, SQLite database, a Polish Streamlit dashboard (four tabs: Podsumowanie, Historia transakcji, Do klasyfikacji, Zaklasyfikowane; no sidebar), local decisions, merchant rules, approved expense cases, and a live OpenAI Responses API integration for merchant classification and relation detection. `data/` is scanned and imported when the user clicks "🔄 Odśwież dane" next to the title (`ui/app.py`'s `_handle_refresh`, backed by `data_sync.sync_data_directory`) — deliberately not automatic, so the user sees the spinner and an explicit result rather than data silently appearing.
+The source has Nest Bank and Revolut CSV importers, a normalized transaction model, SQLite database, a Polish Streamlit dashboard (four tabs: Podsumowanie, Historia transakcji, Do klasyfikacji, Reguły sprzedawców; no sidebar), local decisions, merchant rules, approved expense cases, and a live OpenAI Responses API integration for merchant classification and relation detection. `data/` is scanned and imported when the user clicks "🔄 Odśwież dane" next to the title (`ui/app.py`'s `_handle_refresh`, backed by `data_sync.sync_data_directory`) — deliberately not automatic, so the user sees the spinner and an explicit result rather than data silently appearing. A success/info message immediately followed by `st.rerun()` always uses `st.toast()`, never `st.success()`/`st.info()` — the latter get wiped by the rerun before they're visible, which reads as "nothing happened."
 
 ## Product principles
 
@@ -50,11 +50,18 @@ src/expense_tracker/
                                in a real browser in this environment), 3 levels deep: category -> subcategory
                                -> merchant (grouped by merchant_key())
     ledger_tab.py              Historia transakcji: grouped ledger (case header row highlighted, styled
-                               background, members indented below it), merge-into-case, manual entry, cases list
-    classification_tab.py       Do klasyfikacji: AI triggers + unified review data_editor
-    classified_tab.py            Zaklasyfikowane: editable list of already-decided transactions + merchant
-                                  rules manager (list/delete) — lets the user fix past AI mistakes, not just
-                                  pending ones
+                               background, members indented below it, user-facing label "Grupa" — internal
+                               table/column names stay "cases"/"case_members"), select one row to recategorize
+                               it instantly (plain st.selectbox + on_change, no save button — data_editor
+                               doesn't support row selection so this couldn't reuse the same widget as the
+                               merge flow), select 2+ to merge-into-case, manual entry, cases list
+    classification_tab.py       Do klasyfikacji: AI triggers + unified review data_editor (Data/Opis/
+                                 Kontrahent/Kwota as separate columns, not one crammed string)
+    classified_tab.py            Reguły sprzedawców tab: merchant-rule manager only (edit category —
+                                  retroactively fixes transactions that rule itself auto-classified, via
+                                  ledger.update_merchant_rule — or delete). The "already-decided transactions,
+                                  editable" list that used to live here was removed: it duplicated the same
+                                  capability now on every standalone row in Historia transakcji.
   llm/
     contracts.py          strict Pydantic contracts; build_merchant_analysis_model()/build_relation_analysis_model()
                            dynamically constrain category_key to a Literal built from the live category list
@@ -69,9 +76,9 @@ src/expense_tracker/
 Keep `transactions` immutable after import. Build derived objects around them instead of mutating or removing raw records.
 
 1. `categories` seeds a fixed, hand-maintained list (`database.py`, `CATEGORIES`) with a one-level hierarchy (`parent_key`); labels are Polish. AI may only choose from this list — enforced structurally via a dynamically built `Literal[...]` JSON-schema enum (`llm/contracts.py`), not just checked after the fact.
-2. `transaction_decisions` stores one current classification per transaction. Dashboard approvals are `manual` and `approved`; imports matching a rule are `rule`/`approved`; unreviewed AI output lives in `suggestions`, not here.
-3. `merchant_rules` stores an active normalized-merchant-to-category mapping (exact match on `merchant_key()`, not fuzzy). A dashboard approval may immediately save a reusable rule and apply it to unclassified matches — this is the mechanism that avoids re-asking the LLM about a merchant it has already classified once.
-4. `cases` and `case_members` model approved economic events: own transfers, shared purchases, reimbursements, refunds, and payment disputes. `cases.personal_amount` is the explicit personal cost in the case currency — this is what "merge these transactions into one real cost" means concretely, and it is what `reporting.actuals()` substitutes in place of the raw member transactions.
+2. `transaction_decisions.source` records who actually decided: `manual` (typed by the user, including the ledger's single-row quick-recategorize and manual cash entries), `rule` (auto-applied by `apply_rules()`), or `llm` (approved from an AI suggestion, even if the user edited the category before approving — the origin was still an AI suggestion). `save_decision()` takes an explicit `source` parameter (defaults to `"manual"`); `approve_suggestion()`/`approve_merchant_suggestion_with_category()` both pass `source="llm"`. Getting this right matters because `update_merchant_rule()`'s retroactive fix (below) only ever touches `source='rule'` rows.
+3. `merchant_rules` stores an active normalized-merchant-to-category mapping (exact match on `merchant_key()`, not fuzzy — see the domain-extraction note below for the one exception). A dashboard approval may immediately save a reusable rule and apply it to unclassified matches — this is the mechanism that avoids re-asking the LLM about a merchant it has already classified once. Rules are editable (`ledger.update_merchant_rule`): changing a rule's category retroactively fixes every transaction that rule itself previously auto-classified (`source='rule'`), but never touches a transaction a human or the AI confirmed explicitly for that merchant — an explicit decision always outranks a blanket rule change.
+4. `cases` and `case_members` model approved economic events: own transfers, shared purchases, reimbursements, refunds, and payment disputes. `cases.personal_amount` is the explicit personal cost in the case currency — this is what "merge these transactions into one real cost" means concretely, and it is what `reporting.actuals()` substitutes in place of the raw member transactions. User-facing UI calls this concept "Grupa" (group), not "Sprawa" (case) — the earlier wording read as legalistic/confusing; only the display strings changed, table/column names (`cases`, `case_members`, `case_id`) are untouched.
 5. `suggestions` holds both LLM merchant-classification and relation proposals, deduplicated by a fingerprint of `(prompt_version, kind, payload)`.
 6. `import_batches` records one row per successfully processed file (name, SHA-256 of its bytes, importer used, row counts) — purely a fast-skip/reporting aid for `sync_data_directory()`, not the source of truth for duplicate transactions (that is still the per-row `transactions.fingerprint`).
 
@@ -122,7 +129,17 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
    suggestions — a known, deliberately deferred gap.
 5. Create suggestions only for unresolved transactions or clusters of related transactions, in bounded batches.
 6. Deduplicate by normalized merchant key and a request fingerprint. A known merchant is classified by a local
-   rule, not by repeated LLM calls.
+   rule, not by repeated LLM calls. `analyze_merchants()` also excludes transactions already covered by a
+   *pending* suggestion (`ledger.pending_merchant_suggestion_transaction_ids`) — without this, clicking
+   "Klasyfikuj merchantów przez AI" a second time before reviewing the first batch would re-send the same
+   unresolved transactions, and a slightly different LLM answer (different wording/confidence) would pass
+   the fingerprint check and appear as a visible duplicate row in the review table. `merchant_key()` prefers
+   a domain name (`vivacuba.pl`) over the surrounding text when one is present, since online/BLIK payment
+   descriptions are often mostly payment-processor and per-transaction reference noise that would otherwise
+   never regroup across repeat visits to the same merchant. It deliberately does *not* attempt fuzzy/prefix
+   matching for near-duplicate merchant names from branch-level naming differences (e.g. "Zabka Zb K.
+   Warszawa" vs "Zabka Z K. Warszawa") — that risks merging genuinely different merchants (e.g. a payment
+   gateway prefix like "PAYU *" shared by many unrelated stores); classify each variant once instead.
 7. Display a Polish review queue (Do klasyfikacji tab: one `st.data_editor` with a category dropdown per row).
    The user can approve with an edited category, reject, or turn an approved classification into a reusable
    merchant rule, all before anything is written.
@@ -183,11 +200,17 @@ totals and the Podsumowanie charts (`ledger_view.build_rows()`, `reporting.actua
 ## Verified state
 
 - `uv run ruff format .` / `uv run ruff check .` — clean.
-- `uv run pytest -q` — passing (33 tests: CSV import for both banks, redaction incl. an LLM-payload
+- `uv run pytest -q` — passing (39 tests: CSV import for both banks, redaction incl. an LLM-payload
   integration check, reporting/case math incl. the 3-level category/subcategory/merchant breakdown,
   ledger_view grouping and counterparty visibility rules, manual entry, data_sync, database migrations,
-  dynamic category-enum schema validation, merchant-rule listing/deletion, edit-before-approve on a
-  suggestion, description cleaning, income transactions reaching `analyze_merchants`).
+  dynamic category-enum schema validation, merchant-rule listing/deletion/retroactive-update,
+  edit-before-approve on a suggestion with correct `source='llm'`, description cleaning, income
+  transactions reaching `analyze_merchants`, no duplicate suggestion on a repeat classify click,
+  `merchant_key()` domain-extraction).
+- Single-row quick recategorize (Historia transakcji, `st.selectbox(..., on_change=...)`, no save button)
+  verified via `streamlit.testing.v1.AppTest` with a programmatic dataframe-selection state assignment
+  (`at.session_state["ledger_table"] = {"selection": {"rows": [...]}}`) followed by `.select(...).run()` on
+  the resulting selectbox — confirmed it writes to `transaction_decisions` immediately, no exception.
 - Migration verified against a copy of the pre-existing production database: 39 transactions, 1 case, 40
   suggestions all preserved; `links`/`classifications` dropped; idempotent on repeated opens.
 - End-to-end refresh flow verified via `streamlit.testing.v1.AppTest` against a fresh database pointed at
