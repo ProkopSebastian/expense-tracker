@@ -7,6 +7,7 @@ from decimal import Decimal
 import pandas as pd
 import streamlit as st
 
+from ..dashboard_data import LedgerData
 from ..ledger import (
     add_manual_transaction,
     approve_suggestion,
@@ -37,6 +38,7 @@ ROLE_LABELS = {
 DIRECTION_ALL = "Wszystkie"
 DIRECTION_EXPENSE = "Wydatki"
 DIRECTION_INCOME = "Wpływy"
+GROUPS_PER_PAGE = 100
 
 
 def _row_style(kind: str, width: int) -> list[str]:
@@ -84,13 +86,24 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
         st.info("Brak transakcji pasujących do filtrów.")
         return df.iloc[0:0]
 
-    display = df.drop(columns=["id", "_kind", "_category_key", "_group_id"])
-    kinds = df["_kind"]
+    group_ids = list(dict.fromkeys(df["_group_id"]))
+    page_count = max(1, (len(group_ids) + GROUPS_PER_PAGE - 1) // GROUPS_PER_PAGE)
+    if st.session_state.get("ledger_page", 1) > page_count:
+        st.session_state["ledger_page"] = 1
+    page = st.selectbox("Strona", range(1, page_count + 1), key="ledger_page") if page_count > 1 else 1
+    first_group = (page - 1) * GROUPS_PER_PAGE
+    visible_group_ids = set(group_ids[first_group : first_group + GROUPS_PER_PAGE])
+    visible_df = df[df["_group_id"].isin(visible_group_ids)]
+
+    display = visible_df.drop(columns=["id", "_kind", "_category_key", "_group_id"])
+    kinds = visible_df["_kind"]
     styled = display.style.apply(lambda row: _row_style(kinds.loc[row.name], len(row)), axis=1)
     st.caption(
         "🔗 nagłówek grupy (liczy się do sumy) · ↳ transakcja wchodząca w jej skład (widoczna, ale nie liczona "
         "osobno). Zaznacz jedną transakcję, żeby szybko zmienić jej kategorię, albo kilka, żeby je zgrupować."
     )
+    if page_count > 1:
+        st.caption(f"Strona {page} z {page_count} · {len(df)} pasujących wierszy")
     event = st.dataframe(
         styled,
         column_config={
@@ -104,7 +117,7 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
         height=420,
     )
     if event and event.selection.rows:
-        return df.iloc[event.selection.rows]
+        return visible_df.iloc[event.selection.rows]
     return df.iloc[0:0]
 
 
@@ -272,7 +285,7 @@ def _relation_suggestions_section(connection: sqlite3.Connection, suggestions: l
             st.rerun()
 
 
-def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+def render(connection: sqlite3.Connection, data: LedgerData) -> None:
     selected = _render_table(data["ledger_rows"])
     if len(selected) == 1:
         _recategorize_form(connection, selected, data["categories"])

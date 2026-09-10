@@ -46,20 +46,22 @@ def sync_data_directory(database: Database, data_dir: Path) -> SyncResult:
                 result.unsupported_files.append(path.name)
                 continue
             found = IMPORTERS[file_format](path)
-            inserted, skipped = database.insert_transactions(found)
         except ValueError as exc:
             result.error_files.append((path.name, str(exc)))
             continue
-        database.connection.execute(
-            """INSERT INTO import_batches
-            (file_name, file_hash, importer, rows_found, rows_inserted, rows_skipped_duplicate)
-            VALUES (?, ?, ?, ?, ?, ?)""",
-            (path.name, file_hash, file_format, len(found), inserted, skipped),
-        )
-        database.connection.commit()
+        with database.connection:
+            inserted, skipped = database.insert_transactions(found, commit=False)
+            database.connection.execute(
+                """INSERT INTO import_batches
+                (file_name, file_hash, importer, rows_found, rows_inserted, rows_skipped_duplicate)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (path.name, file_hash, file_format, len(found), inserted, skipped),
+            )
         result.new_files.append(path.name)
+        known_hashes.add(file_hash)
         result.transactions_inserted += inserted
         any_rule_may_apply = True
     if any_rule_may_apply:
-        apply_rules(database.connection)
+        with database.connection:
+            apply_rules(database.connection, commit=False)
     return result
