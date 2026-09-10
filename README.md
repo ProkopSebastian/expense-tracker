@@ -33,6 +33,9 @@ Podgląd rozpoznanych kolumn pliku:
 uv run expense-tracker inspect data/plik.csv
 ```
 
+Podgląd domyślnie ukrywa dane kontrahenta i numery rachunków oraz maskuje inne rozpoznane identyfikatory.
+Jeśli świadomie potrzebujesz zobaczyć surowe wartości do diagnostyki, dodaj opcję `--raw`.
+
 ## Dashboard
 
 ```bash
@@ -41,15 +44,18 @@ uv run streamlit run src/expense_tracker/ui/app.py
 
 Nasłuchuje wyłącznie na `127.0.0.1`. Cztery zakładki:
 
-- **Podsumowanie** — wykres kołowy/słupkowy wydatków wg kategorii z wyborem miesiąca; kliknięcie w kategorię
-  (albo wybór z listy, jeśli klik nie zadziała w Twojej przeglądarce) pokazuje jej podkategorie, a potem
-  podział na konkretnych sprzedawców (np. Jedzenie → Zakupy spożywcze → Żabka/Biedronka).
+- **Podsumowanie** — miesiąc (z polską nazwą i nawigacją strzałkami), ostatnie 30 dni, 3 miesiące, rok albo
+  własny zakres dat oraz osobny wybór waluty. Wykres kołowy/słupkowy pokazuje wydatki według kategorii;
+  kliknięcie kategorii przechodzi do podkategorii i sprzedawców (np. Jedzenie → Zakupy spożywcze →
+  Żabka/Biedronka). Na wykresie kołowym cała nawigacja działa w przeglądarce: kliknięcie wycinka wchodzi
+  głębiej, a kliknięcie środka wraca, bez przeładowania dashboardu.
 - **Historia transakcji** — pełny rejestr transakcji z filtrem kierunku (Wszystkie/Wydatki/Wpływy) i
   kategorii; „grupy” łączące kilka transakcji w jeden realny koszt są wyróżnione kolorem i pokazane jako
   nagłówek z wciętymi pozycjami pod spodem — grupa liczy się zawsze jako jedna pozycja, w jednej kategorii,
   albo wydatek, albo wpływ. Zaznacz jedną transakcję, żeby od razu (bez dodatkowego przycisku) zmienić jej
-  kategorię; zaznacz kilka, żeby połączyć je w grupę. Tu też: ręczne dodawanie wydatków (np. gotówkowych) i
-  lista istniejących grup.
+  kategorię; zaznacz kilka, żeby połączyć je w grupę. Dłuższa historia jest dzielona na strony po 100 pełnych
+  grup, bez rozcinania grupy między stronami. Tu też: ręczne dodawanie wydatków (np. gotówkowych) i lista
+  istniejących grup.
 - **Do klasyfikacji** — klasyfikacja merchantów (wraz z tym, ile razy AI skorzystało z wyszukiwania
   internetowego) i wykrywanie powiązań przez AI (jedno zapytanie, do 100 najnowszych transakcji spoza
   istniejących grup — starsze nie są jeszcze sprawdzane), oraz jedna tabela do ręcznej korekty kategorii.
@@ -91,3 +97,16 @@ zatwierdzenia. Zatwierdzona klasyfikacja może od razu utworzyć regułę mercha
 Domyślnie używany jest model z `OPENAI_MODEL` (patrz `.env.example`) z opcjonalnym wyszukiwaniem
 internetowym dla nierozpoznanych merchantów (`OPENAI_WEB_SEARCH=false`, żeby wyłączyć). Wywołania używają
 `store=False`.
+
+## Do rozważenia: przeliczanie walut na PLN
+
+Podsumowanie celowo pokazuje obecnie każdą walutę osobno — nie dodaje np. EUR do PLN i nie udaje kursu,
+którego nie zna. Docelowe przeliczenie na PLN wymaga rozróżnienia dwóch sytuacji:
+
+- bezpośrednia płatność w obcej walucie: preferować rzeczywistą kwotę obciążenia w PLN lub kurs zapisany
+  przez bank; jeśli eksport jej nie zawiera, użyć historycznego kursu NBP z jasno oznaczonym przybliżeniem;
+- wcześniejsza wymiana PLN na walutę, a dopiero później płatność: połączyć obie strony wymiany jako transfer
+  walutowy i zdecydować, czy koszt późniejszego zakupu liczyć po kursie nabycia środków, czy po kursie z dnia
+  płatności. Pierwsza metoda jest wierniejsza rzeczywistemu kosztowi, ale wymaga śledzenia salda/partii waluty.
+
+Do czasu wdrożenia tej logiki raport nie powinien automatycznie przeliczać ani sumować różnych walut.

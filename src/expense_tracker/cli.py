@@ -8,11 +8,40 @@ from .csv_utils import read_csv
 from .data_sync import sync_data_directory
 from .database import Database
 from .importers import import_nest_csv, import_revolut_csv
+from .llm.redaction import redact_text
 from .matching import own_transfer_candidates
+
+_PRIVATE_COLUMNS = ("account", "iban", "rachun", "kontrahent", "counterparty", "beneficiary", "payer")
+_STRUCTURED_COLUMNS = (
+    "data",
+    "date",
+    "kwota",
+    "amount",
+    "waluta",
+    "currency",
+    "saldo",
+    "balance",
+    "rodzaj",
+    "type",
+    "status",
+)
 
 
 def _database_path(value: str) -> Path:
     return Path(value).expanduser()
+
+
+def _redacted_preview(row: dict[str, str]) -> dict[str, str]:
+    preview: dict[str, str] = {}
+    for key, value in row.items():
+        normalized_key = key.casefold()
+        if any(fragment in normalized_key for fragment in _PRIVATE_COLUMNS):
+            preview[key] = "[UKRYTO]"
+        elif any(fragment in normalized_key for fragment in _STRUCTURED_COLUMNS):
+            preview[key] = value
+        else:
+            preview[key] = redact_text(value)
+    return preview
 
 
 def main() -> None:
@@ -26,6 +55,7 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     inspect = commands.add_parser("inspect", help="pokaż nagłówki i pierwsze wiersze CSV")
     inspect.add_argument("file", type=Path)
+    inspect.add_argument("--raw", action="store_true", help="pokaż surowe wartości bez ukrywania danych")
     import_nest = commands.add_parser("import-nest", help="zaimportuj eksport CSV Nest Bank")
     import_nest.add_argument("file", type=Path)
     import_nest.add_argument(
@@ -50,7 +80,7 @@ def main() -> None:
         print("Nagłówki:", " | ".join(headers))
         print(f"Wiersze: {len(rows)}")
         for row in rows[:3]:
-            print(row)
+            print(row if args.raw else _redacted_preview(row))
         return
 
     database = Database(args.database)
