@@ -14,15 +14,16 @@ from ..ledger import (
     dissolve_case,
     infer_case_member_role,
     reject_suggestion,
+    save_decision,
 )
 from .formatting import category_options, pln
 
 KIND_LABELS = {
-    "Wspólny zakup": "shared_purchase",
-    "Transfer między własnymi kontami": "own_transfer",
-    "Zwrot": "refund",
-    "Rozliczenie": "reimbursement",
-    "Spór płatności": "payment_dispute",
+    "Wspólny zakup (ja płacę, ktoś mi odda część)": "shared_purchase",
+    "Rozliczenie (ktoś zapłacił za mnie, ja mu oddaję)": "reimbursement",
+    "Zwrot od sprzedawcy": "refund",
+    "Transfer między moimi własnymi kontami": "own_transfer",
+    "Sporna lub cofnięta płatność": "payment_dispute",
 }
 ROLE_LABELS = {
     "purchase": "Zakup",
@@ -50,11 +51,12 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
             needle, na=False
         )
         df = df[mask]
-    display = df.drop(columns=["id", "_kind"])
+    display = df.drop(columns=["id", "_kind", "_category_key"])
     kinds = df["_kind"]
     styled = display.style.apply(lambda row: _row_style(kinds.loc[row.name], len(row)), axis=1)
     st.caption(
-        "🔗 nagłówek sprawy (liczy się do sumy) · ↳ transakcja wchodząca w jej skład (widoczna, ale nie liczona osobno)"
+        "🔗 nagłówek grupy (liczy się do sumy) · ↳ transakcja wchodząca w jej skład (widoczna, ale nie liczona "
+        "osobno). Zaznacz jedną transakcję, żeby szybko zmienić jej kategorię, albo kilka, żeby je zgrupować."
     )
     event = st.dataframe(
         styled,
@@ -73,25 +75,52 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
     return df.iloc[0:0]
 
 
+def _recategorize_form(
+    connection: sqlite3.Connection, selected: pd.DataFrame, categories: list[dict[str, object]]
+) -> None:
+    row = selected.iloc[0]
+    if pd.isna(row["id"]) or row["_kind"] != "standalone":
+        st.info("Kategorię pojedynczej transakcji można zmienić tylko dla samodzielnego wiersza (nie nagłówka grupy).")
+        return
+    options = category_options(categories)
+    label_by_key = {key: label for label, key in options.items()}
+    current_label = label_by_key.get(row["_category_key"], "Do przypisania")
+    transaction_id = int(row["id"])
+
+    def _on_change() -> None:
+        new_label = st.session_state[f"recategorize_{transaction_id}"]
+        save_decision(connection, transaction_id, options[new_label])
+        st.toast(f"Zapisano kategorię „{new_label}”.")
+
+    st.divider()
+    st.caption(f"Zmień kategorię: **{row['Opis']}** ({row['Kwota']} {row['Waluta']})")
+    all_options = [current_label, *[label for label in options if label != current_label]]
+    st.selectbox("Kategoria", all_options, key=f"recategorize_{transaction_id}", on_change=_on_change)
+
+
 def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categories: list[dict[str, object]]) -> None:
     if selected.empty:
         return
     st.divider()
-    ineligible = selected[selected["id"].isna() | (selected["Sprawa"] != "—")]
+    ineligible = selected[selected["id"].isna() | (selected["Grupa"] != "—")]
     if not ineligible.empty:
-        st.warning("Zaznaczenie zawiera wiersz podsumowania sprawy lub transakcję już należącą do sprawy — pomiń je.")
+        st.warning("Zaznaczenie zawiera nagłówek grupy albo transakcję już należącą do grupy — pomiń je.")
         return
     if len(selected) < 2:
-        st.info("Zaznacz co najmniej dwie transakcje, żeby połączyć je w jedną sprawę.")
+        st.info("Zaznacz co najmniej dwie transakcje, żeby połączyć je w grupę.")
         return
     if selected["Waluta"].nunique() != 1:
         st.warning("Zaznaczone transakcje muszą być w jednej walucie.")
         return
     currency = str(selected["Waluta"].iloc[0])
-    st.subheader("Połącz zaznaczone transakcje w sprawę")
+    st.subheader("Połącz zaznaczone transakcje w grupę")
+    st.caption(
+        "Grupa łączy kilka ruchów bankowych opisujących jedno zdarzenie (np. zapłaciłeś za lot, znajomy oddał "
+        "Ci część) w jeden realny koszt — surowe transakcje zostają widoczne, ale do sumy liczy się tylko on."
+    )
     with st.form("merge_case", clear_on_submit=True):
-        title = st.text_input("Nazwa sprawy", placeholder="Loty do Lizbony")
-        kind_label = st.selectbox("Rodzaj", list(KIND_LABELS))
+        title = st.text_input("Nazwa grupy", placeholder="Loty do Lizbony")
+        kind_label = st.selectbox("Co się właściwie stało?", list(KIND_LABELS))
         kind = KIND_LABELS[kind_label]
         options = category_options(categories)
         if kind == "own_transfer":
@@ -99,13 +128,16 @@ def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categori
             category_key = "transfer_own"
             personal_amount = Decimal(0)
         else:
-            category_label = st.selectbox("Kategoria sprawy", list(options))
+            category_label = st.selectbox("Kategoria", list(options))
             category_key = options[category_label]
             suggested = -sum((Decimal(str(amount)) for amount in selected["Kwota"]), Decimal(0))
             direction = st.radio("Kierunek", ["Wydatek", "Zwrot na moją korzyść"], horizontal=True)
             magnitude = st.number_input("Twój rzeczywisty koszt", min_value=0.0, value=float(abs(suggested)), step=1.0)
             personal_amount = Decimal(str(magnitude)) if direction == "Wydatek" else -Decimal(str(magnitude))
-        st.caption("Rola każdej transakcji w sprawie:")
+        st.caption(
+            "Rola każdej transakcji — czysto opisowa, nie wpływa na wyliczenia, ułatwia tylko późniejsze "
+            "zrozumienie, co się z każdą z nich stało:"
+        )
         roles: dict[int, str] = {}
         for _, row in selected.iterrows():
             default_role = infer_case_member_role(kind, Decimal(str(row["Kwota"])))
@@ -116,13 +148,13 @@ def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categori
                 key=f"role_{int(row['id'])}",
             )
             roles[int(row["id"])] = next(code for code, label in ROLE_LABELS.items() if label == role_label)
-        submitted = st.form_submit_button("Utwórz sprawę", type="primary")
+        submitted = st.form_submit_button("Utwórz grupę", type="primary")
     if submitted:
         if not title:
-            st.error("Podaj nazwę sprawy.")
+            st.error("Podaj nazwę grupy.")
             return
         create_case(connection, kind, title, category_key, personal_amount, currency, list(roles.items()))
-        st.success("Sprawa utworzona.")
+        st.toast("Grupa utworzona.")
         st.rerun()
 
 
@@ -154,18 +186,18 @@ def _manual_entry_form(connection: sqlite3.Connection, categories: list[dict[str
                 counterparty=counterparty or None,
                 category_key=options[category_label],
             )
-            st.success("Dodano wydatek.")
+            st.toast("Dodano wydatek.")
             st.rerun()
 
 
 def _cases_section(connection: sqlite3.Connection, cases: list[dict[str, object]]) -> None:
-    st.subheader("Twoje sprawy")
+    st.subheader("Twoje grupy")
     if not cases:
-        st.caption("Nie masz jeszcze żadnych spraw.")
+        st.caption("Nie masz jeszcze żadnych grup.")
         return
     table = [
         {
-            "Sprawa": case["title"],
+            "Grupa": case["title"],
             "Kategoria": case["category_label"] or "—",
             "Twój koszt": pln(Decimal(str(case["personal_amount"]))),
             "Waluta": case["currency"],
@@ -175,10 +207,10 @@ def _cases_section(connection: sqlite3.Connection, cases: list[dict[str, object]
     ]
     st.dataframe(table, hide_index=True, width="stretch")
     case_options = {f"{case['title']} ({case['booking_date']})": int(case["id"]) for case in cases}
-    selected_label = st.selectbox("Rozwiąż sprawę", list(case_options))
-    if st.button("Rozwiąż sprawę"):
+    selected_label = st.selectbox("Rozwiąż grupę", list(case_options))
+    if st.button("Rozwiąż grupę"):
         dissolve_case(connection, case_options[selected_label])
-        st.success("Sprawa rozwiązana, transakcje wróciły do rejestru.")
+        st.toast("Grupa rozwiązana, transakcje wróciły do rejestru.")
         st.rerun()
 
 
@@ -196,15 +228,20 @@ def _relation_suggestions_section(connection: sqlite3.Connection, suggestions: l
         approve_col, reject_col = st.columns(2)
         if approve_col.button("Zatwierdź", key=f"approve_relation_{suggestion['id']}", type="primary"):
             approve_suggestion(connection, int(suggestion["id"]))
+            st.toast("Grupa utworzona z sugestii AI.")
             st.rerun()
         if reject_col.button("Odrzuć", key=f"reject_relation_{suggestion['id']}"):
             reject_suggestion(connection, int(suggestion["id"]))
+            st.toast("Sugestia odrzucona.")
             st.rerun()
 
 
 def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
     selected = _render_table(data["ledger_rows"])
-    _merge_form(connection, selected, data["categories"])
+    if len(selected) == 1:
+        _recategorize_form(connection, selected, data["categories"])
+    else:
+        _merge_form(connection, selected, data["categories"])
     _manual_entry_form(connection, data["categories"])
     st.divider()
     _relation_suggestions_section(connection, data["suggestions"])

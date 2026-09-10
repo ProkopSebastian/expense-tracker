@@ -44,13 +44,14 @@ Nasłuchuje wyłącznie na `127.0.0.1`. Cztery zakładki:
 - **Podsumowanie** — wykres kołowy/słupkowy wydatków wg kategorii z wyborem miesiąca; kliknięcie w kategorię
   (albo wybór z listy, jeśli klik nie zadziała w Twojej przeglądarce) pokazuje jej podkategorie, a potem
   podział na konkretnych sprzedawców (np. Jedzenie → Zakupy spożywcze → Żabka/Biedronka).
-- **Historia transakcji** — pełny rejestr transakcji; „sprawy” łączące kilka transakcji w jeden realny koszt
-  są wyróżnione kolorem i pokazane jako nagłówek z wciętymi pozycjami pod spodem; ręczne dodawanie wydatków
-  (np. gotówkowych); łączenie zaznaczonych transakcji w nową sprawę; lista spraw.
+- **Historia transakcji** — pełny rejestr transakcji; „grupy” łączące kilka transakcji w jeden realny koszt
+  są wyróżnione kolorem i pokazane jako nagłówek z wciętymi pozycjami pod spodem. Zaznacz jedną transakcję,
+  żeby od razu (bez dodatkowego przycisku) zmienić jej kategorię; zaznacz kilka, żeby połączyć je w grupę.
+  Tu też: ręczne dodawanie wydatków (np. gotówkowych) i lista istniejących grup.
 - **Do klasyfikacji** — klasyfikacja merchantów i wykrywanie powiązań przez AI, oraz jedna tabela do
   ręcznej korekty przypisanych kategorii.
-- **Zaklasyfikowane** — lista już przypisanych kategorii (edytowalna, gdyby AI się pomyliła) i zarządzanie
-  zapamiętanymi regułami sprzedawców (podgląd, usuwanie błędnej reguły).
+- **Reguły sprzedawców** — podgląd zapamiętanych reguł z możliwością zmiany kategorii (poprawka cofa się
+  też na transakcje, które ta reguła już wcześniej automatycznie sklasyfikowała) albo usunięcia reguły.
 
 ## Kategorie
 
@@ -58,6 +59,16 @@ Kategorie są zamkniętą, predefiniowaną listą (plik `src/expense_tracker/dat
 AI może wybierać tylko spośród nich, nigdy nie tworzy własnych. Raz zatwierdzona kategoria merchanta
 (np. „MR.ROLLO” → Restauracje i dostawy) może zostać zapisana jako reguła — kolejne transakcje tego samego
 merchanta klasyfikują się automatycznie, bez pytania AI ponownie.
+
+Dopasowanie merchanta (`ledger.merchant_key`) to nadal dokładne dopasowanie znormalizowanego opisu, z jednym
+wyjątkiem: jeśli opis zawiera domenę (np. `WWW.VIVACUBA.PL|PAYPRO S.A. ...NUMER TRANSAKCJI BLIK: 883...` —
+typowy szum płatności BLIK/online, inny przy każdej transakcji), reguła traktuje samą domenę (`vivacuba.pl`)
+jako tożsamość sprzedawcy, więc kolejne płatności do tego samego serwisu trafią pod tę samą regułę mimo
+innego szumu wokół. To nie rozwiązuje odwrotnego przypadku — różnych oddziałów jednej sieci sklepów pod
+lekko innymi nazwami (np. „Zabka Zb K. Warszawa” vs „Zabka Z K. Warszawa”) — dopasowywanie rozmyte tego typu
+łatwo tworzy fałszywe dopasowania dla naprawdę różnych sprzedawców, więc świadomie tego nie zaimplementowano;
+najprostszy sposób to sklasyfikować każdy wariant raz (dwa kliknięcia zamiast jednego), a reguła zajmie się
+resztą.
 
 ## Asystent AI
 

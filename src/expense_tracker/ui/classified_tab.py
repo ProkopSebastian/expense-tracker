@@ -1,83 +1,68 @@
 from __future__ import annotations
 
 import sqlite3
-from decimal import Decimal
 
 import pandas as pd
 import streamlit as st
 
-from ..ledger import delete_merchant_rule, merchant_rules, save_decision
-from ..text_utils import clean_description
+from ..ledger import delete_merchant_rule, merchant_rules, update_merchant_rule
 from .formatting import category_options
 
-SOURCE_LABELS = {"manual": "Ręcznie", "rule": "Reguła", "llm": "AI"}
 
-
-def _decided_editor(connection: sqlite3.Connection, data: dict[str, object]) -> None:
-    options = category_options(data["categories"])
-    label_by_key = {key: label for label, key in options.items()}
-    decided = {int(row["id"]): row for row in data["transactions"] if row["category_key"] and not row["case_id"]}
-    if not decided:
-        st.info("Brak jeszcze sklasyfikowanych transakcji.")
+def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
+    st.subheader("Zapamiętane reguły sprzedawców")
+    st.caption(
+        "Raz zapisana reguła klasyfikuje automatycznie każdą przyszłą transakcję tego samego sprzedawcy, bez "
+        "pytania AI ponownie. Zmiana kategorii tutaj poprawia też wszystkie transakcje, które ta reguła już "
+        "wcześniej automatycznie sklasyfikowała (nie rusza transakcji, które zostały ręcznie albo przez AI "
+        "potwierdzone inaczej). Kategorię pojedynczej transakcji zmienisz w zakładce „Historia transakcji”."
+    )
+    rules = merchant_rules(connection)
+    if not rules:
+        st.info("Nie masz jeszcze żadnych reguł — powstają po zatwierdzeniu kategorii z opcją „zapamiętaj regułę”.")
         return
 
+    options = category_options(data["categories"])
+    label_by_key = {key: label for label, key in options.items()}
+    rules_by_id = {int(rule["id"]): rule for rule in rules}
     rows = [
         {
-            "transaction_id": transaction_id,
-            "Data": row["booking_date"],
-            "Opis": clean_description(str(row["description"])),
-            "Kwota": f"{Decimal(str(row['amount'])):.2f} {row['currency']}",
-            "Kategoria": label_by_key.get(row["category_key"], "Do przypisania"),
-            "Źródło": SOURCE_LABELS.get(row["decision_source"], "—"),
+            "rule_id": int(rule["id"]),
+            "Sprzedawca": str(rule["merchant_key"]).title(),
+            "Kategoria": label_by_key.get(rule["category_key"], rule["category_label"]),
+            "Usuń": False,
         }
-        for transaction_id, row in decided.items()
+        for rule in rules
     ]
     df = pd.DataFrame(rows)
     edited = st.data_editor(
         df,
-        column_order=["Data", "Opis", "Kwota", "Kategoria", "Źródło"],
+        column_order=["Sprzedawca", "Kategoria", "Usuń"],
         column_config={
-            "Data": st.column_config.TextColumn(disabled=True),
-            "Opis": st.column_config.TextColumn(disabled=True, width="large"),
-            "Kwota": st.column_config.TextColumn(disabled=True),
+            "Sprzedawca": st.column_config.TextColumn(disabled=True),
             "Kategoria": st.column_config.SelectboxColumn(options=list(options)),
-            "Źródło": st.column_config.TextColumn(disabled=True),
+            "Usuń": st.column_config.CheckboxColumn(
+                help="Usuń tę regułę — przyszłe transakcje tego sprzedawcy przestaną klasyfikować się same."
+            ),
         },
         hide_index=True,
-        key="decided_editor",
+        key="merchant_rules_editor",
     )
-    if st.button("Zapisz poprawki", type="primary"):
+    if st.button("Zapisz zmiany w regułach", type="primary"):
         changed = 0
+        deleted = 0
         for _, row in edited.iterrows():
-            transaction_id = int(row["transaction_id"])
+            rule_id = int(row["rule_id"])
+            if row["Usuń"]:
+                delete_merchant_rule(connection, rule_id)
+                deleted += 1
+                continue
             new_key = options[row["Kategoria"]]
-            if new_key != decided[transaction_id]["category_key"]:
-                save_decision(connection, transaction_id, new_key, "Poprawione ręcznie")
+            if new_key != rules_by_id[rule_id]["category_key"]:
+                update_merchant_rule(connection, rule_id, new_key)
                 changed += 1
-        if changed:
-            st.success(f"Zaktualizowano {changed} transakcji.")
+        if changed or deleted:
+            st.toast(f"Zaktualizowano {changed} reguł, usunięto {deleted}.")
             st.rerun()
         else:
             st.info("Brak zmian do zapisania.")
-
-
-def _rules_manager(connection: sqlite3.Connection) -> None:
-    st.subheader("Zapamiętane reguły sprzedawców")
-    rules = merchant_rules(connection)
-    if not rules:
-        st.caption("Nie masz jeszcze reguł — powstają po zatwierdzeniu kategorii z opcją „zapamiętaj regułę”.")
-        return
-    for rule in rules:
-        merchant_col, category_col, action_col = st.columns([3, 2, 1])
-        merchant_col.write(str(rule["merchant_key"]).title())
-        category_col.write(rule["category_label"])
-        if action_col.button("Usuń regułę", key=f"delete_rule_{rule['id']}"):
-            delete_merchant_rule(connection, int(rule["id"]))
-            st.rerun()
-
-
-def render(connection: sqlite3.Connection, data: dict[str, object]) -> None:
-    st.caption("Popraw kategorię, jeśli AI albo reguła coś źle sklasyfikowały — zmiana zapisuje się od razu.")
-    _decided_editor(connection, data)
-    st.divider()
-    _rules_manager(connection)

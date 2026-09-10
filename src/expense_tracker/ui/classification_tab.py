@@ -14,6 +14,7 @@ from ..ledger import (
     save_decision,
     save_merchant_rule,
 )
+from ..ledger_view import visible_counterparty
 from ..llm.service import analyze_merchants, analyze_relations
 from ..text_utils import clean_description
 from .formatting import category_options
@@ -43,21 +44,24 @@ def _ai_buttons(connection: sqlite3.Connection, data: dict[str, object]) -> None
                 st.error(f"Nie udało się uzyskać sugestii AI: {error}")
                 return
         if result.groups_remaining:
-            st.success(
+            st.toast(
                 f"Sprawdzono {result.groups_processed} sprzedawców (nowe sugestie: {result.saved}). "
                 f"Zostało jeszcze {result.groups_remaining} — kliknij ponownie, żeby przetworzyć kolejną partię."
             )
         else:
-            st.success(f"Sprawdzono wszystkich {result.groups_processed} sprzedawców, nowe sugestie: {result.saved}.")
+            st.toast(f"Sprawdzono wszystkich {result.groups_processed} sprzedawców, nowe sugestie: {result.saved}.")
         st.rerun()
     if button_col2.button("Wykryj powiązania między transakcjami"):
-        with st.spinner("AI analizuje transakcje i szuka wspólnych spraw..."):
+        with st.spinner("AI analizuje transakcje i szuka wspólnych grup..."):
             try:
                 count = analyze_relations(connection)
             except Exception as error:
                 st.error(f"Nie udało się uzyskać sugestii AI: {error}")
                 return
-        st.success(f"Dodano sugestie: {count}.")
+        if count:
+            st.toast(f"Dodano {count} nowych sugestii — zobacz je w zakładce „Historia transakcji”.")
+        else:
+            st.toast("AI nie znalazło żadnych nowych powiązań.")
         st.rerun()
 
 
@@ -87,6 +91,7 @@ def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) ->
                 "transaction_id": None,
                 "Data": sample["booking_date"] if sample else "—",
                 "Opis": opis,
+                "Kontrahent": visible_counterparty(sample) if sample else "—",
                 "Kwota": f"{Decimal(str(sample['amount'])):.2f} {sample['currency']}" if sample else "—",
                 "Sugestia AI": payload.get("rationale", "—"),
                 "Pewność": f"{payload.get('confidence', 0):.0%}",
@@ -105,6 +110,7 @@ def _build_editor_rows(data: dict[str, object], label_by_key: dict[str, str]) ->
                 "transaction_id": transaction_id,
                 "Data": row["booking_date"],
                 "Opis": clean_description(str(row["description"])),
+                "Kontrahent": visible_counterparty(row),
                 "Kwota": f"{Decimal(str(row['amount'])):.2f} {row['currency']}",
                 "Sugestia AI": "—",
                 "Pewność": "—",
@@ -131,10 +137,21 @@ def _classification_editor(connection: sqlite3.Connection, data: dict[str, objec
     df = pd.DataFrame(rows)
     edited = st.data_editor(
         df,
-        column_order=["Data", "Opis", "Kwota", "Sugestia AI", "Pewność", "Kategoria", "Zapamiętaj regułę", "Odrzuć"],
+        column_order=[
+            "Data",
+            "Opis",
+            "Kontrahent",
+            "Kwota",
+            "Sugestia AI",
+            "Pewność",
+            "Kategoria",
+            "Zapamiętaj regułę",
+            "Odrzuć",
+        ],
         column_config={
             "Data": st.column_config.TextColumn(disabled=True),
             "Opis": st.column_config.TextColumn(disabled=True, width="medium"),
+            "Kontrahent": st.column_config.TextColumn(disabled=True),
             "Kwota": st.column_config.TextColumn(disabled=True),
             "Sugestia AI": st.column_config.TextColumn(
                 disabled=True, width="large", help="Uzasadnienie podane przez AI (puste dla ręcznie dodanych wierszy)."
@@ -182,7 +199,7 @@ def _classification_editor(connection: sqlite3.Connection, data: dict[str, objec
             saved_count += 1
         if any_rule_created:
             apply_rules(connection)
-        st.success(f"Zapisano {saved_count} kategorii, odrzucono {rejected_count} sugestii.")
+        st.toast(f"Zapisano {saved_count} kategorii, odrzucono {rejected_count} sugestii.")
         st.rerun()
 
 

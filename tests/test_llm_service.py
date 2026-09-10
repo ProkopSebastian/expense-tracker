@@ -73,3 +73,43 @@ def test_analyze_merchants_falls_back_to_income_category_for_positive_amount(dat
     payload = json.loads(row["payload_json"])
     assert payload["category_key"] == "income"
     assert result.saved == 1
+
+
+def test_analyze_merchants_does_not_resend_transactions_with_a_pending_suggestion(database: Database) -> None:
+    database.insert_transactions(
+        [
+            Transaction(
+                account="nest",
+                booking_date=date(2026, 9, 1),
+                amount=Decimal("-40"),
+                currency="PLN",
+                description="MR.ROLLO WARSZAWA",
+            )
+        ]
+    )
+    transaction_id = database.connection.execute("SELECT id FROM transactions").fetchone()["id"]
+
+    call_count = 0
+
+    def fake_request(model, instructions, input_text, max_tool_calls):
+        nonlocal call_count
+        call_count += 1
+        item = SimpleNamespace(
+            transaction_ids=[transaction_id],
+            category_key="food_restaurants",
+            confidence=0.6,
+            rationale=f"guess #{call_count}",
+            should_create_rule=False,
+        )
+        return SimpleNamespace(classifications=[item])
+
+    with patch.object(service, "_request", fake_request):
+        first = service.analyze_merchants(database.connection)
+        second = service.analyze_merchants(database.connection)
+
+    assert first.groups_processed == 1
+    assert second.groups_processed == 0
+    count = database.connection.execute(
+        "SELECT COUNT(*) AS n FROM suggestions WHERE kind = 'merchant_classification'"
+    ).fetchone()["n"]
+    assert count == 1

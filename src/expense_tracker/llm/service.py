@@ -12,7 +12,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from ..config import settings
-from ..ledger import categories, merchant_key, transactions
+from ..ledger import categories, merchant_key, pending_merchant_suggestion_transaction_ids, transactions
 from .contracts import (
     MerchantInput,
     TransactionContext,
@@ -41,8 +41,16 @@ class MerchantAnalysisResult:
 
 def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     # Both expenses (negative) and income (positive) are sent — the LLM is told to pick an
-    # income-kind category for positive amounts instead of skipping them entirely.
-    rows = [row for row in transactions(connection) if not row["category_key"] and not row["case_id"]]
+    # income-kind category for positive amounts instead of skipping them entirely. Transactions
+    # already covered by a pending (not yet approved/rejected) suggestion are excluded, or a
+    # repeat click would re-ask the LLM about them and could save a near-duplicate suggestion
+    # if its wording/confidence differs slightly on the second answer.
+    already_suggested = pending_merchant_suggestion_transaction_ids(connection)
+    rows = [
+        row
+        for row in transactions(connection)
+        if not row["category_key"] and not row["case_id"] and int(row["id"]) not in already_suggested
+    ]
     groups: defaultdict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
         groups[(merchant_key(str(row["description"])), str(row["currency"]))].append(row)

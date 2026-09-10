@@ -14,9 +14,9 @@ def _handle_refresh(database: Database) -> None:
     with st.spinner("Sprawdzam nowe pliki w folderze data..."):
         result = sync_data_directory(database, settings.data_dir)
     if not result.new_files and not result.unsupported_files and not result.error_files:
-        st.info("Wszystko jest już aktualne.")
+        st.toast("Wszystko jest już aktualne.")
     if result.new_files:
-        st.success(f"Dodano {result.transactions_inserted} nowych transakcji z {len(result.new_files)} plików.")
+        st.toast(f"Dodano {result.transactions_inserted} nowych transakcji z {len(result.new_files)} plików.")
     for name in result.unsupported_files:
         st.warning(f"Nie rozpoznano formatu pliku „{name}”. Sprawdź, czy pochodzi z obsługiwanego banku.")
     for name, error in result.error_files:
@@ -44,7 +44,7 @@ def main() -> None:
         return
 
     summary_view, ledger_view, classification_view, classified_view = st.tabs(
-        ["Podsumowanie", "Historia transakcji", "Do klasyfikacji", "Zaklasyfikowane"]
+        ["Podsumowanie", "Historia transakcji", "Do klasyfikacji", "Reguły sprzedawców"]
     )
     with summary_view:
         summary_tab.render(data)

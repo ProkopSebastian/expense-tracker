@@ -30,7 +30,7 @@ def test_case_members_are_grouped_adjacently_with_summary_row(database: Database
 
     built = build_rows(transactions(database.connection), approved_cases(database.connection))
 
-    assert [row["Sprawa"] for row in built] == ["Loty z Anią"] * 3
+    assert [row["Grupa"] for row in built] == ["Loty z Anią"] * 3
     assert built[0]["id"] is None
     assert built[0]["_kind"] == "case_summary"
     assert built[0]["Kwota rzeczywista"] == -850.0
