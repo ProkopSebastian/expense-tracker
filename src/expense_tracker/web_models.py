@@ -40,3 +40,10 @@ class GroupEntry(BaseModel):
     currency: Currency
     category_key: Text
     members: list[Member] = Field(min_length=2, max_length=1000)
+
+
+class ClientError(BaseModel):
+    message: Annotated[str, StringConstraints(max_length=2000)]
+    stack: Annotated[str, StringConstraints(max_length=8000)] = ""
+    component_stack: Annotated[str, StringConstraints(max_length=8000)] = ""
+    url: Annotated[str, StringConstraints(max_length=500)] = ""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import date
@@ -17,7 +18,10 @@ from .api_dependencies import get_connection
 from .config import settings
 from .database import Database
 from .summary_service import PeriodMode, SummaryResponse, get_summary
+from .web_models import ClientError
 from .web_routes import router
+
+logger = logging.getLogger("expense_tracker.frontend")
 
 
 def create_app(database_path: Path | None = None) -> FastAPI:
@@ -81,6 +85,17 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             return get_summary(db, mode=mode, currency=currency, month=month, start=start, end=end)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+
+    @app.post("/report-error")
+    def report_error(entry: ClientError) -> dict[str, bool]:
+        logger.error(
+            "Frontend crash on %s: %s\n%s\n%s",
+            entry.url,
+            entry.message,
+            entry.component_stack,
+            entry.stack,
+        )
+        return {"ok": True}
 
     app.include_router(router)
 
