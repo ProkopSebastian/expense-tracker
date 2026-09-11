@@ -23,8 +23,9 @@ def main() -> None:
     directory.mkdir(parents=True, exist_ok=True)
     os.chdir(directory)
     os.environ["DATABASE_PATH"] = str(directory / "expense-tracker.sqlite3")
-    os.environ["DATA_DIR"] = str(directory / "data")
-    (directory / "data").mkdir(exist_ok=True)
+    data_dir = directory / "data"
+    os.environ["DATA_DIR"] = str(data_dir)
+    data_dir.mkdir(exist_ok=True)
     log = (directory / "app.log").open("a", encoding="utf-8")
     sys.stdout = sys.stderr = log
     root = tk.Tk()
@@ -44,7 +45,7 @@ def main() -> None:
             root.destroy()
             return
 
-    root.geometry("400x190")
+    root.geometry("400x230")
     root.configure(bg="#f4f8f5")
     label = tk.Label(root, text="Uruchamiam Twoje finanse…", bg="#f4f8f5", font=("Segoe UI", 13))
     label.pack(pady=22)
@@ -79,6 +80,7 @@ def main() -> None:
 
     root.protocol("WM_DELETE_WINDOW", stop)
     tk.Button(root, text="Otwórz aplikację", command=lambda: webbrowser.open(url), font=("Segoe UI", 11)).pack()
+    tk.Button(root, text="Otwórz folder danych", command=lambda: os.startfile(data_dir)).pack()
     tk.Button(root, text="Zakończ", command=stop).pack(pady=10)
     attempts = 0
 

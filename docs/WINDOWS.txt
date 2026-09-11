@@ -7,6 +7,8 @@ WYDATKI — pierwsze uruchomienie
 
 Nie trzeba instalować Pythona ani Node.js.
 Każdy użytkownik ma osobne dane w %LOCALAPPDATA%\Wydatki.
+Przycisk „Otwórz folder danych” w oknie Wydatki pokazuje ten folder z plikami
+CSV — można tam zajrzeć albo usunąć plik, jeśli trzeba.
 Zamknięcie małego okna Wydatki zatrzymuje aplikację.
 Nową wersję programu wypakuj do nowego folderu; dane pozostają w tym samym miejscu.
 Kopie bazy: %LOCALAPPDATA%\Wydatki\expense-tracker-backups.
