@@ -3,29 +3,20 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from .api_dependencies import get_connection
 from .config import settings
 from .database import Database
 from .summary_service import PeriodMode, SummaryResponse, get_summary
-
-
-def get_connection(request: Request) -> Iterator[sqlite3.Connection]:
-    connection = sqlite3.connect(request.app.state.database_path, check_same_thread=False)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys=ON")
-    connection.execute("PRAGMA busy_timeout=5000")
-    try:
-        yield connection
-    finally:
-        connection.close()
+from .web_routes import router
 
 
 def create_app(database_path: Path | None = None) -> FastAPI:
@@ -40,6 +31,26 @@ def create_app(database_path: Path | None = None) -> FastAPI:
 
     app = FastAPI(title="Expense Tracker", version="0.1.0", lifespan=lifespan)
     app.state.database_path = path
+    from threading import Lock
+
+    app.state.ai_lock = Lock()
+
+    @app.middleware("http")
+    async def local_writes(request, call_next):
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            origin = request.headers.get("origin")
+            allowed = {str(request.base_url).rstrip("/"), "http://127.0.0.1:5173", "http://localhost:5173"}
+            if origin and origin not in allowed:
+                return JSONResponse({"detail": "Niedozwolone źródło żądania."}, status_code=403)
+        return await call_next(request)
+
+    @app.exception_handler(ValueError)
+    async def invalid_operation(request, error):
+        return JSONResponse({"detail": str(error)}, status_code=422)
+
+    @app.exception_handler(sqlite3.IntegrityError)
+    async def conflicting_operation(request, error):
+        return JSONResponse({"detail": "Dane zmieniły się. Odśwież widok i spróbuj ponownie."}, status_code=409)
 
     @app.get("/api/summary", response_model=SummaryResponse)
     def read_summary(
@@ -54,6 +65,8 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             return get_summary(db, mode=mode, currency=currency, month=month, start=start, end=end)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+
+    app.include_router(router)
 
     # A built frontend and API can be served by one local process.
     frontend = Path(__file__).resolve().parents[2] / "frontend" / "dist"

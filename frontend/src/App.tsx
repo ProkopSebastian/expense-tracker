@@ -1,116 +1,107 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, CircleHelp, RefreshCw, LockKeyhole } from "lucide-react";
-import { fetchSummary, type Filters, type Summary } from "./api";
+import { ChevronRight, RefreshCw } from "lucide-react";
+import { pages, type Page, type Meta } from "./domain";
+import { request, useResource, useAction } from "./hooks";
 import Sidebar from "./components/Sidebar";
-import SummaryFilters from "./components/SummaryFilters";
-import SummaryCards from "./components/SummaryCards";
-import BreakdownPanel from "./components/BreakdownPanel";
-
+import { Notice } from "./components/Forms";
+import SummaryPage from "./pages/SummaryPage";
+import LedgerPage from "./pages/LedgerPage";
+import ClassificationPage from "./pages/ClassificationPage";
+import RulesPage from "./pages/RulesPage";
+function currentPage(): Page {
+  const key = window.location.hash.slice(1);
+  return key in pages ? (key as Page) : "summary";
+}
+interface SyncResult {
+  transactions_inserted: number;
+  new_files: string[];
+  unsupported_files: string[];
+  error_files: [string, string][];
+}
 export default function App() {
-  const [filters, setFilters] = useState<Filters>({ mode: "month" });
-  const [data, setData] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-
+  const [page, setPage] = useState<Page>(currentPage),
+    [revision, setRevision] = useState(0),
+    [syncNotice, setSyncNotice] = useState("");
+  const { data: meta, error } = useResource<Meta>("/meta", revision);
+  const changed = () => setRevision((value) => value + 1);
+  const action = useAction(changed);
   useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    fetchSummary(filters, controller.signal)
-      .then((result) => {
-        setData(result);
-      })
-      .catch((cause) => {
-        if (!controller.signal.aborted)
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Brak połączenia z aplikacją.",
-          );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [filters, revision]);
-
+    const handler = () => {
+      setPage(currentPage());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+  useEffect(() => {
+    document.title = `Wydatki · ${pages[page].title}`;
+  }, [page]);
+  async function sync() {
+    setSyncNotice("");
+    await action.run(async () => {
+      const result = await request<SyncResult>("/sync", "POST");
+      setSyncNotice(
+        [
+          result.new_files.length
+            ? `Dodano ${result.transactions_inserted} transakcji z ${result.new_files.length} plików.`
+            : "Dane są aktualne.",
+          ...result.unsupported_files.map(
+            (f) => `Nie rozpoznano formatu: ${f}.`,
+          ),
+          ...result.error_files.map(([f, e]) => `${f}: ${e}`),
+        ].join(" "),
+      );
+    }, "");
+  }
   return (
     <div className="app-shell">
-      <Sidebar />
-
+      <Sidebar page={page} />
       <main>
         <header className="topbar">
           <span>
-            Twoje finanse <ChevronRight size={14} />{" "}
-            <strong>Podsumowanie</strong>
+            Twoje finanse
+            <ChevronRight size={14} />
+            <strong>{pages[page].title}</strong>
           </span>
-          <span className="preview-badge">Podgląd nowego interfejsu</span>
+          <button className="button" onClick={sync} disabled={action.busy}>
+            <RefreshCw size={15} className={action.busy ? "spin" : ""} />
+            {action.busy ? "Importuję…" : "Odśwież dane"}
+          </button>
         </header>
         <div className="main-content">
-          <div className="page-heading">
-            <div>
-              <h1>Podsumowanie</h1>
-              <p>Wydatki i przychody w wybranym okresie.</p>
+          <Notice error={error || action.error} notice={syncNotice} />
+          {!meta ? (
+            <div className="empty-state">
+              {error ? (
+                <button className="button" onClick={changed}>
+                  Spróbuj ponownie
+                </button>
+              ) : (
+                "Wczytuję aplikację…"
+              )}
             </div>
-            <button
-              className="button refresh"
-              onClick={() => setRevision((value) => value + 1)}
-              disabled={loading}
-            >
-              <RefreshCw size={16} className={loading ? "spin" : ""} />
-              Odśwież widok
-            </button>
-          </div>
-
-          <SummaryFilters
-            filters={filters}
-            data={data}
-            loading={loading}
-            setFilters={setFilters}
-          />
-
-          {error ? (
-            <div role="alert" className="empty-state">
-              <CircleHelp />
-              <h2>Nie udało się pobrać danych</h2>
-              <p>{error}</p>
-              <button
-                className="button"
-                onClick={() => setRevision((value) => value + 1)}
-              >
-                Spróbuj ponownie
-              </button>
-            </div>
-          ) : !data ? (
-            <div role="status" className="empty-state">
-              Wczytuję podsumowanie…
-            </div>
+          ) : page === "summary" ? (
+            <SummaryPage externalRevision={revision} />
+          ) : page === "ledger" ? (
+            <LedgerPage
+              categories={meta.categories}
+              revision={revision}
+              onChanged={changed}
+            />
+          ) : page === "classification" ? (
+            <ClassificationPage
+              categories={meta.categories}
+              aiEnabled={meta.ai_enabled}
+              revision={revision}
+              onChanged={changed}
+            />
           ) : (
-            <div
-              className={loading ? "results loading" : "results"}
-              aria-busy={loading}
-            >
-              <SummaryCards data={data} />
-              <BreakdownPanel
-                key={`${data.start}:${data.end}:${data.currency}:${revision}`}
-                data={data}
-              />
-              <div className="bottom-note">
-                <span>
-                  <LockKeyhole size={14} />
-                  Dane z lokalnej bazy · waluty liczone osobno
-                </span>
-                <span>{data.item_count} pozycji w okresie</span>
-              </div>
-            </div>
+            <RulesPage
+              categories={meta.categories}
+              revision={revision}
+              onChanged={changed}
+            />
           )}
-          <div className="preview-note">
-            <span>
-              Pierwszy etap: podsumowanie. Pozostałe sekcje są dostępne w
-              dotychczasowej aplikacji.
-            </span>
-          </div>
         </div>
       </main>
     </div>

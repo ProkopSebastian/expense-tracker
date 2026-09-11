@@ -6,10 +6,17 @@ import {
   Settings2,
   LockKeyhole,
 } from "lucide-react";
-export default function Sidebar() {
+import { pages, type Page } from "../domain";
+const icons = {
+  summary: LayoutDashboard,
+  ledger: History,
+  classification: Sparkles,
+  rules: Settings2,
+};
+export default function Sidebar({ page }: { page: Page }) {
   return (
     <aside className="sidebar">
-      <a className="brand" href="/" aria-label="Wydatki — strona główna">
+      <a className="brand" href="#summary" aria-label="Wydatki — strona główna">
         <span className="brand-icon">
           <Wallet size={23} />
         </span>
@@ -17,34 +24,21 @@ export default function Sidebar() {
       </a>
       <div className="workspace-label">TWOJE FINANSE</div>
       <nav aria-label="Nawigacja główna">
-        <button className="nav-item active" aria-current="page">
-          <LayoutDashboard size={19} />
-          Podsumowanie
-        </button>
-        <button
-          className="nav-item"
-          disabled
-          title="Dostępne w obecnej wersji Streamlit"
-        >
-          <History size={19} />
-          Historia transakcji
-        </button>
-        <button
-          className="nav-item"
-          disabled
-          title="Dostępne w obecnej wersji Streamlit"
-        >
-          <Sparkles size={19} />
-          Do klasyfikacji
-        </button>
-        <button
-          className="nav-item"
-          disabled
-          title="Dostępne w obecnej wersji Streamlit"
-        >
-          <Settings2 size={19} />
-          Reguły sprzedawców
-        </button>
+        {(Object.keys(pages) as Page[]).map((key) => {
+          const Icon = icons[key];
+          return (
+            <a
+              key={key}
+              href={`#${key}`}
+              className={`nav-item ${page === key ? "active" : ""}`}
+              aria-current={page === key ? "page" : undefined}
+              title={pages[key].title}
+            >
+              <Icon size={19} />
+              <span>{pages[key].title}</span>
+            </a>
+          );
+        })}
       </nav>
       <div className="sidebar-bottom">
         <LockKeyhole size={16} />

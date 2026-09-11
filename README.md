@@ -38,43 +38,48 @@ Jeśli świadomie potrzebujesz zobaczyć surowe wartości do diagnostyki, dodaj 
 
 ## Dashboard
 
-### Nowy interfejs React — pierwszy etap
+### Interfejs React
 
-Gałąź `codex/ui-redesign` zawiera podsumowanie w React: wybór okresu i waluty,
-kwoty, interaktywny wykres z przechodzeniem do sprzedawców i czytelną listę kategorii.
-Pozostałe trzy sekcje nadal działają w Streamlit. „Odśwież widok” ponownie pobiera
-podsumowanie; nie importuje plików. Import nadal uruchamia się przez Streamlit lub CLI.
-
-Pierwsza instalacja i budowa frontendu (Node.js i pnpm):
+Wszystkie cztery sekcje działają w React: podsumowanie, historia transakcji,
+klasyfikacja AI i reguły sprzedawców. Uruchom z katalogu projektu:
 
 ```bash
-cd frontend
-pnpm install --frozen-lockfile
-pnpm build
-cd ..
+./start.sh
 ```
 
-Uruchomienie gotowej aplikacji — jeden lokalny proces, bez publikowania:
+Skrypt instaluje zależności według pliku blokady, buduje bieżący kod Reacta
+oraz uruchamia API razem z interfejsem. Wymaga uv, Node.js i pnpm;
+na tym komputerze potrafi też użyć Node.js i pnpm dołączonych do Codexa.
+Otwórz [aplikację](http://127.0.0.1:8000/). Zatrzymanie: Ctrl+C.
+Jeśli port 8000 jest zajęty, zatrzymaj wcześniejszy serwer przed uruchomieniem.
+Nie otwieraj bezpośrednio `frontend/index.html` ani adresu Streamlita —
+nowa aplikacja jest pod powyższym adresem. Układ dopasowuje się do szerokości okna.
+
+„Odśwież dane” w górnym pasku importuje nowe CSV z `data/`.
+„Odśwież widok” w podsumowaniu tylko ponownie pobiera obliczenia.
+Historia obsługuje zmianę kategorii, ręczne wpisy, zaznaczanie transakcji do grupowania,
+rozwijanie i rozwiązywanie grup oraz zatwierdzanie i odrzucanie powiązań AI.
+Filtry i paginacja zachowują kompletne grupy (100 pozycji na stronę).
+Klasyfikacja pozwala zapisać kategorię każdego wiersza i zapamiętać regułę;
+przyciski AI zachowują limity 20 sprzedawców / 100 transakcji na analizę.
+AI nie uruchamia się automatycznie. Reguły można wyszukiwać, zmieniać i usuwać.
+
+Przepływ danych: **React → HTTP `/api/*` → serwisy Pythona → SQLite**.
+Obliczenia finansowe i walidacja pozostają w Pythonie. API udostępnia odczyt i zapis,
+a połączenia z bazą są zamykane po każdym żądaniu. Kwoty transakcji i podsumowania
+są przesyłane jako ciągi znaków. Istniejące funkcje importu i AI są używane ponownie.
+Dokumentacja endpointów: [lokalne API](http://127.0.0.1:8000/docs).
+
+Podczas pracy nad frontendem można osobno uruchomić:
 
 ```bash
 uv run uvicorn expense_tracker.api:app --host 127.0.0.1 --port 8000
+pnpm --dir frontend dev
 ```
 
-Otwórz [podsumowanie](http://127.0.0.1:8000/) lub
-[dokumentację API](http://127.0.0.1:8000/docs).
-Podczas pracy nad Reactem można dodatkowo uruchomić `pnpm --dir frontend dev`:
 Vite na porcie 5173 przekazuje żądania `/api` do Pythona na porcie 8000.
-
-Przepływ danych: **React → HTTP `/api/summary` → `summary_service` → obecne
-`dashboard_data` / `reporting` / `ledger` → SQLite**. React nie importuje Pythona.
-Obliczenia finansowe pozostają na serwerze i używają `Decimal`; API przesyła kwoty
-jako ciągi znaków, a frontend formatuje je i rysuje wykres. Daty i waluty są
-filtrowane w serwisie, według tych samych zasad co w dotychczasowym podsumowaniu.
-Połączenia z bazą są otwierane i zamykane dla każdego żądania. API tego etapu
-udostępnia wyłącznie odczyt podsumowania; nie uruchamia AI ani importu.
-
-Kod Reacta jest podzielony na filtry, karty kwot, panel kategorii, wykres i nawigację.
 Sprawdzenie: `uv run pytest`, `pnpm --dir frontend build`.
+Dotychczasowy Streamlit pozostaje dostępny jako wersja porównawcza.
 
 ### Dotychczasowy interfejs Streamlit
 
