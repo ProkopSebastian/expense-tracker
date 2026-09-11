@@ -1123,6 +1123,17 @@ h2 {
   background: #e9f4ee;
   color: #37725b;
 }
+.crash-screen {
+  max-width: 480px;
+  margin: 80px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+.crash-screen p {
+  color: var(--muted, #666);
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
 .data-card {
   background: white;
   border: 1px solid var(--line);
