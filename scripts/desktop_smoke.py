@@ -13,9 +13,7 @@ from urllib.request import urlopen
 
 def run() -> None:
     if sys.platform == "win32":
-        import tkinter
-
-        assert tkinter.TkVersion >= 8.6
+        import webview  # noqa: F401 -- import success proves the bundled GUI backend loads
     previous = Path.cwd()
     with TemporaryDirectory() as directory:
         try:

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sqlite3
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -97,11 +100,21 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         )
         return {"ok": True}
 
+    @app.post("/open-data-folder")
+    def open_data_folder() -> dict[str, bool]:
+        folder = settings.data_dir.resolve()
+        folder.mkdir(parents=True, exist_ok=True)
+        if sys.platform == "win32":
+            os.startfile(folder)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(folder)])
+        else:
+            subprocess.Popen(["xdg-open", str(folder)])
+        return {"ok": True}
+
     app.include_router(router)
 
     # A built frontend and API can be served by one local process.
-    import sys
-
     root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
     frontend = root / "frontend" / "dist"
     if frontend.is_dir():

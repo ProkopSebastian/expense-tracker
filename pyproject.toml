@@ -20,6 +20,10 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.15.0",
 ]
+desktop = [
+    "pywebview>=6.2.1",
+    "pywebview[qt]>=6.2.1; sys_platform == 'linux'",
+]
 
 [tool.ruff]
 line-length = 120

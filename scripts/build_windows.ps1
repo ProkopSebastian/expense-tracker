@@ -6,7 +6,9 @@ Check-Exit
 pnpm --dir frontend build
 Check-Exit
 $FrontendDist = (Resolve-Path 'frontend/dist').Path
-uv run --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onedir --name Wydatki --specpath build --paths src --icon scripts/assets/app.ico --add-data "${FrontendDist};frontend/dist" --add-data "scripts/assets/app.ico;assets" --collect-submodules uvicorn scripts/desktop_launcher.py
+uv sync --group desktop --frozen
+Check-Exit
+uv run --group desktop --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onedir --name Wydatki --specpath build --paths src --icon scripts/assets/app.ico --add-data "${FrontendDist};frontend/dist" --add-data "scripts/assets/app.ico;assets" --add-data "scripts/assets/app.png;assets" --collect-submodules uvicorn scripts/desktop_launcher.py
 Check-Exit
 $smoke = Start-Process -FilePath dist/Wydatki/Wydatki.exe -ArgumentList '--smoke-test' -PassThru -Wait
 if ($smoke.ExitCode -ne 0) { throw "Packaged application smoke test failed: $($smoke.ExitCode)" }
