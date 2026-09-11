@@ -19,6 +19,7 @@ data/*.csv
 
 # AI
 HANDOFF.md
+CLAUDE.md
 
 # Local React build and dependencies
 node_modules/
