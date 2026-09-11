@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { pages, type Page } from "../domain";
 const icons = {
+  data: Wallet,
   summary: LayoutDashboard,
   ledger: History,
   classification: Sparkles,
@@ -24,7 +25,9 @@ export default function Sidebar({ page }: { page: Page }) {
       </a>
       <div className="workspace-label">TWOJE FINANSE</div>
       <nav aria-label="Nawigacja główna">
-        {(Object.keys(pages) as Page[]).map((key) => {
+        {(
+          ["summary", "ledger", "classification", "rules", "data"] as Page[]
+        ).map((key) => {
           const Icon = icons[key];
           return (
             <a
@@ -43,13 +46,6 @@ export default function Sidebar({ page }: { page: Page }) {
       <div className="sidebar-bottom">
         <LockKeyhole size={16} />
         <span>Lokalnie na Twoim komputerze</span>
-      </div>
-      <div className="profile">
-        <span className="avatar">S</span>
-        <div>
-          <strong>Sebastian</strong>
-          <span>Przestrzeń osobista</span>
-        </div>
       </div>
     </aside>
   );

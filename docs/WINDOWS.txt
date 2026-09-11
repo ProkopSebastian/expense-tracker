@@ -1,0 +1,13 @@
+WYDATKI — pierwsze uruchomienie
+
+1. Wypakuj cały folder z ZIP-a.
+2. Uruchom Wydatki.exe. Aplikacja otworzy się w domyślnej przeglądarce.
+3. Przejdź do „Dane i ustawienia” i wybierz eksport CSV banku.
+4. Opcjonalnie zapisz swój klucz API, żeby korzystać z analizy AI.
+
+Nie trzeba instalować Pythona ani Node.js.
+Każdy użytkownik ma osobne dane w %LOCALAPPDATA%\Wydatki.
+Zamknięcie małego okna Wydatki zatrzymuje aplikację.
+Nową wersję programu wypakuj do nowego folderu; dane pozostają w tym samym miejscu.
+Kopie bazy: %LOCALAPPDATA%\Wydatki\expense-tracker-backups.
+Nie udostępniaj innym folderu z danymi ani pliku ai-settings.json.

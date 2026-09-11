@@ -40,7 +40,7 @@ def merchant_rules(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
         """SELECT mr.id, mr.merchant_key, mr.category_key, c.label AS category_label, mr.created_at
         FROM merchant_rules mr JOIN categories c ON c.key = mr.category_key
-        WHERE mr.is_active = 1 ORDER BY mr.created_at DESC"""
+        WHERE mr.is_active = 1 ORDER BY mr.created_at DESC, mr.id DESC"""
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -95,7 +95,8 @@ def categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
 def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
         """SELECT t.id, t.account, t.booking_date, t.amount, t.currency, t.description, t.counterparty,
-                  t.transaction_type, d.category_key, c.label AS category_label, d.source AS decision_source,
+                  t.transaction_type, t.bank_status, d.category_key, c.label AS category_label,
+                  d.source AS decision_source,
                   d.status AS decision_status, d.confidence, d.explanation, cases.id AS case_id,
                   cases.title AS case_title, cases.status AS case_status
            FROM transactions t
@@ -103,6 +104,7 @@ def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
            LEFT JOIN categories c ON c.key = d.category_key
            LEFT JOIN case_members members ON members.transaction_id = t.id
            LEFT JOIN cases ON cases.id = members.case_id
+           WHERE t.bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED')
            ORDER BY t.booking_date DESC, t.id DESC"""
     ).fetchall()
     return [dict(row) for row in rows]
@@ -366,6 +368,21 @@ def approve_merchant_suggestion_with_category(
     payload = json.loads(row["payload_json"])
     transaction_ids = [int(transaction_id) for transaction_id in payload["transaction_ids"]]
     with connection:
+        if not connection.in_transaction:
+            connection.execute("BEGIN IMMEDIATE")
+        # A suggestion is valid only while its input is still unclassified and ungrouped.
+        for transaction_id in transaction_ids:
+            if (
+                connection.execute(
+                    "SELECT 1 FROM transaction_decisions WHERE transaction_id=?", (transaction_id,)
+                ).fetchone()
+                or connection.execute(
+                    "SELECT 1 FROM case_members cm JOIN cases c ON c.id=cm.case_id "
+                    "WHERE cm.transaction_id=? AND c.status='approved'",
+                    (transaction_id,),
+                ).fetchone()
+            ):
+                raise ValueError("Dane sugestii zmieniły się. Odrzuć starą sugestię i odśwież widok.")
         for transaction_id in transaction_ids:
             save_decision(
                 connection,

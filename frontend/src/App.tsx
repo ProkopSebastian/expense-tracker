@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
+import { ChevronRight, Undo2 } from "lucide-react";
 import { pages, type Page, type Meta } from "./domain";
 import { request, useResource, useAction } from "./hooks";
+import DataPage from "./pages/DataPage";
 import Sidebar from "./components/Sidebar";
 import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
@@ -10,25 +11,28 @@ import ClassificationPage from "./pages/ClassificationPage";
 import RulesPage from "./pages/RulesPage";
 function currentPage(): Page {
   const key = window.location.hash.slice(1);
-  return key in pages ? (key as Page) : "summary";
-}
-interface SyncResult {
-  transactions_inserted: number;
-  new_files: string[];
-  unsupported_files: string[];
-  error_files: [string, string][];
+  return Object.hasOwn(pages, key) ? (key as Page) : "summary";
 }
 export default function App() {
   const [page, setPage] = useState<Page>(currentPage),
-    [revision, setRevision] = useState(0),
-    [syncNotice, setSyncNotice] = useState("");
+    [revision, setRevision] = useState(0);
+  const positions = useRef<Partial<Record<Page, number>>>({});
+  const previousPage = useRef(page);
+  useLayoutEffect(() => {
+    window.scrollTo(0, positions.current[page] ?? 0);
+  }, [page]);
   const { data: meta, error } = useResource<Meta>("/meta", revision);
   const changed = () => setRevision((value) => value + 1);
   const action = useAction(changed);
+  const { data: recovery } = useResource<{ can_undo: boolean }>(
+    "/recovery",
+    revision,
+  );
   useEffect(() => {
     const handler = () => {
-      setPage(currentPage());
-      window.scrollTo(0, 0);
+      positions.current[previousPage.current] = window.scrollY;
+      previousPage.current = currentPage();
+      setPage(previousPage.current);
     };
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
@@ -36,23 +40,6 @@ export default function App() {
   useEffect(() => {
     document.title = `Wydatki · ${pages[page].title}`;
   }, [page]);
-  async function sync() {
-    setSyncNotice("");
-    await action.run(async () => {
-      const result = await request<SyncResult>("/sync", "POST");
-      setSyncNotice(
-        [
-          result.new_files.length
-            ? `Dodano ${result.transactions_inserted} transakcji z ${result.new_files.length} plików.`
-            : "Dane są aktualne.",
-          ...result.unsupported_files.map(
-            (f) => `Nie rozpoznano formatu: ${f}.`,
-          ),
-          ...result.error_files.map(([f, e]) => `${f}: ${e}`),
-        ].join(" "),
-      );
-    }, "");
-  }
   return (
     <div className="app-shell">
       <Sidebar page={page} />
@@ -63,13 +50,26 @@ export default function App() {
             <ChevronRight size={14} />
             <strong>{pages[page].title}</strong>
           </span>
-          <button className="button" onClick={sync} disabled={action.busy}>
-            <RefreshCw size={15} className={action.busy ? "spin" : ""} />
-            {action.busy ? "Importuję…" : "Odśwież dane"}
-          </button>
         </header>
         <div className="main-content">
-          <Notice error={error || action.error} notice={syncNotice} />
+          <Notice error={error || action.error} notice={action.notice} />
+          {revision > 0 && recovery?.can_undo && (
+            <div className="undo-notice" role="status">
+              <span>Zmiany zapisane</span>
+              <button
+                className="button"
+                disabled={action.busy}
+                onClick={() =>
+                  action.run(
+                    () => request("/undo", "POST"),
+                    "Ostatnia zmiana została cofnięta.",
+                  )
+                }
+              >
+                <Undo2 size={14} /> Cofnij
+              </button>
+            </div>
+          )}
           {!meta ? (
             <div className="empty-state">
               {error ? (
@@ -80,6 +80,8 @@ export default function App() {
                 "Wczytuję aplikację…"
               )}
             </div>
+          ) : page === "data" ? (
+            <DataPage revision={revision} onChanged={changed} />
           ) : page === "summary" ? (
             <SummaryPage externalRevision={revision} />
           ) : page === "ledger" ? (

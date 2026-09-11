@@ -43,11 +43,16 @@ def _parse_amount(value: str) -> Decimal:
     cleaned = value.replace("\u00a0", " ").strip()
     cleaned = re.sub(r"\s*[A-Z]{3}$", "", cleaned, flags=re.I).replace(" ", "")
     if "," in cleaned and "." in cleaned:
-        cleaned = cleaned.replace(".", "").replace(",", ".")
+        decimal_separator = "," if cleaned.rfind(",") > cleaned.rfind(".") else "."
+        thousands_separator = "." if decimal_separator == "," else ","
+        cleaned = cleaned.replace(thousands_separator, "").replace(decimal_separator, ".")
     else:
         cleaned = cleaned.replace(",", ".")
     try:
-        return Decimal(cleaned)
+        amount = Decimal(cleaned)
+        if not amount.is_finite():
+            raise InvalidOperation
+        return amount
     except InvalidOperation as exc:
         raise ValueError(f"Nieobsługiwana kwota: {value!r}") from exc
 
@@ -64,7 +69,10 @@ def import_nest_csv(path: Path, account: str = "nest") -> list[Transaction]:
             transactions.append(
                 Transaction(
                     account=account,
-                    booking_date=_parse_date(_column(row, "data księgowania", "data", "date")),
+                    booking_date=_parse_date(
+                        _column(row, "data operacji", required=False)
+                        or _column(row, "data księgowania", "data", "date")
+                    ),
                     value_date=_parse_date(value_date) if value_date else None,
                     amount=_parse_amount(amount_text),
                     currency=currency.upper(),
@@ -102,13 +110,13 @@ def import_nest_csv(path: Path, account: str = "nest") -> list[Transaction]:
     return transactions
 
 
-def import_revolut_csv(path: Path, account: str = "revolut") -> list[Transaction]:
+def import_revolut_csv(path: Path, account: str = "revolut", *, include_inactive: bool = False) -> list[Transaction]:
     _, rows = read_csv(path)
     transactions: list[Transaction] = []
     for number, row in enumerate(rows, start=2):
         try:
             state = _column(row, "state", required=False)
-            if state and state.strip().upper() in DECLINED_STATES:
+            if not include_inactive and state and state.strip().upper() in DECLINED_STATES:
                 continue
             completed = _column(row, "completed date", required=False)
             balance = _column(row, "balance", required=False)
@@ -118,10 +126,10 @@ def import_revolut_csv(path: Path, account: str = "revolut") -> list[Transaction
                     booking_date=_parse_date(_column(row, "started date")),
                     value_date=_parse_date(completed) if completed else None,
                     amount=_parse_amount(_column(row, "amount")),
-                    currency=_column(row, "currency", required=False) or "PLN",
+                    currency=(_column(row, "currency", required=False) or "PLN").upper(),
                     description=_column(row, "description"),
                     counterparty=None,
-                    external_id=None,
+                    external_id=_column(row, "transaction id", "id", required=False) or None,
                     balance=_parse_amount(balance) if balance else None,
                     raw=row,
                 )
@@ -135,6 +143,6 @@ def detect_format(headers: list[str]) -> Literal["nest", "revolut"] | None:
     keys = {_key(header) for header in headers}
     if {"started date", "completed date", "state"}.issubset(keys):
         return "revolut"
-    if "kwota" in keys and ("data ksiegowania" in keys or "data" in keys):
+    if "kwota" in keys and ("data ksiegowania" in keys or "data operacji" in keys or "data" in keys):
         return "nest"
     return None

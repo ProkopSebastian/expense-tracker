@@ -1,5 +1,8 @@
+import { useSessionState } from "../hooks";
+import BalanceChart from "../components/BalanceChart";
+import MonthlyBarChart from "../components/MonthlyBarChart";
 import { useEffect, useState } from "react";
-import { CircleHelp, RefreshCw, LockKeyhole } from "lucide-react";
+import { CircleHelp, LockKeyhole } from "lucide-react";
 import { fetchSummary, type Filters, type Summary } from "../api";
 import SummaryFilters from "../components/SummaryFilters";
 import SummaryCards from "../components/SummaryCards";
@@ -10,7 +13,9 @@ export default function SummaryPage({
 }: {
   externalRevision: number;
 }) {
-  const [filters, setFilters] = useState<Filters>({ mode: "month" });
+  const [filters, setFilters] = useSessionState<Filters>("summary.filters", {
+    mode: "month",
+  });
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,7 +27,7 @@ export default function SummaryPage({
     setError("");
     fetchSummary(filters, controller.signal)
       .then((result) => {
-        setData(result);
+        if (!controller.signal.aborted) setData(result);
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -45,14 +50,6 @@ export default function SummaryPage({
           <h1>Podsumowanie</h1>
           <p>Wydatki i przychody w wybranym okresie.</p>
         </div>
-        <button
-          className="button refresh"
-          onClick={() => setRevision((value) => value + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={16} className={loading ? "spin" : ""} />
-          Odśwież widok
-        </button>
       </div>
 
       <SummaryFilters
@@ -88,6 +85,8 @@ export default function SummaryPage({
             key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
             data={data}
           />
+          <BalanceChart data={data} />
+          <MonthlyBarChart data={data} />
           <div className="bottom-note">
             <span>
               <LockKeyhole size={14} />

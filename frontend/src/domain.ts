@@ -9,6 +9,7 @@ export interface Meta {
   ai_enabled: boolean;
 }
 export interface TransactionRow {
+  bank_status?: string;
   id: number;
   date: string;
   account: string;
@@ -67,13 +68,15 @@ export interface ClassificationRow {
   remember: boolean;
 }
 export interface Rule {
+  created_at: string;
   id: number;
   name: string;
   category_key: string;
   category_label: string;
 }
-export type Page = "summary" | "ledger" | "classification" | "rules";
+export type Page = "data" | "summary" | "ledger" | "classification" | "rules";
 export const pages: Record<Page, { title: string; description: string }> = {
+  data: { title: "Dane i ustawienia", description: "Import i kopie zapasowe" },
   summary: {
     title: "Podsumowanie",
     description: "Wydatki i przychody w wybranym okresie.",

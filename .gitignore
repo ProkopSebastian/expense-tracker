@@ -24,3 +24,8 @@ HANDOFF.md
 node_modules/
 *.tsbuildinfo
 .sites-runtime/
+
+# Local recovery and private preferences
+*-backups/
+ai-settings.json
+ai-settings.tmp

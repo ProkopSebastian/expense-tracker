@@ -69,3 +69,23 @@ export function useAction(onSuccess?: () => void) {
   }
   return { busy, notice, error, run };
 }
+
+/** Keep view filters while navigating, without persisting transaction data. */
+export function useSessionState<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = sessionStorage.getItem(key);
+      return saved === null ? initial : (JSON.parse(saved) as T);
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      /* Storage is optional. */
+    }
+  }, [key, value]);
+  return [value, setValue] as const;
+}

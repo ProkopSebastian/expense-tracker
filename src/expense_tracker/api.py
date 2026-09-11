@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import date
@@ -27,6 +28,9 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         # Initialize once; connections used by requests have independent lifetimes.
         database = Database(path)
         database.close()
+        from .preferences import load_preferences
+
+        load_preferences(path)
         yield
 
     app = FastAPI(title="Expense Tracker", version="0.1.0", lifespan=lifespan)
@@ -34,6 +38,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
     from threading import Lock
 
     app.state.ai_lock = Lock()
+    app.state.write_lock = asyncio.Lock()
 
     @app.middleware("http")
     async def local_writes(request, call_next):
@@ -42,6 +47,17 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             allowed = {str(request.base_url).rstrip("/"), "http://127.0.0.1:5173", "http://localhost:5173"}
             if origin and origin not in allowed:
                 return JSONResponse({"detail": "Niedozwolone źródło żądania."}, status_code=403)
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path.startswith("/api/"):
+            from starlette.concurrency import run_in_threadpool
+
+            from .recovery import backup_database, record_undo
+
+            async with app.state.write_lock:
+                backup = await run_in_threadpool(backup_database, path, "action")
+                response = await call_next(request)
+                if request.url.path != "/api/undo":
+                    await run_in_threadpool(record_undo, path, backup)
+                return response
         return await call_next(request)
 
     @app.exception_handler(ValueError)
@@ -69,7 +85,10 @@ def create_app(database_path: Path | None = None) -> FastAPI:
     app.include_router(router)
 
     # A built frontend and API can be served by one local process.
-    frontend = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    import sys
+
+    root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
+    frontend = root / "frontend" / "dist"
     if frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
     return app

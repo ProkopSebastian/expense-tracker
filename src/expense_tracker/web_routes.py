@@ -13,6 +13,8 @@ from .config import settings
 from .data_sync import sync_data_directory
 from .database import Database
 from .llm import service as ai
+from .preferences import AIPreferences, save_preferences
+from .web_models import Decision, GroupEntry, ManualEntry
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
@@ -35,18 +37,18 @@ def history(
 
 
 @router.post("/transactions", status_code=201)
-def manual(entry: service.ManualEntry, db: DB):
+def manual(entry: ManualEntry, db: DB):
     return {"id": service.add_manual(db, entry)}
 
 
 @router.put("/transactions/{tid}/category")
-def decision(tid: int, entry: service.Decision, db: DB):
+def decision(tid: int, entry: Decision, db: DB):
     service.decide(db, tid, entry)
     return {"message": "Kategoria zapisana."}
 
 
 @router.post("/cases", status_code=201)
-def group(entry: service.GroupEntry, db: DB):
+def group(entry: GroupEntry, db: DB):
     return {"id": service.add_group(db, entry)}
 
 
@@ -64,7 +66,7 @@ def classification(db: DB):
 
 
 @router.post("/suggestions/{sid}/approve")
-def approve(sid: int, db: DB, entry: service.Decision | None = None):
+def approve(sid: int, db: DB, entry: Decision | None = None):
     suggestion = db.execute("SELECT kind FROM suggestions WHERE id=? AND status='suggested'", (sid,)).fetchone()
     if not suggestion:
         raise ValueError("Sugestia została już rozpatrzona.")
@@ -97,7 +99,7 @@ def rules(db: DB):
 
 
 @router.put("/rules/{rid}")
-def update_rule(rid: int, entry: service.Decision, db: DB):
+def update_rule(rid: int, entry: Decision, db: DB):
     service.category_exists(db, entry.category_key)
     if not db.execute("SELECT 1 FROM merchant_rules WHERE id=?", (rid,)).fetchone():
         raise ValueError("Reguła nie istnieje.")
@@ -139,3 +141,59 @@ def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
         ) from error
     finally:
         lock.release()
+
+
+@router.get("/recovery")
+def recovery(request: Request):
+    from .recovery import undo_available
+
+    return {"can_undo": undo_available(request.app.state.database_path)}
+
+
+@router.post("/undo")
+def undo(request: Request):
+    from .recovery import undo_last
+
+    undo_last(request.app.state.database_path)
+    return {"message": "Ostatnia zmiana została cofnięta."}
+
+
+@router.post("/import")
+async def upload(request: Request, account: Annotated[str | None, Query(min_length=1, max_length=80)] = None):
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from starlette.concurrency import run_in_threadpool
+
+    from .data_sync import import_file
+
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 20 * 1024 * 1024:
+            raise HTTPException(413, "Maksymalny rozmiar pliku to 20 MB.")
+    if not body:
+        raise ValueError("Plik jest pusty.")
+
+    def run_import():
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "upload.csv"
+            path.write_bytes(body)
+            database = Database(request.app.state.database_path)
+            try:
+                return import_file(database, path, account.strip() if account else None)
+            finally:
+                database.close()
+
+    inserted = await run_in_threadpool(run_import)
+    return {
+        "message": "Ten plik został już wczytany."
+        if inserted is None
+        else f"Import zakończony. Nowe transakcje: {inserted}. Istniejące operacje zostały sprawdzone i zaktualizowane."
+    }
+
+
+@router.put("/settings/ai")
+def configure_ai(entry: AIPreferences, request: Request):
+    save_preferences(request.app.state.database_path, entry)
+    return {"message": "Ustawienia AI zapisane."}

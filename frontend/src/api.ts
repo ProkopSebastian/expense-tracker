@@ -1,24 +1,7 @@
 export type PeriodMode = "month" | "30days" | "3months" | "year" | "custom";
-export interface BreakdownNode {
-  key: string;
-  label: string;
-  total: string;
-  children: BreakdownNode[];
-}
-export interface Summary {
-  currency: string;
-  currencies: string[];
-  months: string[];
-  start: string | null;
-  end: string | null;
-  first_date: string | null;
-  last_date: string | null;
-  expenses: string;
-  income: string;
-  balance: string;
-  item_count: number;
-  breakdown: BreakdownNode[];
-}
+import type { SummaryResponse } from "./generated/summary";
+export type { BreakdownNode } from "./generated/summary";
+export type Summary = SummaryResponse;
 export interface Filters {
   mode: PeriodMode;
   currency?: string;
@@ -57,5 +40,12 @@ export function monthLabel(month: string): string {
   return new Intl.DateTimeFormat("pl-PL", {
     month: "long",
     year: "numeric",
+  }).format(new Date(`${month}-01T12:00:00`));
+}
+
+export function monthShortLabel(month: string): string {
+  return new Intl.DateTimeFormat("pl-PL", {
+    month: "short",
+    year: "2-digit",
   }).format(new Date(`${month}-01T12:00:00`));
 }
