@@ -112,7 +112,7 @@ def test_nest_date_migration_preserves_classification_and_reimport(tmp_path: Pat
         == "groceries"
     )
     export = tmp_path / "nest.csv"
-    export.write_text(";".join(raw) + "\n" + ";".join(raw.values()) + "\n")
+    export.write_text(";".join(raw) + "\n" + ";".join(raw.values()) + "\n", encoding="utf-8")
     assert db.insert_transactions(import_nest_csv(export)) == (0, 1)
     assert list(tmp_path.glob("nest-previous-backups/startup-*.sqlite3"))
     db.close()
