@@ -6,6 +6,7 @@ export interface Category {
 }
 export interface Meta {
   categories: Category[];
+  accounts: string[];
   ai_enabled: boolean;
 }
 export interface TransactionRow {

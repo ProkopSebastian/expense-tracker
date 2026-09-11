@@ -19,6 +19,9 @@ pliku (rozpoznawane po skrócie SHA-256 zawartości) nic nie dodaje, a każdy wi
 Rzadki, zaakceptowany wyjątek: dwie różne transakcje tego samego dnia, na tym samym koncie, z identyczną
 kwotą i opisem zostaną potraktowane jak duplikat.
 
+Plik wybrany w interfejsie jest importowany przez plik tymczasowy i nie jest kopiowany do `data/`.
+Przycisk „Aktualizuj dane z folderu” obsługuje osobno eksporty umieszczone bezpośrednio w `data/`.
+
 Pojedyncze pliki można też importować z podaniem własnej etykiety konta (przydatne przy kilku kontach
 tego samego banku):
 
@@ -51,6 +54,7 @@ Skrypt instaluje zależności według pliku blokady, buduje bieżący kod Reacta
 oraz uruchamia API razem z interfejsem. Wymaga uv, Node.js i pnpm;
 na tym komputerze potrafi też użyć Node.js i pnpm dołączonych do Codexa.
 Otwórz [aplikację](http://127.0.0.1:8000/). Zatrzymanie: Ctrl+C.
+Jeśli `start.sh` został uruchomiony w tle albo terminal został zamknięty, użyj `./stop.sh`.
 Jeśli port 8000 jest zajęty, zatrzymaj wcześniejszy serwer przed uruchomieniem.
 Nie otwieraj bezpośrednio `frontend/index.html` ani adresu Streamlita —
 nowa aplikacja jest pod powyższym adresem. Układ dopasowuje się do szerokości okna.

@@ -13,7 +13,12 @@ import {
 import type { Category, LedgerData, Block } from "../domain";
 import { request, useResource, useAction, useSessionState } from "../hooks";
 import { money } from "../api";
-import { CategorySelect, Modal, Notice } from "../components/Forms";
+import {
+  CategorySelect,
+  groupCategories,
+  Modal,
+  Notice,
+} from "../components/Forms";
 import { ManualForm, GroupForm } from "../components/TransactionForms";
 export default function LedgerPage({
   categories,
@@ -55,6 +60,7 @@ export default function LedgerPage({
   const canGroup =
     selectedRows.length >= 2 &&
     new Set(selectedRows.map((row) => row.currency)).size === 1;
+  const categoryGroups = groupCategories(categories);
   function filtersChanged() {
     setPage(1);
     setSelected([]);
@@ -106,22 +112,41 @@ export default function LedgerPage({
               Kategorie{category.length ? ` (${category.length})` : ""}
             </summary>
             <div>
-              {categories.map((c) => (
-                <label key={c.key}>
-                  <input
-                    type="checkbox"
-                    checked={category.includes(c.key)}
-                    onChange={(e) => {
-                      setCategory(
-                        e.target.checked
-                          ? [...category, c.key]
-                          : category.filter((k) => k !== c.key),
-                      );
-                      filtersChanged();
-                    }}
-                  />
-                  {c.label}
-                </label>
+              {categoryGroups.map(({ parent, children }) => (
+                <div className="category-filter-group" key={parent.key}>
+                  <label className="category-filter-parent">
+                    <input
+                      type="checkbox"
+                      checked={category.includes(parent.key)}
+                      onChange={(e) => {
+                        setCategory(
+                          e.target.checked
+                            ? [...category, parent.key]
+                            : category.filter((key) => key !== parent.key),
+                        );
+                        filtersChanged();
+                      }}
+                    />
+                    {parent.label}
+                  </label>
+                  {children.map((child) => (
+                    <label className="category-filter-child" key={child.key}>
+                      <input
+                        type="checkbox"
+                        checked={category.includes(child.key)}
+                        onChange={(e) => {
+                          setCategory(
+                            e.target.checked
+                              ? [...category, child.key]
+                              : category.filter((key) => key !== child.key),
+                          );
+                          filtersChanged();
+                        }}
+                      />
+                      {child.label}
+                    </label>
+                  ))}
+                </div>
               ))}
               <label>
                 <input

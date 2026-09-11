@@ -81,7 +81,12 @@ export default function App() {
               )}
             </div>
           ) : page === "data" ? (
-            <DataPage revision={revision} onChanged={changed} />
+            <DataPage
+              accounts={meta.accounts}
+              aiEnabled={meta.ai_enabled}
+              revision={revision}
+              onChanged={changed}
+            />
           ) : page === "summary" ? (
             <SummaryPage externalRevision={revision} />
           ) : page === "ledger" ? (
