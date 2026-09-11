@@ -24,6 +24,7 @@ HANDOFF.md
 node_modules/
 *.tsbuildinfo
 .sites-runtime/
+.expense-tracker.pid
 
 # Local recovery and private preferences
 *-backups/

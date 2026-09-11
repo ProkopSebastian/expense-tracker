@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { Upload, RefreshCw, Undo2 } from "lucide-react";
+import { CheckCircle2, KeyRound, RefreshCw, Undo2, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
 import { Notice } from "../components/Forms";
 
 export default function DataPage({
+  accounts,
+  aiEnabled,
   revision,
   onChanged,
 }: {
+  accounts: string[];
+  aiEnabled: boolean;
   revision: number;
   onChanged: () => void;
 }) {
@@ -17,12 +21,16 @@ export default function DataPage({
   );
   const [apiKey, setApiKey] = useState("");
   const [account, setAccount] = useState("");
+  const [newAccount, setNewAccount] = useState("");
   const [message, setMessage] = useState("");
+  const accountReady = account !== "__new__" || Boolean(newAccount.trim());
   async function upload(file?: File) {
-    if (!file) return;
+    if (!file || !accountReady) return;
     await action.run(async () => {
-      const params = account.trim()
-        ? `?account=${encodeURIComponent(account.trim())}`
+      const selectedAccount =
+        account === "__new__" ? newAccount.trim() : account.trim();
+      const params = selectedAccount
+        ? `?account=${encodeURIComponent(selectedAccount)}`
         : "";
       const response = await fetch(`/api/import${params}`, {
         method: "POST",
@@ -49,48 +57,19 @@ export default function DataPage({
         </div>
       </div>
       <Notice error={action.error} notice={message || action.notice} />
-      <section className="balance-panel form-stack">
-        <h2>Import transakcji</h2>
-        <p className="form-help">
-          Wybierz eksport CSV Nest lub Revolut. Operacje oczekujące uwzględniamy
-          od razu. W Nest liczymy datę operacji.
-        </p>
-        <label>
-          Nazwa rachunku (opcjonalnie)
-          <input
-            value={account}
-            onChange={(e) => setAccount(e.target.value)}
-            placeholder="Domyślnie: nest lub revolut"
-            maxLength={80}
-          />
-        </label>
-        <p className="form-help">
-          Dla kilku rachunków w jednym banku używaj za każdym razem tej samej,
-          osobnej nazwy.
-        </p>
-        <label
-          className={`upload-zone ${action.busy ? "loading" : ""}`}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            if (!action.busy) void upload(e.dataTransfer.files[0]);
-          }}
-        >
-          <Upload size={28} />
-          <strong>Wybierz CSV lub przeciągnij go tutaj</strong>
-          <span>Nest i Revolut · do 20 MB</span>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            disabled={action.busy}
-            onChange={(e) => {
-              void upload(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-        </label>
+      <section className="folder-sync-panel">
+        <div className="folder-sync-icon" aria-hidden="true">
+          <RefreshCw size={22} />
+        </div>
+        <div className="folder-sync-copy">
+          <h2>Aktualizuj dane z folderu data</h2>
+          <p>
+            Wczytaj wszystkie nowe eksporty Nest i Revolut umieszczone w
+            lokalnym folderze projektu.
+          </p>
+        </div>
         <button
-          className="button"
+          className="button primary-button"
           disabled={action.busy}
           onClick={() =>
             action.run(async () => {
@@ -105,54 +84,132 @@ export default function DataPage({
             })
           }
         >
-          <RefreshCw size={16} /> Importuj z lokalnego folderu danych
+          <RefreshCw size={16} /> Aktualizuj teraz
         </button>
       </section>
       <section className="balance-panel form-stack">
-        <h2>Opcjonalna pomoc AI</h2>
+        <h2>Wczytaj pojedynczy plik CSV</h2>
         <p className="form-help">
-          Własny klucz API jest przechowywany lokalnie. Analiza uruchamia się
-          dopiero po użyciu przycisku AI; wtedy dane do analizy trafiają do
-          dostawcy modelu.
+          Wybierz eksport CSV Nest lub Revolut. Operacje oczekujące uwzględniamy
+          od razu. W Nest liczymy datę operacji.
         </p>
         <label>
-          Klucz API
+          Przypisz do rachunku
+          <select value={account} onChange={(e) => setAccount(e.target.value)}>
+            <option value="">Rozpoznaj automatycznie (Nest lub Revolut)</option>
+            {accounts.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+            <option value="__new__">+ Dodaj nowy rachunek…</option>
+          </select>
+        </label>
+        {account === "__new__" && (
+          <label>
+            Nazwa nowego rachunku
+            <input
+              value={newAccount}
+              onChange={(e) => setNewAccount(e.target.value)}
+              placeholder="Na przykład: Nest oszczędnościowe"
+              maxLength={80}
+              required
+            />
+          </label>
+        )}
+        <p className="form-help">
+          Plik zostanie zaimportowany bez kopiowania do folderu data. Przy
+          kolejnych importach wybierz ten sam rachunek z listy.
+        </p>
+        <label
+          className={`upload-zone ${action.busy || !accountReady ? "loading" : ""}`}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (!action.busy && accountReady)
+              void upload(e.dataTransfer.files[0]);
+          }}
+        >
+          <Upload size={28} />
+          <strong>Wybierz CSV lub przeciągnij go tutaj</strong>
+          <span>Nest i Revolut · do 20 MB</span>
           <input
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Wklej nowy klucz"
+            type="file"
+            accept=".csv,text/csv"
+            disabled={action.busy || !accountReady}
+            onChange={(e) => {
+              void upload(e.target.files?.[0]);
+              e.target.value = "";
+            }}
           />
         </label>
-        <div className="form-actions">
-          <button
-            className="button"
-            disabled={action.busy || !apiKey.trim()}
-            onClick={() =>
-              action.run(async () => {
-                await request("/settings/ai", "PUT", { api_key: apiKey });
-                setApiKey("");
-                setMessage("Klucz zapisany lokalnie.");
-              })
-            }
-          >
-            Zapisz klucz
-          </button>
-          <button
-            className="button"
-            disabled={action.busy}
-            onClick={() =>
-              action.run(async () => {
-                await request("/settings/ai", "PUT", { clear_key: true });
-                setApiKey("");
-                setMessage("Klucz usunięty.");
-              })
-            }
-          >
-            Usuń klucz
-          </button>
-        </div>
+      </section>
+      <section className="balance-panel form-stack">
+        <h2>Opcjonalna pomoc AI</h2>
+        {aiEnabled ? (
+          <div className="api-key-state">
+            <div className="api-key-status">
+              <CheckCircle2 size={20} />
+              <div>
+                <strong>Klucz API jest zapisany</strong>
+                <span>Analiza AI jest dostępna w zakładce klasyfikacji.</span>
+              </div>
+            </div>
+            <button
+              className="button danger-button"
+              disabled={action.busy}
+              onClick={() =>
+                action.run(async () => {
+                  await request("/settings/ai", "PUT", { clear_key: true });
+                  setApiKey("");
+                  setMessage("Klucz usunięty.");
+                })
+              }
+            >
+              Usuń klucz
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="api-key-status missing">
+              <KeyRound size={20} />
+              <div>
+                <strong>Klucz API nie jest jeszcze dodany</strong>
+                <span>
+                  Jest przechowywany lokalnie. Dane trafiają do dostawcy modelu
+                  dopiero po ręcznym uruchomieniu analizy.
+                </span>
+              </div>
+            </div>
+            <label>
+              Klucz API
+              <input
+                type="password"
+                autoComplete="off"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Wklej klucz API"
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                className="button primary-button"
+                disabled={action.busy || !apiKey.trim()}
+                onClick={() =>
+                  action.run(async () => {
+                    await request("/settings/ai", "PUT", {
+                      api_key: apiKey,
+                    });
+                    setApiKey("");
+                    setMessage("Klucz zapisany lokalnie.");
+                  })
+                }
+              >
+                Dodaj klucz
+              </button>
+            </div>
+          </>
+        )}
       </section>
       <section className="balance-panel form-stack">
         <h2>Ochrona danych</h2>

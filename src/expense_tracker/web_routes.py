@@ -22,7 +22,17 @@ DB = Annotated[sqlite3.Connection, Depends(get_connection)]
 
 @router.get("/meta")
 def meta(db: DB):
-    return {"categories": ledger.categories(db), "ai_enabled": bool(settings.openai_api_key)}
+    accounts = [
+        str(row["account"])
+        for row in db.execute(
+            "SELECT DISTINCT account FROM transactions ORDER BY account COLLATE NOCASE"
+        ).fetchall()
+    ]
+    return {
+        "categories": ledger.categories(db),
+        "accounts": accounts,
+        "ai_enabled": bool(settings.openai_api_key),
+    }
 
 
 @router.get("/ledger")

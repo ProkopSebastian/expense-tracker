@@ -34,7 +34,11 @@ export function nodeColor(key: string): string {
   let hash = 0;
   for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   const family = key === "groceries" ? "food" : key.split("_")[0];
-  return categoryColors[key] ?? categoryColors[family] ?? palette[Math.abs(hash) % palette.length];
+  return (
+    categoryColors[key] ??
+    categoryColors[family] ??
+    palette[Math.abs(hash) % palette.length]
+  );
 }
 
 interface Props {
@@ -108,6 +112,29 @@ export default function CategoryChart({
         padding: 10,
         textStyle: { color: "#123e35" },
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
+        position: (
+          point: number[],
+          _params: unknown,
+          _element: HTMLElement,
+          _rect: unknown,
+          size: { contentSize: number[]; viewSize: number[] },
+        ) => {
+          const [contentWidth, contentHeight] = size.contentSize;
+          const [viewWidth, viewHeight] = size.viewSize;
+          const margin = 8;
+          const left =
+            point[0] < viewWidth / 2
+              ? margin
+              : Math.max(margin, viewWidth - contentWidth - margin);
+          const top = Math.max(
+            margin,
+            Math.min(
+              viewHeight - contentHeight - margin,
+              point[1] - contentHeight / 2,
+            ),
+          );
+          return [left, top];
+        },
         formatter: (params: { name: string; value: number; percent: number }) =>
           `${params.name}\n${money(params.value, currency)} · ${params.percent}%`,
       },
