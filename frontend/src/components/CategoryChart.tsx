@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import { PieChart } from "echarts/charts";
+import { TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import type { BreakdownNode } from "../api";
 import { money } from "../api";
 import { ArrowLeft } from "lucide-react";
 
-echarts.use([PieChart, SVGRenderer]);
+echarts.use([PieChart, TooltipComponent, SVGRenderer]);
 
 const palette = [
   "#24846c",
@@ -32,7 +33,8 @@ const categoryColors: Record<string, string> = {
 export function nodeColor(key: string): string {
   let hash = 0;
   for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return categoryColors[key] ?? palette[Math.abs(hash) % palette.length];
+  const family = key === "groceries" ? "food" : key.split("_")[0];
+  return categoryColors[key] ?? categoryColors[family] ?? palette[Math.abs(hash) % palette.length];
 }
 
 interface Props {
@@ -96,6 +98,19 @@ export default function CategoryChart({
       animationDuration: 600,
       animationDurationUpdate: 400,
       animationEasingUpdate: "cubicInOut",
+      tooltip: {
+        trigger: "item",
+        confine: true,
+        renderMode: "richText",
+        backgroundColor: "#ffffff",
+        borderColor: "#e7ece9",
+        borderWidth: 1,
+        padding: 10,
+        textStyle: { color: "#123e35" },
+        extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
+        formatter: (params: { name: string; value: number; percent: number }) =>
+          `${params.name}\n${money(params.value, currency)} · ${params.percent}%`,
+      },
       series: [
         {
           type: "pie",
@@ -116,7 +131,7 @@ export default function CategoryChart({
         },
       ],
     });
-  }, [nodes]);
+  }, [nodes, currency]);
 
   useEffect(() => {
     chart.current?.dispatchAction({ type: "downplay", seriesIndex: 0 });

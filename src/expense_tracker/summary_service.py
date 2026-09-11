@@ -23,6 +23,20 @@ class BreakdownNode(BaseModel):
     children: list[BreakdownNode] = Field(default_factory=list)
 
 
+class DailyPoint(BaseModel):
+    date: date
+    change: Decimal
+    balance: Decimal
+
+
+class MonthlyPoint(BaseModel):
+    month: str
+    change: Decimal
+
+
+MONTHLY_BARS_LIMIT = 12
+
+
 class SummaryResponse(BaseModel):
     currency: str
     currencies: list[str]
@@ -35,6 +49,8 @@ class SummaryResponse(BaseModel):
     income: Decimal = Decimal(0)
     balance: Decimal = Decimal(0)
     item_count: int = 0
+    daily: list[DailyPoint] = Field(default_factory=list)
+    monthly: list[MonthlyPoint] = Field(default_factory=list)
     breakdown: list[BreakdownNode] = Field(default_factory=list)
 
 
@@ -80,7 +96,38 @@ def get_summary(
         else:
             start = max(first, date(last.year, 1, 1))
     filtered = [item for item in items if start <= date.fromisoformat(str(item["date"])) <= end] if dates else []
+    daily = []
+    if start is not None and end is not None:
+        if (end - start).days > 36600:
+            raise ValueError("Wybierz okres nie dłuższy niż 100 lat.")
+        chart_end = min(end, date.today())
+        totals: dict[date, Decimal] = {}
+        for item in filtered:
+            day = date.fromisoformat(str(item["date"]))
+            signed = item["amount"] if item["kind"] == "income" else -item["amount"]
+            totals[day] = totals.get(day, Decimal(0)) + signed
+        balance = Decimal(0)
+        for offset in range((chart_end - start).days + 1 if chart_end >= start else 0):
+            day = start + timedelta(days=offset)
+            change = totals.get(day, Decimal(0))
+            balance += change
+            daily.append(DailyPoint(date=day, change=change, balance=balance))
+    monthly_totals: dict[str, Decimal] = {}
+    for item in items:
+        key = date.fromisoformat(str(item["date"])).strftime("%Y-%m")
+        signed = item["amount"] if item["kind"] == "income" else -item["amount"]
+        monthly_totals[key] = monthly_totals.get(key, Decimal(0)) + signed
+    month_keys: list[str] = []
+    cursor_year, cursor_month = date.today().year, date.today().month
+    for _ in range(MONTHLY_BARS_LIMIT):
+        month_keys.append(f"{cursor_year:04d}-{cursor_month:02d}")
+        cursor_month -= 1
+        if cursor_month == 0:
+            cursor_month, cursor_year = 12, cursor_year - 1
+    monthly = [MonthlyPoint(month=key, change=monthly_totals.get(key, Decimal(0))) for key in reversed(month_keys)]
     return SummaryResponse(
+        daily=daily,
+        monthly=monthly,
         currency=selected,
         currencies=currencies,
         months=months,

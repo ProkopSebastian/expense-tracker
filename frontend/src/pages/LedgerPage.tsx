@@ -1,3 +1,4 @@
+import { nodeColor } from "../components/CategoryChart";
 import { useState, Fragment } from "react";
 import {
   Plus,
@@ -10,7 +11,7 @@ import {
   Unlink,
 } from "lucide-react";
 import type { Category, LedgerData, Block } from "../domain";
-import { request, useResource, useAction } from "../hooks";
+import { request, useResource, useAction, useSessionState } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Modal, Notice } from "../components/Forms";
 import { ManualForm, GroupForm } from "../components/TransactionForms";
@@ -23,12 +24,12 @@ export default function LedgerPage({
   revision: number;
   onChanged: () => void;
 }) {
-  const [query, setQuery] = useState(""),
-    [direction, setDirection] = useState("all"),
-    [category, setCategory] = useState<string[]>([]),
-    [page, setPage] = useState(1),
+  const [query, setQuery] = useSessionState("ledger.query", ""),
+    [direction, setDirection] = useSessionState("ledger.direction", "all"),
+    [category, setCategory] = useSessionState<string[]>("ledger.category", []),
+    [page, setPage] = useSessionState("ledger.page", 1),
     [selected, setSelected] = useState<number[]>([]),
-    [expanded, setExpanded] = useState<string[]>([]),
+    [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
     [modal, setModal] = useState<"manual" | "group" | null>(null),
@@ -176,7 +177,6 @@ export default function LedgerPage({
                 <th>Transakcja</th>
                 <th>Kategoria</th>
                 <th>Kwota</th>
-                <th>Twój koszt / wpływ</th>
                 <th />
               </tr>
             </thead>
@@ -239,6 +239,11 @@ export default function LedgerPage({
                       </button>
                       <div className="row-meta">
                         {row.date} · {row.account}
+                        {["PENDING", "PROCESSING"].includes(
+                          row.bank_status ?? "",
+                        ) && (
+                          <span className="pending-label"> · Oczekująca</span>
+                        )}
                         {row.counterparty && row.counterparty !== "—"
                           ? ` · ${row.counterparty}`
                           : ""}
@@ -249,20 +254,28 @@ export default function LedgerPage({
                     </td>
                     <td>
                       <span
+                        style={{
+                          borderLeft: `3px solid ${nodeColor(row.category_key ?? "uncategorized_expense")}`,
+                        }}
                         className={`category-chip ${!row.category_key ? "unassigned" : ""}`}
                       >
                         {row.category_label}
                       </span>
                     </td>
-                    <td className="numeric">
-                      {row.amount !== null
-                        ? money(row.amount, row.currency)
-                        : "—"}
-                    </td>
                     <td
-                      className={`numeric ${Number(row.real_amount) > 0 ? "positive" : ""}`}
+                      className={`numeric ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "positive" : ""}`}
                     >
-                      {money(row.real_amount, row.currency)}
+                      {money(
+                        row.case_id ? row.real_amount : (row.amount ?? "0"),
+                        row.currency,
+                      )}
+                      {row.case_id ? (
+                        <small className="amount-note">
+                          Łącznie w bilansie
+                        </small>
+                      ) : row.category_key === "transfer_own" ? (
+                        <small className="amount-note">Poza bilansem</small>
+                      ) : null}
                     </td>
                     <td>
                       {row.case_id ? (
@@ -303,8 +316,10 @@ export default function LedgerPage({
                         <td />
                         <td className="numeric">
                           {money(member.amount, member.currency)}
+                          <small className="amount-note">
+                            Składnik grupy · nie sumujemy osobno
+                          </small>
                         </td>
-                        <td className="numeric">W grupie</td>
                         <td />
                       </tr>
                     ))}

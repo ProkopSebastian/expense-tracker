@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Trash2, Settings2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction } from "../hooks";
@@ -15,6 +15,7 @@ function RuleRow({
   const [category, setCategory] = useState(rule.category_key),
     [remove, setRemove] = useState(false);
   const action = useAction(onChanged);
+  useEffect(() => setCategory(rule.category_key), [rule.category_key]);
   return (
     <>
       <div className="rule-row">
@@ -23,6 +24,7 @@ function RuleRow({
         </span>
         <div className="rule-name">
           <strong>{rule.name}</strong>
+          <div className="row-meta">Dodano {rule.created_at.slice(0, 10)}</div>
           <Notice error={action.error} />
         </div>
         <CategorySelect

@@ -15,7 +15,7 @@ def test_imports_nest_export_with_metadata_preamble(tmp_path: Path) -> None:
 
     [transaction] = import_nest_csv(export)
 
-    assert str(transaction.booking_date) == "2026-09-10"
+    assert str(transaction.booking_date) == "2026-09-09"
     assert str(transaction.value_date) == "2026-09-09"
     assert str(transaction.amount) == "-12.50"
     assert transaction.description == "Obiad"

@@ -70,6 +70,49 @@ def test_migration_is_idempotent_across_repeated_opens(tmp_path: Path) -> None:
     second = Database(path)
     try:
         version = second.connection.execute("PRAGMA user_version").fetchone()[0]
-        assert version == 2
+        assert version == 3
     finally:
         second.close()
+
+
+def test_nest_date_migration_preserves_classification_and_reimport(tmp_path: Path) -> None:
+    import json
+
+    from expense_tracker.database import CATEGORIES, SCHEMA
+    from expense_tracker.importers import import_nest_csv
+
+    path = tmp_path / "nest-previous.sqlite3"
+    raw = {
+        "Data księgowania": "10-09-2026",
+        "Data operacji": "09-09-2026",
+        "Kwota": "-12,50",
+        "Waluta": "PLN",
+        "Opis": "Obiad",
+    }
+    connection = sqlite3.connect(path)
+    connection.executescript(SCHEMA)
+    connection.executemany("INSERT INTO categories(key,label,parent_key,kind) VALUES (?,?,?,?)", CATEGORIES)
+    connection.execute(
+        "INSERT INTO transactions(id,account,booking_date,amount,currency,description,raw_json,fingerprint) "
+        "VALUES(1,'nest','2026-09-10','-12.50','PLN','Obiad',?,'old')",
+        (json.dumps(raw),),
+    )
+    connection.execute(
+        "INSERT INTO transaction_decisions(transaction_id,category_key,source,status,confidence) "
+        "VALUES(1,'groceries','manual','approved',1)"
+    )
+    connection.execute("PRAGMA user_version=2")
+    connection.commit()
+    connection.close()
+    db = Database(path)
+    row = db.connection.execute("SELECT booking_date FROM transactions WHERE id=1").fetchone()
+    assert row["booking_date"] == "2026-09-09"
+    assert (
+        db.connection.execute("SELECT category_key FROM transaction_decisions WHERE transaction_id=1").fetchone()[0]
+        == "groceries"
+    )
+    export = tmp_path / "nest.csv"
+    export.write_text(";".join(raw) + "\n" + ";".join(raw.values()) + "\n")
+    assert db.insert_transactions(import_nest_csv(export)) == (0, 1)
+    assert list(tmp_path.glob("nest-previous-backups/startup-*.sqlite3"))
+    db.close()

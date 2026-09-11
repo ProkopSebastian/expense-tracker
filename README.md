@@ -155,3 +155,27 @@ którego nie zna. Docelowe przeliczenie na PLN wymaga rozróżnienia dwóch sytu
   płatności. Pierwsza metoda jest wierniejsza rzeczywistemu kosztowi, ale wymaga śledzenia salda/partii waluty.
 
 Do czasu wdrożenia tej logiki raport nie powinien automatycznie przeliczać ani sumować różnych walut.
+
+## Aktualny interfejs i ochrona danych
+
+React rozmawia z lokalnym API FastAPI. `./start.sh` buduje aktualne źródła i uruchamia aplikację pod `http://127.0.0.1:8000`.
+W „Dane i ustawienia” można wczytać CSV przez wybór pliku lub przeciągnięcie, wskazać osobną nazwę rachunku oraz opcjonalnie zapisać własny klucz AI.
+
+- Nest używa daty operacji, z datą księgowania jako rezerwową. Migracja aktualizuje istniejące wpisy i zachowuje ich klasyfikacje; oryginalne daty pozostają w surowych danych eksportu.
+- Revolut uwzględnia PENDING/PROCESSING. Import aktualizuje rozpoznane operacje, zachowując identyfikatory i kategorie. Operacje anulowane przestają wpływać na wynik. Zmiana kwoty operacji w grupie wymaga najpierw rozwiązania grupy. Niejednoznaczne identyfikatory przerywają import całego pliku.
+- Bez identyfikatora bankowego rozpoznanie Revolut opiera się na pełnym czasie rozpoczęcia, typie, produkcie i walucie w ramach rachunku. Zmiana również tych pól wymaga ręcznego sprawdzenia eksportu — CSV nie zapewnia pełnej synchronizacji z bankiem.
+- Bilans dzienny jest sumą narastającą wyniku po uwzględnieniu grup i wyłączeniu przelewów własnych. Zaczyna od zera i kończy najpóźniej dzisiaj. Grupa jest przypisana do dnia najwcześniejszego składnika. Bilans miesięczny pokazuje ostatnie 12 miesięcy wybranej waluty, niezależnie od filtra okresu.
+- Przed zapisami przez API powstaje spójna kopia SQLite. „Cofnij” przywraca stan bazy sprzed ostatniej zmiany, dopóki baza nie została zmieniona poza aplikacją. Klucz AI nie jest częścią bazy ani cofania.
+- Kopie znajdują się w `<nazwa-bazy>-backups` obok bazy. Przechowywane są ostatnie 30 kopii uruchomieniowych i 30 kopii operacji oraz ewentualna starsza kopia potrzebna do bieżącego cofnięcia. Przed migracją istniejącej bazy również powstaje kopia.
+
+Modele żądań API: `web_models.py`; operacje aplikacji: `web_service.py`; aktualizowanie importowanych operacji: `import_identity.py`; kopie i cofanie: `recovery.py`.
+Typy podsumowania React generuje `uv run python scripts/generate_contracts.py`; sprawdzenie zgodności: ten sam skrypt z `--check`.
+
+## Paczka dla Windows
+
+Kod launchera i konfiguracja budowania są w repozytorium. **Paczka Windows wymaga zbudowania i sprawdzenia na Windows; nie jest generowana przez linuksowe `start.sh`.**
+
+Na Windows ze środowiskiem deweloperskim (uv, Node.js, pnpm) uruchom `scripts/build_windows.ps1`. Wynik to `dist/Wydatki-Windows.zip`. Skrypt buduje Reacta, dołącza Pythona z backendem, wykonuje test uruchomienia gotowej paczki i dodaje instrukcję `START.txt`. Nie dołącza bazy, eksportów CSV ani kluczy.
+
+Alternatywnie workflow `.github/workflows/windows.yml` buduje paczkę na runnerze Windows po ręcznym uruchomieniu lub tagu `v*`, gdy repozytorium jest na GitHubie.
+Odbiorca tylko wypakowuje ZIP i uruchamia `Wydatki.exe`. Dane trafiają do `%LOCALAPPDATA%\Wydatki`, oddzielnie od programu, więc wymiana folderu programu ich nie usuwa. Instrukcja odbiorcy: `docs/WINDOWS.txt`.

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from contextlib import nullcontext
 from pathlib import Path
 
+from .import_identity import bank_state, reconcile, source_key
 from .models import Transaction
 
 SCHEMA = """
@@ -107,9 +108,42 @@ def _migrate_drop_legacy_tables(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE IF EXISTS classifications")
 
 
+def _migrate_bank_dates(connection: sqlite3.Connection) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from .importers import _column, _parse_date
+
+    connection.execute("ALTER TABLE transactions ADD COLUMN source_key TEXT")
+    connection.execute("ALTER TABLE transactions ADD COLUMN bank_status TEXT NOT NULL DEFAULT 'COMPLETED'")
+    for row in connection.execute("SELECT * FROM transactions").fetchall():
+        raw = json.loads(row["raw_json"])
+        day = date.fromisoformat(row["booking_date"])
+        # Identify the export by its columns, including custom Nest account names.
+        if _column(raw, "kwota", required=False) is not None:
+            operation = _column(raw, "data operacji", required=False)
+            if operation:
+                day = _parse_date(operation)
+        transaction = Transaction(
+            account=row["account"],
+            booking_date=day,
+            amount=Decimal(row["amount"]),
+            currency=row["currency"],
+            description=row["description"],
+            external_id=row["external_id"],
+            raw=raw,
+        )
+        connection.execute(
+            "UPDATE transactions SET booking_date=?,fingerprint=?,source_key=?,bank_status=? WHERE id=?",
+            (str(day), fingerprint(transaction), source_key(transaction), bank_state(raw), row["id"]),
+        )
+    connection.execute("CREATE INDEX idx_transactions_source ON transactions(source_key)")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
+    _migrate_bank_dates,
 )
 
 
@@ -121,17 +155,24 @@ def fingerprint(transaction: Transaction) -> str:
         str(transaction.amount),
         transaction.currency,
         transaction.description,
+        str((transaction.raw or {}).get("Started Date", "")),
+        str((transaction.raw or {}).get("Product", "")),
+        str((transaction.raw or {}).get("Type", "")),
     )
     return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()
 
 
 def insert_transaction(connection: sqlite3.Connection, transaction: Transaction, *, commit: bool = True) -> int | None:
     raw = transaction.raw or {}
+    if reconcile(connection, transaction, fingerprint(transaction)):
+        if commit:
+            connection.commit()
+        return None
     cursor = connection.execute(
         """INSERT OR IGNORE INTO transactions
         (account, booking_date, value_date, amount, currency, description, counterparty, external_id,
-         transaction_type, balance, raw_json, fingerprint)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+         transaction_type, balance, raw_json, fingerprint, source_key, bank_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             transaction.account,
             str(transaction.booking_date),
@@ -145,6 +186,8 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction,
             str(transaction.balance) if transaction.balance is not None else None,
             json.dumps(raw, ensure_ascii=False),
             fingerprint(transaction),
+            source_key(transaction),
+            bank_state(raw),
         ),
     )
     if commit:
@@ -154,6 +197,11 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction,
 
 class Database:
     def __init__(self, path: Path) -> None:
+        if path.exists() and path.stat().st_size:
+            from .recovery import backup_database
+
+            backup_database(path, "startup", daily=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA journal_mode=WAL")
