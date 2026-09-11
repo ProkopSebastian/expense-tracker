@@ -102,41 +102,30 @@ export default function CategoryChart({
       animationDuration: 600,
       animationDurationUpdate: 400,
       animationEasingUpdate: "cubicInOut",
+      stateAnimation: {
+        duration: reduced ? 0 : 140,
+        easing: "cubicOut",
+      },
       tooltip: {
         trigger: "item",
         confine: true,
-        renderMode: "richText",
+        renderMode: "html",
+        transitionDuration: reduced ? 0 : 0.12,
         backgroundColor: "#ffffff",
         borderColor: "#e7ece9",
         borderWidth: 1,
         padding: 10,
         textStyle: { color: "#123e35" },
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
-        position: (
-          point: number[],
-          _params: unknown,
-          _element: HTMLElement,
-          _rect: unknown,
-          size: { contentSize: number[]; viewSize: number[] },
-        ) => {
-          const [contentWidth, contentHeight] = size.contentSize;
-          const [viewWidth, viewHeight] = size.viewSize;
-          const margin = 8;
-          const left =
-            point[0] < viewWidth / 2
-              ? margin
-              : Math.max(margin, viewWidth - contentWidth - margin);
-          const top = Math.max(
-            margin,
-            Math.min(
-              viewHeight - contentHeight - margin,
-              point[1] - contentHeight / 2,
-            ),
-          );
-          return [left, top];
+        formatter: (params: { name: string; value: number; percent: number }) => {
+          const content = document.createElement("div");
+          const name = document.createElement("div");
+          const amount = document.createElement("div");
+          name.textContent = params.name;
+          amount.textContent = `${money(params.value, currency)} · ${params.percent}%`;
+          content.append(name, amount);
+          return content;
         },
-        formatter: (params: { name: string; value: number; percent: number }) =>
-          `${params.name}\n${money(params.value, currency)} · ${params.percent}%`,
       },
       series: [
         {

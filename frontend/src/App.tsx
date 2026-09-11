@@ -82,7 +82,7 @@ export default function App() {
             </div>
           ) : page === "data" ? (
             <DataPage
-              accounts={meta.accounts}
+              accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
               aiEnabled={meta.ai_enabled}
               revision={revision}
               onChanged={changed}
