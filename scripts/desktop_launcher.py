@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import sys
@@ -30,6 +31,12 @@ def main() -> None:
     sys.stdout = sys.stderr = log
     root = tk.Tk()
     root.title("Wydatki")
+    icon_root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    icon_path = icon_root / "assets" / "app.ico"
+    if icon_path.exists():
+        # .ico only works as a Tk icon on Windows; harmless no-op elsewhere.
+        with contextlib.suppress(tk.TclError):
+            root.iconbitmap(default=str(icon_path))
     mutex = None
     if sys.platform == "win32":
         import ctypes
