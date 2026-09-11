@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, KeyRound, RefreshCw, Undo2, Upload } from "lucide-react";
+import { CheckCircle2, FolderOpen, KeyRound, RefreshCw, Undo2, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
 import { Notice } from "../components/Forms";
 
@@ -85,6 +85,12 @@ export default function DataPage({
           }
         >
           <RefreshCw size={16} /> Aktualizuj teraz
+        </button>
+        <button
+          className="button"
+          onClick={() => fetch("/open-data-folder", { method: "POST" }).catch(() => {})}
+        >
+          <FolderOpen size={16} /> Otwórz folder danych
         </button>
       </section>
       <section className="balance-panel form-stack">
