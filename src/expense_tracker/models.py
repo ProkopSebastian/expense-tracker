@@ -17,11 +17,3 @@ class Transaction:
     value_date: date | None = None
     balance: Decimal | None = None
     raw: dict[str, str] | None = None
-
-
-@dataclass(frozen=True)
-class MatchCandidate:
-    transaction_id: int
-    other_transaction_id: int
-    score: float
-    reason: str
