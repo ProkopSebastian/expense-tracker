@@ -72,7 +72,10 @@ def test_stale_suggestion_cannot_overwrite_manual(database):
 
 def test_nest_operation_without_booking_date(tmp_path):
     path = tmp_path / "nest.csv"
-    path.write_text("Data księgowania;Data operacji;Kwota;Waluta;Opis\n;09-09-2026;-10,00;PLN;Kawa\n")
+    path.write_text(
+        "Data księgowania;Data operacji;Kwota;Waluta;Opis\n;09-09-2026;-10,00;PLN;Kawa\n",
+        encoding="utf-8",
+    )
     [row] = import_nest_csv(path)
     assert row.booking_date == date(2026, 9, 9)
 
