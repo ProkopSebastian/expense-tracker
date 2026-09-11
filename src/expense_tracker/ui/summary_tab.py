@@ -213,7 +213,10 @@ def _render_charts(breakdown: dict[str, dict], kind: str, currency: str) -> None
         return
 
     if not path:
-        st.caption("Kliknij kategorię, aby zobaczyć jej podział obok.")
+        st.caption(
+            "Kliknij kategorię, aby zobaczyć jej podział obok — w odróżnieniu od widoku kołowego, ten widok "
+            "przeładowuje wykres i pokazuje przycisk „← Wróć”, żeby cofnąć się o poziom."
+        )
         root_event = _interactive_chart(_figure(root_slices, kind, currency), "summary_root_chart")
         clicked_root_key = _clicked_key(root_event, root_slices)
         if clicked_root_key and clicked_root_key != "__other" and breakdown.get(clicked_root_key, {}).get("children"):
@@ -375,7 +378,9 @@ def render(data: SummaryData) -> None:
         return
 
     st.subheader("Wydatki według kategorii")
-    kind = st.radio("Widok", ["Kołowy", "Słupkowy"], horizontal=True, key="summary_chart_kind")
+    kind = st.segmented_control(
+        "Widok", ["Kołowy", "Słupkowy"], default="Kołowy", required=True, key="summary_chart_kind"
+    )
     if kind == "Kołowy":
         st.caption(
             "Kliknij kategorię, aby wejść głębiej. Kliknij środek wykresu, aby wrócić — bez przeładowania strony."

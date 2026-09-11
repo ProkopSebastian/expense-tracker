@@ -62,11 +62,13 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     block_amount = _block_direction(df)
 
-    search = st.text_input("Szukaj w opisie lub kontrahencie")
-    filter_col1, filter_col2 = st.columns([1, 2])
-    direction = filter_col1.radio("Kierunek", [DIRECTION_ALL, DIRECTION_EXPENSE, DIRECTION_INCOME], horizontal=True)
+    search_col, direction_col, category_col = st.columns([2, 1, 2])
+    search = search_col.text_input("Szukaj w opisie lub kontrahencie")
+    direction = direction_col.radio("Kierunek", [DIRECTION_ALL, DIRECTION_EXPENSE, DIRECTION_INCOME], horizontal=True)
     category_choices = sorted(df["Kategoria"].unique())
-    selected_categories = filter_col2.multiselect("Filtruj po kategorii", category_choices)
+    selected_categories = category_col.multiselect(
+        "Filtruj po kategorii", category_choices, placeholder="Wszystkie kategorie"
+    )
 
     mask = pd.Series(True, index=df.index)
     if search:
@@ -96,6 +98,19 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
     visible_df = df[df["_group_id"].isin(visible_group_ids)]
 
     display = visible_df.drop(columns=["id", "_kind", "_category_key", "_group_id"])
+    # Waluta is almost always PLN — showing it as its own column eats width that "Opis" and
+    # "Kontrahent" need far more. Fold it into the amount columns instead (display only; the
+    # underlying visible_df/selected rows returned below keep Kwota and Waluta separate, since
+    # _recategorize_form and _merge_form rely on them as distinct fields).
+    display["Kwota"] = [
+        "—" if pd.isna(amount) else f"{Decimal(str(amount)):.2f} {currency}"
+        for amount, currency in zip(display["Kwota"], display["Waluta"], strict=True)
+    ]
+    display["Kwota rzeczywista"] = [
+        "—" if pd.isna(amount) else f"{Decimal(str(amount)):.2f} {currency}"
+        for amount, currency in zip(display["Kwota rzeczywista"], display["Waluta"], strict=True)
+    ]
+    display = display.drop(columns=["Waluta"])
     kinds = visible_df["_kind"]
     styled = display.style.apply(lambda row: _row_style(kinds.loc[row.name], len(row)), axis=1)
     st.caption(
@@ -107,8 +122,14 @@ def _render_table(rows: list[dict[str, object]]) -> pd.DataFrame:
     event = st.dataframe(
         styled,
         column_config={
-            "Kwota": st.column_config.NumberColumn(format="%.2f"),
-            "Kwota rzeczywista": st.column_config.NumberColumn(format="%.2f"),
+            "Data": st.column_config.TextColumn(width="small"),
+            "Konto": st.column_config.TextColumn(width="small"),
+            "Opis": st.column_config.TextColumn(width="large"),
+            "Kontrahent": st.column_config.TextColumn(width="medium"),
+            "Kwota": st.column_config.TextColumn(width="small"),
+            "Kategoria": st.column_config.TextColumn(width="medium"),
+            "Grupa": st.column_config.TextColumn(width="small"),
+            "Kwota rzeczywista": st.column_config.TextColumn(width="small"),
         },
         on_select="rerun",
         selection_mode="multi-row",
@@ -144,23 +165,14 @@ def _recategorize_form(
     st.selectbox("Kategoria", all_options, key=f"recategorize_{transaction_id}", on_change=_on_change)
 
 
-def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categories: list[dict[str, object]]) -> None:
-    if selected.empty:
-        return
-    st.divider()
-    ineligible = selected[selected["id"].isna() | (selected["Grupa"] != "—")]
-    if not ineligible.empty:
-        st.warning("Zaznaczenie zawiera nagłówek grupy albo transakcję już należącą do grupy — pomiń je.")
-        return
-    if len(selected) < 2:
-        st.info("Zaznacz co najmniej dwie transakcje, żeby połączyć je w grupę.")
-        return
-    if selected["Waluta"].nunique() != 1:
-        st.warning("Zaznaczone transakcje muszą być w jednej walucie.")
-        return
-    currency = str(selected["Waluta"].iloc[0])
-    raw_total = sum((Decimal(str(amount)) for amount in selected["Kwota"]), Decimal(0))
-    st.subheader("Połącz zaznaczone transakcje w grupę")
+@st.dialog("Połącz zaznaczone transakcje w grupę")
+def _merge_dialog(
+    connection: sqlite3.Connection,
+    selected: pd.DataFrame,
+    categories: list[dict[str, object]],
+    currency: str,
+    raw_total: Decimal,
+) -> None:
     st.caption(
         f"Zaznaczyłeś {len(selected)} transakcji, suma surowych kwot: {raw_total:.2f} {currency}. Grupa liczy "
         "się jako JEDNA pozycja w JEDNEJ kategorii — albo wydatek, albo wpływ, nigdy oba naraz — na kwotę "
@@ -205,6 +217,30 @@ def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categori
         create_case(connection, kind, title, category_key, personal_amount, currency, list(roles.items()))
         st.toast("Grupa utworzona.")
         st.rerun()
+
+
+def _merge_form(connection: sqlite3.Connection, selected: pd.DataFrame, categories: list[dict[str, object]]) -> None:
+    if selected.empty:
+        return
+    st.divider()
+    ineligible = selected[selected["id"].isna() | (selected["Grupa"] != "—")]
+    if not ineligible.empty:
+        st.warning("Zaznaczenie zawiera nagłówek grupy albo transakcję już należącą do grupy — pomiń je.")
+        return
+    if len(selected) < 2:
+        st.info("Zaznacz co najmniej dwie transakcje, żeby połączyć je w grupę.")
+        return
+    if selected["Waluta"].nunique() != 1:
+        st.warning("Zaznaczone transakcje muszą być w jednej walucie.")
+        return
+    currency = str(selected["Waluta"].iloc[0])
+    raw_total = sum((Decimal(str(amount)) for amount in selected["Kwota"]), Decimal(0))
+    st.info(
+        f"Zaznaczyłeś {len(selected)} transakcji, suma surowych kwot: {raw_total:.2f} {currency}. Otwórz okno, "
+        "żeby połączyć je w jedną grupę."
+    )
+    if st.button("🔗 Połącz zaznaczone w grupę…", type="primary"):
+        _merge_dialog(connection, selected, categories, currency, raw_total)
 
 
 def _manual_entry_form(connection: sqlite3.Connection, categories: list[dict[str, object]]) -> None:

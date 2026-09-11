@@ -9,6 +9,17 @@ from ..dashboard_data import RulesData
 from ..ledger import delete_merchant_rule, merchant_rules, update_merchant_rule
 from .formatting import category_options
 
+_MERCHANT_NAME_MAX_LENGTH = 60
+
+
+def _display_merchant_name(merchant_key: str) -> str:
+    """Rules for ATM/BLIK withdrawals key on a pipe-joined internal dedup string (location,
+    transaction id, ...) — show only the human-readable first segment, not the raw key."""
+    name = merchant_key.split("|", 1)[0].strip()
+    if len(name) > _MERCHANT_NAME_MAX_LENGTH:
+        name = name[: _MERCHANT_NAME_MAX_LENGTH - 1].rstrip() + "…"
+    return name.title()
+
 
 def render(connection: sqlite3.Connection, data: RulesData) -> None:
     st.subheader("Zapamiętane reguły sprzedawców")
@@ -29,7 +40,7 @@ def render(connection: sqlite3.Connection, data: RulesData) -> None:
     rows = [
         {
             "rule_id": int(rule["id"]),
-            "Sprzedawca": str(rule["merchant_key"]).title(),
+            "Sprzedawca": _display_merchant_name(str(rule["merchant_key"])),
             "Kategoria": label_by_key.get(rule["category_key"], rule["category_label"]),
             "Usuń": False,
         }
