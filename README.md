@@ -32,3 +32,15 @@ scripts/build_windows.ps1
 ```
 
 Gotowa paczka powstanie jako `dist/Wydatki-Windows.zip`.
+
+## Aplikacja natywna na Linuksie
+
+Zamiast otwierać `start.sh` w przeglądarce, można uruchomić aplikację we
+własnym oknie (bez paska adresu):
+
+```bash
+uv run --group desktop python scripts/desktop_launcher.py
+```
+
+Skrót do menu aplikacji (GNOME/KDE): `scripts/install_linux_desktop.sh`.
+Używa tego samego katalogu roboczego co `start.sh` — te same dane.
