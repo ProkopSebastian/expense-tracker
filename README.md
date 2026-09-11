@@ -38,6 +38,46 @@ Jeśli świadomie potrzebujesz zobaczyć surowe wartości do diagnostyki, dodaj 
 
 ## Dashboard
 
+### Nowy interfejs React — pierwszy etap
+
+Gałąź `codex/ui-redesign` zawiera podsumowanie w React: wybór okresu i waluty,
+kwoty, interaktywny wykres z przechodzeniem do sprzedawców i czytelną listę kategorii.
+Pozostałe trzy sekcje nadal działają w Streamlit. „Odśwież widok” ponownie pobiera
+podsumowanie; nie importuje plików. Import nadal uruchamia się przez Streamlit lub CLI.
+
+Pierwsza instalacja i budowa frontendu (Node.js i pnpm):
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm build
+cd ..
+```
+
+Uruchomienie gotowej aplikacji — jeden lokalny proces, bez publikowania:
+
+```bash
+uv run uvicorn expense_tracker.api:app --host 127.0.0.1 --port 8000
+```
+
+Otwórz [podsumowanie](http://127.0.0.1:8000/) lub
+[dokumentację API](http://127.0.0.1:8000/docs).
+Podczas pracy nad Reactem można dodatkowo uruchomić `pnpm --dir frontend dev`:
+Vite na porcie 5173 przekazuje żądania `/api` do Pythona na porcie 8000.
+
+Przepływ danych: **React → HTTP `/api/summary` → `summary_service` → obecne
+`dashboard_data` / `reporting` / `ledger` → SQLite**. React nie importuje Pythona.
+Obliczenia finansowe pozostają na serwerze i używają `Decimal`; API przesyła kwoty
+jako ciągi znaków, a frontend formatuje je i rysuje wykres. Daty i waluty są
+filtrowane w serwisie, według tych samych zasad co w dotychczasowym podsumowaniu.
+Połączenia z bazą są otwierane i zamykane dla każdego żądania. API tego etapu
+udostępnia wyłącznie odczyt podsumowania; nie uruchamia AI ani importu.
+
+Kod Reacta jest podzielony na filtry, karty kwot, panel kategorii, wykres i nawigację.
+Sprawdzenie: `uv run pytest`, `pnpm --dir frontend build`.
+
+### Dotychczasowy interfejs Streamlit
+
 ```bash
 uv run streamlit run src/expense_tracker/ui/app.py
 ```

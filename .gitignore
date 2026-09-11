@@ -19,3 +19,8 @@ data/*.csv
 
 # AI
 HANDOFF.md
+
+# Local React build and dependencies
+node_modules/
+*.tsbuildinfo
+.sites-runtime/
