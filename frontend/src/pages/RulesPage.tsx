@@ -38,7 +38,7 @@ function RuleRow({
           />
         </div>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
           disabled={action.busy || category === rule.category_key || !category}
           onClick={() =>
             action.run(() =>
@@ -71,13 +71,13 @@ function RuleRow({
             <Notice error={action.error} />
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                 onClick={() => setRemove(false)}
               >
                 Anuluj
               </button>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-rose-200! bg-rose-50! text-rose-700! hover:bg-rose-100!"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!"
                 disabled={action.busy}
                 onClick={() =>
                   action.run(() => request(`/rules/${rule.id}`, "DELETE"))
@@ -130,10 +130,10 @@ export default function RulesPage({
         </p>
       </div>
       <Notice error={error} />
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
           <h2>Zapamiętani sprzedawcy</h2>
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={16} />
             <input
               aria-label="Szukaj reguł"

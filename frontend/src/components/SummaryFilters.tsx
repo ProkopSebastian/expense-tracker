@@ -59,7 +59,7 @@ export default function SummaryFilters({
         aria-label="Filtry podsumowania"
       >
         <Tabs.List
-          className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:whitespace-nowrap [&_button]:text-muted [&_button[data-state=active]]:bg-white [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+          className="flex flex-wrap gap-1 rounded-xl bg-surface-muted p-1 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:whitespace-nowrap [&_button]:text-muted [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
           aria-label="Okres"
         >
           {periods.map(([mode, label]) => (
@@ -96,7 +96,7 @@ export default function SummaryFilters({
         className="flex min-h-20 flex-wrap items-center justify-between gap-3 py-3"
       >
         {filters.mode === "month" && currentMonth ? (
-          <div className="flex items-center gap-2 [&>button]:grid [&>button]:size-8 [&>button]:place-items-center [&>button]:rounded-lg [&>button]:border [&>button]:border-line [&>button]:bg-white [&_label]:relative [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label>svg:last-child]:pointer-events-none [&_label>svg:last-child]:absolute [&_label>svg:last-child]:right-1 [&_select]:appearance-none [&_select]:border-0 [&_select]:bg-transparent [&_select]:pr-7 [&_select]:font-medium">
+          <div className="flex items-center gap-2 [&>button]:grid [&>button]:size-8 [&>button]:place-items-center [&>button]:rounded-lg [&>button]:border [&>button]:border-line [&>button]:bg-surface [&_label]:relative [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label>svg:last-child]:pointer-events-none [&_label>svg:last-child]:absolute [&_label>svg:last-child]:right-1 [&_select]:appearance-none [&_select]:border-0 [&_select]:bg-transparent [&_select]:pr-7 [&_select]:font-medium">
             <button
               aria-label="Poprzedni miesiąc"
               disabled={

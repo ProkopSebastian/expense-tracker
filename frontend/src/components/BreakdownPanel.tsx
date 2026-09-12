@@ -27,7 +27,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
     <Tabs.Root
       value={view}
       onValueChange={(value) => setView(value as "donut" | "bars")}
-      className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm"
+      className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-4 pt-6 lg:px-7 [&_p]:mt-1.5 [&_p]:text-sm [&_p]:text-muted">
         <div>
@@ -35,7 +35,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           <p>Od kategorii do pojedynczego sprzedawcy.</p>
         </div>
         <Tabs.List
-          className="flex gap-1 rounded-xl border border-line bg-slate-50 p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-white [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+          className="flex gap-1 rounded-xl border border-line bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
           aria-label="Rodzaj wykresu"
         >
           <Tabs.Trigger value="donut">
@@ -152,9 +152,9 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                         %
                       </span>
                     </span>
-                    <ChevronRight className="text-slate-400" size={16} />
+                    <ChevronRight className="text-muted" size={16} />
                     {view === "bars" && (
-                      <span className="col-span-full h-1.5 overflow-hidden rounded-full bg-slate-100 [&>span]:block [&>span]:h-full [&>span]:rounded-full">
+                      <span className="col-span-full h-1.5 overflow-hidden rounded-full bg-surface-muted [&>span]:block [&>span]:h-full [&>span]:rounded-full">
                         <span
                           style={{
                             width: `${currentTotal ? (Number(node.total) / currentTotal) * 100 : 0}%`,
@@ -174,7 +174,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           </div>
         )}
       </Tabs.Content>
-      <footer className="flex items-start gap-2 border-t border-line bg-slate-50/70 px-5 py-4 text-xs leading-relaxed text-muted [&_svg]:shrink-0">
+      <footer className="flex items-start gap-2 border-t border-line bg-surface-muted/70 px-5 py-4 text-xs leading-relaxed text-muted [&_svg]:shrink-0">
         <ListFilter size={15} />
         <span>Kwoty uwzględniają grupy, zwroty i Twój udział w wydatkach.</span>
       </footer>

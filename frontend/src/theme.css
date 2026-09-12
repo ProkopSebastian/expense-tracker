@@ -1,20 +1,78 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+:root {
+  --app-canvas: #f6f7fc;
+  --app-surface: #ffffff;
+  --app-surface-muted: #eef0f8;
+  --app-ink: #22243d;
+  --app-muted: #71758e;
+  --app-line: #e6e8f2;
+  --app-accent: #7054d9;
+  --app-accent-hover: #5e43c0;
+  --app-accent-soft: #f0ecfc;
+  --app-success: #059669;
+  --app-danger: #e11d48;
+  --app-warning: #d97706;
+  --app-info: #0284c7;
+}
+
+/* Tryb ciemny wg preferencji systemu, dopóki użytkownik nie wybierze ręcznie. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --app-canvas: #14151f;
+    --app-surface: #1c1e2b;
+    --app-surface-muted: #262838;
+    --app-ink: #e7e8f3;
+    --app-muted: #9a9dbd;
+    --app-line: #33354a;
+    --app-accent: #9b8afb;
+    --app-accent-hover: #b3a5fc;
+    --app-accent-soft: #2a2550;
+    --app-success: #34d399;
+    --app-danger: #fb7185;
+    --app-warning: #fbbf24;
+    --app-info: #38bdf8;
+  }
+}
+
+/* Ręczny wybór trybu (przełącznik w nagłówku) nadpisuje preferencję systemu. */
+:root[data-theme="dark"] {
+  --app-canvas: #14151f;
+  --app-surface: #1c1e2b;
+  --app-surface-muted: #262838;
+  --app-ink: #e7e8f3;
+  --app-muted: #9a9dbd;
+  --app-line: #33354a;
+  --app-accent: #9b8afb;
+  --app-accent-hover: #b3a5fc;
+  --app-accent-soft: #2a2550;
+  --app-success: #34d399;
+  --app-danger: #fb7185;
+  --app-warning: #fbbf24;
+  --app-info: #38bdf8;
+}
+
 @theme {
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
-  --color-canvas: #f6f7fc;
-  --color-ink: #22243d;
-  --color-muted: #71758e;
-  --color-line: #e6e8f2;
-  --color-accent: #7054d9;
-  --color-accent-hover: #5e43c0;
-  --color-accent-soft: #f0ecfc;
+  --color-canvas: var(--app-canvas);
+  --color-surface: var(--app-surface);
+  --color-surface-muted: var(--app-surface-muted);
+  --color-ink: var(--app-ink);
+  --color-muted: var(--app-muted);
+  --color-line: var(--app-line);
+  --color-accent: var(--app-accent);
+  --color-accent-hover: var(--app-accent-hover);
+  --color-accent-soft: var(--app-accent-soft);
+  --color-success: var(--app-success);
+  --color-danger: var(--app-danger);
+  --color-warning: var(--app-warning);
+  --color-info: var(--app-info);
 }
 
 @layer base {
   body {
-    @apply m-0 bg-canvas font-sans text-ink antialiased;
+    @apply m-0 bg-canvas font-sans text-ink antialiased transition-colors duration-150;
   }
   h1 {
     @apply text-3xl font-semibold tracking-tight;
@@ -35,7 +93,7 @@
   }
   input:not([type="checkbox"]):not([type="file"]),
   select {
-    @apply max-w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink;
+    @apply max-w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink;
   }
   input[type="checkbox"] {
     @apply size-4 shrink-0 cursor-pointer accent-accent;

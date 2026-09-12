@@ -107,14 +107,14 @@ export function ManualForm({
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             disabled={action.busy}
             onClick={onClose}
           >
             Anuluj
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
             disabled={action.busy}
           >
             {action.busy ? "Zapisuję…" : "Dodaj transakcję"}
@@ -224,7 +224,7 @@ export function GroupForm({
           </select>
         </label>
         {kind === "own_transfer" ? (
-          <p className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-emerald-50 text-emerald-700">
+          <p className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-success/10 text-success">
             Transfer własny nie zwiększa wydatków ani przychodów.
           </p>
         ) : (
@@ -290,14 +290,14 @@ export function GroupForm({
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             onClick={onClose}
             disabled={action.busy}
           >
             Anuluj
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
             disabled={action.busy}
           >
             {action.busy ? "Zapisuję…" : "Utwórz grupę"}

@@ -62,7 +62,7 @@ function ClassificationItem({
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
           disabled={!category || action.busy}
           onClick={() =>
             action.run(() =>
@@ -148,7 +148,7 @@ export default function ClassificationPage({
         </span>
       </div>
       <div className="mb-5 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-white p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
+        <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
           <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
             <Sparkles size={22} />
           </span>
@@ -158,7 +158,7 @@ export default function ClassificationPage({
             partii. Ty zatwierdzasz każdą decyzję.
           </p>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
             disabled={
               !aiEnabled ||
               action.busy ||
@@ -170,8 +170,8 @@ export default function ClassificationPage({
             <Sparkles size={15} />
           </button>
         </section>
-        <section className="rounded-2xl border border-line bg-white p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent bg-sky-50! text-sky-600!">
+        <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
+          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent bg-info/10! text-info!">
             <Link2 size={22} />
           </span>
           <h2>Znajdź powiązania</h2>
@@ -180,7 +180,7 @@ export default function ClassificationPage({
             najnowszych transakcji poza grupami.
           </p>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             disabled={!aiEnabled || action.busy}
             onClick={() => analyze("relations")}
           >
@@ -197,10 +197,10 @@ export default function ClassificationPage({
         sprzedawców może korzystać z wyszukiwania w internecie.
       </p>
       <Notice error={error || action.error} notice={notice || action.notice} />
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
           <h2>Przejrzyj i przypisz</h2>
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={16} />
             <input
               aria-label="Szukaj do klasyfikacji"

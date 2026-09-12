@@ -68,7 +68,7 @@ export default function SummaryPage({
           <h2>Nie udało się pobrać danych</h2>
           <p>{error}</p>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             onClick={() => setRevision((value) => value + 1)}
           >
             Spróbuj ponownie

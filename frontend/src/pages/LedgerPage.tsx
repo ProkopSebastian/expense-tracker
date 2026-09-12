@@ -91,7 +91,7 @@ export default function LedgerPage({
           <p>Każda transakcja. Każda grupa. Pełny obraz.</p>
         </div>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
           onClick={() => setModal("manual")}
         >
           <Plus size={17} />
@@ -105,10 +105,10 @@ export default function LedgerPage({
           onValueChange={(value) =>
             setLinksTab(value as "relations" | "groups")
           }
-          className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm p-5"
+          className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm p-5"
         >
           <Tabs.List
-            className="mb-3 flex w-fit flex-wrap gap-1 rounded-xl bg-slate-100 p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-white [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+            className="mb-3 flex w-fit flex-wrap gap-1 rounded-xl bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
             aria-label="Powiązania"
           >
             <Tabs.Trigger value="relations">
@@ -143,7 +143,7 @@ export default function LedgerPage({
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <button
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                         disabled={action.busy}
                         onClick={() =>
                           action.run(
@@ -156,7 +156,7 @@ export default function LedgerPage({
                         Odrzuć
                       </button>
                       <button
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
                         disabled={action.busy}
                         onClick={() =>
                           action.run(
@@ -186,7 +186,7 @@ export default function LedgerPage({
                     {c.title} · {money(c.personal_amount, c.currency)}
                   </span>
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                     onClick={() => setDissolve(c.id)}
                   >
                     Rozwiąż grupę
@@ -201,9 +201,9 @@ export default function LedgerPage({
           </Tabs.Content>
         </Tabs.Root>
       )}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={17} />
             <input
               placeholder="Szukaj opisu lub kontrahenta"
@@ -228,14 +228,14 @@ export default function LedgerPage({
             <option value="income">Wpływy</option>
           </select>
           <Popover.Root>
-            <Popover.Trigger className="rounded-xl border border-line bg-white px-3 py-2.5 text-sm hover:bg-accent-soft">
+            <Popover.Trigger className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm hover:bg-accent-soft">
               Kategorie{category.length ? ` (${category.length})` : ""}
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content
                 align="end"
                 sideOffset={8}
-                className="z-40 max-h-[min(360px,70dvh)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-xl [&>label]:flex [&>label]:items-center [&>label]:gap-2 [&>label]:p-2"
+                className="z-40 max-h-[min(360px,70dvh)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-xl [&>label]:flex [&>label]:items-center [&>label]:gap-2 [&>label]:p-2"
               >
                 {categoryGroups.map(({ parent, children }) => (
                   <div
@@ -297,7 +297,7 @@ export default function LedgerPage({
                   <CategoryIcon /> Do przypisania
                 </label>
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                   onClick={() => {
                     setCategory([]);
                     filtersChanged();
@@ -313,13 +313,13 @@ export default function LedgerPage({
           <div className="flex flex-wrap items-center gap-3 bg-accent-soft px-5 py-3 text-sm">
             <span>{selected.length} zaznaczone</span>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
               onClick={() => setSelected([])}
             >
               Odznacz
             </button>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
               disabled={!canGroup}
               onClick={() => setModal("group")}
             >
@@ -351,7 +351,7 @@ export default function LedgerPage({
                 className="border-b border-line last:border-0"
               >
                 <Accordion.Header>
-                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 bg-slate-50/80 px-5 py-4 text-left text-sm font-semibold text-ink hover:bg-accent-soft">
+                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 bg-surface-muted/80 px-5 py-4 text-left text-sm font-semibold text-ink hover:bg-accent-soft">
                     <span className="capitalize">{monthLabel(month)}</span>
                     <span className="ml-auto text-xs font-normal text-muted">
                       {rows.length} pozycji na tej stronie
@@ -366,7 +366,7 @@ export default function LedgerPage({
                   <div className="overflow-x-auto">
                     <table
                       aria-label={`Transakcje: ${monthLabel(month)}`}
-                      className="w-full border-collapse text-sm [&_th]:bg-slate-50 [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
+                      className="w-full border-collapse text-sm [&_th]:bg-surface-muted [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
                     >
                       <thead>
                         <tr>
@@ -448,7 +448,7 @@ export default function LedgerPage({
                                   {["PENDING", "PROCESSING"].includes(
                                     row.bank_status ?? "",
                                   ) && (
-                                    <span className="text-amber-700">
+                                    <span className="text-warning">
                                       {" "}
                                       · Oczekująca
                                     </span>
@@ -463,7 +463,7 @@ export default function LedgerPage({
                               </td>
                               <td>
                                 <span
-                                  className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-slate-50 px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-amber-200! bg-amber-50! text-amber-700" : ""}`}
+                                  className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-surface-muted px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-warning/25! bg-warning/10! text-warning" : ""}`}
                                 >
                                   <CategoryIcon
                                     categoryKey={row.category_key}
@@ -472,7 +472,7 @@ export default function LedgerPage({
                                 </span>
                               </td>
                               <td
-                                className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-emerald-600" : ""}`}
+                                className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-success" : ""}`}
                               >
                                 {money(
                                   row.case_id
@@ -516,7 +516,7 @@ export default function LedgerPage({
                             {expanded.includes(row.key) &&
                               row.members.map((member) => (
                                 <tr
-                                  className="bg-slate-50 text-muted [&_td]:py-3! [&_td:nth-child(2)]:pl-8!"
+                                  className="bg-surface-muted text-muted [&_td]:py-3! [&_td:nth-child(2)]:pl-8!"
                                   key={member.id}
                                 >
                                   <td />
@@ -630,7 +630,7 @@ export default function LedgerPage({
             </label>
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
                 disabled={action.busy}
               >
                 Zapisz kategorię
@@ -671,13 +671,13 @@ export default function LedgerPage({
             </p>
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                 onClick={() => setDissolve(null)}
               >
                 Anuluj
               </button>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
                 disabled={action.busy}
                 onClick={async () => {
                   if (

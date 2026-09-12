@@ -83,7 +83,7 @@ export function Notice({ error, notice }: { error?: string; notice?: string }) {
       {error && (
         <div
           role="alert"
-          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-rose-50 text-rose-700"
+          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-danger/10 text-danger"
         >
           <AlertCircle size={17} />
           {error}
@@ -92,7 +92,7 @@ export function Notice({ error, notice }: { error?: string; notice?: string }) {
       {notice && (
         <div
           role="status"
-          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-emerald-50 text-emerald-700"
+          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-success/10 text-success"
         >
           <CheckCircle2 size={17} />
           {notice}
@@ -134,7 +134,7 @@ export function Modal({
             event.preventDefault();
             returnFocus.current?.focus();
           }}
-          className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-white text-ink shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none"
+          className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-surface text-ink shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none"
         >
           <header className="flex items-center justify-between gap-4 border-b border-line px-6 py-5">
             <Dialog.Title className="text-lg font-semibold">

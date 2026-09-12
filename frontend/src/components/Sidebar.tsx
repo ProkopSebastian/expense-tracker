@@ -16,7 +16,7 @@ const icons = {
 };
 export default function Sidebar({ page }: { page: Page }) {
   return (
-    <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-white/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-0">
+    <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-surface/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-0">
       <a
         className="flex items-center gap-2 text-2xl font-bold tracking-tight max-xl:justify-center md:max-xl:text-[0px]"
         href="#summary"

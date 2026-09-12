@@ -64,9 +64,9 @@ export default function DataPage({
         </div>
       </div>
       <Notice error={action.error} notice={message || action.notice} />
-      <section className="my-6 flex flex-col gap-4 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft to-white p-6 shadow-sm lg:flex-row lg:items-center">
+      <section className="my-6 flex flex-col gap-4 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft to-surface p-6 shadow-sm lg:flex-row lg:items-center">
         <div
-          className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-accent shadow-sm"
+          className="grid size-12 shrink-0 place-items-center rounded-2xl bg-surface text-accent shadow-sm"
           aria-hidden="true"
         >
           <RefreshCw size={22} />
@@ -79,7 +79,7 @@ export default function DataPage({
           </p>
         </div>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
           disabled={action.busy}
           onClick={() =>
             action.run(async () => {
@@ -97,7 +97,7 @@ export default function DataPage({
           <RefreshCw size={16} /> Aktualizuj teraz
         </button>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
           onClick={() =>
             fetch("/open-data-folder", { method: "POST" }).catch(() => {})
           }
@@ -105,7 +105,7 @@ export default function DataPage({
           <FolderOpen size={16} /> Otwórz folder danych
         </button>
       </section>
-      <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
+      <section className="my-6 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
         <h2>Wczytaj pojedynczy plik CSV</h2>
         <p className="text-sm leading-relaxed text-muted">
           Wybierz eksport CSV Nest lub Revolut. Operacje oczekujące uwzględniamy
@@ -162,11 +162,11 @@ export default function DataPage({
           />
         </label>
       </section>
-      <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
+      <section className="my-6 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
         <h2>Opcjonalna pomoc AI</h2>
         {aiEnabled ? (
-          <div className="flex flex-col justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-3 text-emerald-700 [&_svg]:shrink-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_strong]:text-sm [&_span]:text-xs [&_span]:leading-relaxed [&_span]:text-muted">
+          <div className="flex flex-col justify-between gap-4 rounded-xl border border-success/25 bg-success/10 p-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3 text-success [&_svg]:shrink-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_strong]:text-sm [&_span]:text-xs [&_span]:leading-relaxed [&_span]:text-muted">
               <CheckCircle2 size={20} />
               <div>
                 <strong>Klucz API jest zapisany</strong>
@@ -174,7 +174,7 @@ export default function DataPage({
               </div>
             </div>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-rose-200! bg-rose-50! text-rose-700! hover:bg-rose-100!"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!"
               disabled={action.busy}
               onClick={() =>
                 action.run(async () => {
@@ -189,7 +189,7 @@ export default function DataPage({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 text-emerald-700 [&_svg]:shrink-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_strong]:text-sm [&_span]:text-xs [&_span]:leading-relaxed [&_span]:text-muted items-start! rounded-xl bg-slate-50 p-4 text-muted!">
+            <div className="flex items-center gap-3 text-success [&_svg]:shrink-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_strong]:text-sm [&_span]:text-xs [&_span]:leading-relaxed [&_span]:text-muted items-start! rounded-xl bg-surface-muted p-4 text-muted!">
               <KeyRound size={20} />
               <div>
                 <strong>Klucz API nie jest jeszcze dodany</strong>
@@ -211,7 +211,7 @@ export default function DataPage({
             </label>
             <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
                 disabled={action.busy || !apiKey.trim()}
                 onClick={() =>
                   action.run(async () => {
@@ -229,7 +229,7 @@ export default function DataPage({
           </>
         )}
       </section>
-      <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
+      <section className="my-6 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
         <h2>Ochrona danych</h2>
         <p className="text-sm leading-relaxed text-muted">
           Kopia bazy powstaje przed zmianami i przy pierwszym uruchomieniu
@@ -247,7 +247,7 @@ export default function DataPage({
           </p>
         )}
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
           disabled={action.busy || !recovery?.can_undo}
           onClick={() =>
             action.run(async () => {
