@@ -5,6 +5,7 @@ and no separate browser tab."""
 from __future__ import annotations
 
 import contextlib
+import faulthandler
 import os
 import socket
 import sys
@@ -15,6 +16,12 @@ from pathlib import Path
 
 def _asset_root() -> Path:
     return Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+
+
+def _icon_path() -> Path:
+    """Return an icon format supported by the native GUI backend."""
+    filename = "app.ico" if sys.platform == "win32" else "app.png"
+    return _asset_root() / "assets" / filename
 
 
 def _show_message(webview, title: str, message: str, icon_path: Path) -> None:
@@ -36,7 +43,7 @@ def main() -> None:
 
     import webview
 
-    icon_path = _asset_root() / "assets" / "app.png"
+    icon_path = _icon_path()
     windows = sys.platform == "win32"
 
     if windows:
@@ -57,8 +64,9 @@ def main() -> None:
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / "app.log"
 
-    log = log_path.open("a", encoding="utf-8")
+    log = log_path.open("a", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = log
+    faulthandler.enable(file=log, all_threads=True)
 
     if windows:
         import ctypes

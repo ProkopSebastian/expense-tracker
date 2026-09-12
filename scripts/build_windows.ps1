@@ -10,9 +10,9 @@ $IconIco = (Resolve-Path 'scripts/assets/app.ico').Path
 $IconPng = (Resolve-Path 'scripts/assets/app.png').Path
 uv sync --group desktop --frozen
 Check-Exit
-uv run --group desktop --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onedir --name Wydatki --specpath build --paths src --icon $IconIco --add-data "${FrontendDist};frontend/dist" --add-data "${IconIco};assets" --add-data "${IconPng};assets" --collect-submodules uvicorn scripts/desktop_launcher.py
+uv run --group desktop --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onefile --name Wydatki --specpath build --paths src --icon $IconIco --add-data "${FrontendDist};frontend/dist" --add-data "${IconIco};assets" --add-data "${IconPng};assets" --collect-submodules uvicorn scripts/desktop_launcher.py
 Check-Exit
-$smoke = Start-Process -FilePath dist/Wydatki/Wydatki.exe -ArgumentList '--smoke-test' -PassThru -Wait
+$smoke = Start-Process -FilePath dist/Wydatki.exe -ArgumentList '--smoke-test' -PassThru -Wait
 if ($smoke.ExitCode -ne 0) { throw "Packaged application smoke test failed: $($smoke.ExitCode)" }
-Copy-Item docs/WINDOWS.txt dist/Wydatki/START.txt
-Compress-Archive -Path dist/Wydatki -DestinationPath dist/Wydatki-Windows.zip -Force
+Copy-Item docs/WINDOWS.txt dist/START.txt -Force
+Compress-Archive -Path @('dist/Wydatki.exe', 'dist/START.txt') -DestinationPath dist/Wydatki-Windows.zip -Force
