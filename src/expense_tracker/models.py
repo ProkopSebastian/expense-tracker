@@ -17,3 +17,5 @@ class Transaction:
     value_date: date | None = None
     balance: Decimal | None = None
     raw: dict[str, str] | None = None
+    merchant: str | None = None
+    transaction_type: str | None = None

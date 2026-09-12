@@ -55,6 +55,11 @@ def reconcile(db: sqlite3.Connection, transaction: Transaction, fingerprint: str
             bank_state(json.loads(previous["raw_json"])) in PENDING
             or state in PENDING | INACTIVE
             or previous["description"] == transaction.description
+            or (
+                raw.get("Started Date")
+                and Decimal(previous["amount"]) == transaction.amount
+                and previous["currency"] == transaction.currency
+            )
         ):
             candidate = previous
     if candidate is None:
@@ -73,16 +78,24 @@ def reconcile(db: sqlite3.Connection, transaction: Transaction, fingerprint: str
         grouped = db.execute("SELECT 1 FROM case_members WHERE transaction_id=?", (candidate["id"],)).fetchone()
         if grouped:
             raise ValueError("Bank zmienił operację należącą do grupy. Rozwiąż tę grupę i ponów import.")
+    transaction_type = (
+        transaction.transaction_type
+        or raw.get("Rodzaj operacji")
+        or raw.get("Type")
+        or raw.get("Transaction type")
+    )
     db.execute(
-        """UPDATE transactions SET booking_date=?,value_date=?,amount=?,currency=?,description=?,
-        counterparty=?,balance=?,raw_json=?,fingerprint=?,source_key=?,bank_status=? WHERE id=?""",
+        """UPDATE transactions SET booking_date=?,value_date=?,amount=?,currency=?,description=?,merchant=?,
+        counterparty=?,transaction_type=?,balance=?,raw_json=?,fingerprint=?,source_key=?,bank_status=? WHERE id=?""",
         (
             str(transaction.booking_date),
             str(transaction.value_date) if transaction.value_date else None,
             str(transaction.amount),
             transaction.currency,
             transaction.description,
+            transaction.merchant,
             transaction.counterparty,
+            transaction_type,
             str(transaction.balance) if transaction.balance is not None else None,
             json.dumps(raw, ensure_ascii=False),
             fingerprint,

@@ -36,6 +36,10 @@ def merchant_key(description: str) -> str:
     return " ".join(value.casefold().split())[:160]
 
 
+def merchant_text(row: dict[str, object] | sqlite3.Row) -> str:
+    return str(row["merchant"] or row["description"])
+
+
 def merchant_rules(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
         """SELECT mr.id, mr.merchant_key, mr.category_key, c.label AS category_label, mr.created_at
@@ -94,7 +98,7 @@ def categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
 
 def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
-        """SELECT t.id, t.account, t.booking_date, t.amount, t.currency, t.description, t.counterparty,
+        """SELECT t.id, t.account, t.booking_date, t.amount, t.currency, t.description, t.merchant, t.counterparty,
                   t.transaction_type, t.bank_status, d.category_key, c.label AS category_label,
                   d.source AS decision_source,
                   d.status AS decision_status, d.confidence, d.explanation, cases.id AS case_id,
@@ -222,7 +226,9 @@ def save_decision(
     *,
     commit: bool = True,
 ) -> None:
-    row = connection.execute("SELECT description FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    row = connection.execute(
+        "SELECT description, merchant FROM transactions WHERE id = ?", (transaction_id,)
+    ).fetchone()
     if row is None:
         raise ValueError("Transakcja nie istnieje.")
     connection.execute(
@@ -233,7 +239,7 @@ def save_decision(
             source = excluded.source, status = excluded.status, confidence = excluded.confidence,
             explanation = excluded.explanation, merchant_key = excluded.merchant_key,
             updated_at = CURRENT_TIMESTAMP""",
-        (transaction_id, category_key, source, explanation, merchant_key(row["description"])),
+        (transaction_id, category_key, source, explanation, merchant_key(merchant_text(row))),
     )
     if commit:
         connection.commit()
@@ -242,14 +248,16 @@ def save_decision(
 def save_merchant_rule(
     connection: sqlite3.Connection, transaction_id: int, category_key: str, *, commit: bool = True
 ) -> None:
-    row = connection.execute("SELECT description FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    row = connection.execute(
+        "SELECT description, merchant FROM transactions WHERE id = ?", (transaction_id,)
+    ).fetchone()
     if row is None:
         raise ValueError("Transakcja nie istnieje.")
     connection.execute(
         """INSERT INTO merchant_rules(merchant_key, category_key)
         VALUES (?, ?)
         ON CONFLICT(merchant_key) DO UPDATE SET category_key = excluded.category_key, is_active = 1""",
-        (merchant_key(row["description"]), category_key),
+        (merchant_key(merchant_text(row)), category_key),
     )
     if commit:
         connection.commit()
@@ -260,12 +268,13 @@ def apply_rules(connection: sqlite3.Connection, *, commit: bool = True) -> int:
         "SELECT merchant_key, category_key FROM merchant_rules WHERE is_active = 1 ORDER BY priority"
     ).fetchall()
     rows = connection.execute(
-        "SELECT id, description FROM transactions WHERE id NOT IN (SELECT transaction_id FROM transaction_decisions)"
+        """SELECT id, description, merchant FROM transactions
+        WHERE id NOT IN (SELECT transaction_id FROM transaction_decisions)"""
     ).fetchall()
     applied = 0
     rule_map = {rule["merchant_key"]: rule["category_key"] for rule in rules}
     for row in rows:
-        key = merchant_key(row["description"])
+        key = merchant_key(merchant_text(row))
         category_key = rule_map.get(key)
         if category_key is None:
             continue

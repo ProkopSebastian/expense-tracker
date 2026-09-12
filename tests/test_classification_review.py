@@ -65,6 +65,37 @@ def test_approving_with_edited_category_overrides_the_ai_suggestion(database: Da
     assert rule["category_key"] == "food_restaurants"
 
 
+def test_merchant_rule_uses_normalized_merchant_instead_of_bank_description(database: Database) -> None:
+    database.insert_transactions(
+        [
+            Transaction(
+                account="velo",
+                booking_date=date(2026, 9, 1),
+                amount=Decimal("-20"),
+                currency="PLN",
+                description="Operacja kartą z bankowym numerem 111",
+                merchant="TEST SHOP",
+            ),
+            Transaction(
+                account="velo",
+                booking_date=date(2026, 9, 2),
+                amount=Decimal("-30"),
+                currency="PLN",
+                description="Operacja kartą z innym numerem 222",
+                merchant="TEST SHOP",
+            ),
+        ]
+    )
+    rows = transactions(database.connection)
+    classified_id = int(rows[-1]["id"])
+    save_decision(database.connection, classified_id, "shopping")
+    save_merchant_rule(database.connection, classified_id, "shopping")
+
+    assert apply_rules(database.connection) == 1
+    categories = {int(row["id"]): row["category_key"] for row in transactions(database.connection)}
+    assert set(categories.values()) == {"shopping"}
+
+
 def test_dissolve_case_releases_members_back_to_the_ledger(database: Database) -> None:
     database.insert_transactions(
         [

@@ -12,6 +12,9 @@ wheels/
 
 # Local bank exports and derived local database (may contain financial/PII data)
 data/*.csv
+data/*.pdf
+data/*.PDF
+data/*.sta
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm

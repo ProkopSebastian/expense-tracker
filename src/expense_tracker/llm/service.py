@@ -15,6 +15,7 @@ from ..config import settings
 from ..ledger import (
     categories,
     merchant_key,
+    merchant_text,
     pending_merchant_suggestion_transaction_ids,
     pending_relation_suggestion_transaction_ids,
     transactions,
@@ -60,7 +61,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     ]
     groups: defaultdict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
-        groups[(merchant_key(str(row["description"])), str(row["currency"]))].append(row)
+        groups[(merchant_key(merchant_text(row)), str(row["currency"]))].append(row)
     all_groups = list(groups.values())
     merchant_groups = all_groups[:MAX_MERCHANTS_PER_REQUEST]
     if not merchant_groups:
@@ -68,7 +69,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     payload = [
         MerchantInput(
             transaction_ids=[int(row["id"]) for row in group],
-            merchant=redact_text(str(group[0]["description"])),
+            merchant=redact_text(merchant_text(group[0])),
             counterparty=redact_text(str(group[0]["counterparty"])) if group[0]["counterparty"] else None,
             operation_types=sorted({str(row["transaction_type"] or "unknown") for row in group}),
             sample_amounts=[float(Decimal(str(row["amount"]))) for row in group[:5]],

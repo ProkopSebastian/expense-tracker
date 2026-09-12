@@ -180,7 +180,7 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
 
     from starlette.concurrency import run_in_threadpool
 
-    from .data_sync import import_file
+    from .data_sync import SUPPORTED_SUFFIXES, import_file
 
     body = bytearray()
     async for chunk in request.stream():
@@ -189,10 +189,13 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
             raise HTTPException(413, "Maksymalny rozmiar pliku to 20 MB.")
     if not body:
         raise ValueError("Plik jest pusty.")
+    suffix = Path(request.headers.get("x-file-name", "upload.csv")).suffix.casefold()
+    if suffix not in SUPPORTED_SUFFIXES:
+        raise ValueError("Obsługiwane pliki mają rozszerzenie CSV lub PDF.")
 
     def run_import():
         with TemporaryDirectory() as directory:
-            path = Path(directory) / "upload.csv"
+            path = Path(directory) / f"upload{suffix}"
             path.write_bytes(body)
             database = Database(request.app.state.database_path)
             try:

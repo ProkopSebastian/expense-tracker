@@ -25,7 +25,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
                     "kind": "expense",
                     "category": category,
                     "label": label,
-                    "merchant": str(row["description"]),
+                    "merchant": str(row["merchant"] or row["description"]),
                 }
             )
         elif amount > 0:
@@ -37,7 +37,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
                     "kind": "income",
                     "category": category,
                     "label": label,
-                    "merchant": str(row["description"]),
+                    "merchant": str(row["merchant"] or row["description"]),
                 }
             )
     for case in cases:

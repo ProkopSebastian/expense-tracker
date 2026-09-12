@@ -5,7 +5,7 @@ import re
 _CARD_SUFFIX = re.compile(r"nr\s*karty\s*\.{0,3}\s*\d{2,}", re.IGNORECASE)
 _TRAILING_AMOUNT = re.compile(r"\b\d+(?:[.,]\d+)?\s*pln\b", re.IGNORECASE)
 
-_CARD_OPERATION_TYPES = {"płatności kartą", "card payment"}
+_CARD_OPERATION_TYPES = {"płatności kartą", "card payment", "card refund"}
 
 
 def clean_description(text: str) -> str:

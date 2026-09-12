@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from expense_tracker.data_sync import sync_data_directory
+from expense_tracker.data_sync import import_file, sync_data_directory
 from expense_tracker.database import Database
 from expense_tracker.ledger import merchant_key, transactions
 
@@ -56,3 +56,17 @@ def test_sync_applies_merchant_rules_after_import(tmp_path: Path, database: Data
     row = transactions(database.connection)[0]
     assert row["category_key"] == "food_restaurants"
     assert row["decision_source"] == "rule"
+
+
+def test_reprocesses_an_older_parser_version_without_duplicating_rows(tmp_path: Path, database: Database) -> None:
+    path = tmp_path / "export.csv"
+    path.write_text(NEST_CSV, encoding="utf-8")
+    assert import_file(database, path) == 1
+    database.connection.execute("UPDATE transactions SET merchant=NULL")
+    database.connection.execute("UPDATE import_batches SET parser_version=1")
+    database.connection.commit()
+
+    assert import_file(database, path) == 0
+    [row] = transactions(database.connection)
+    assert row["merchant"] == "MR.ROLLO WARSZAWA Nr karty 4724"
+    assert database.connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 1

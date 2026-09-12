@@ -14,7 +14,7 @@ SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY, account TEXT NOT NULL, booking_date TEXT NOT NULL, value_date TEXT,
-    amount TEXT NOT NULL, currency TEXT NOT NULL, description TEXT NOT NULL, counterparty TEXT,
+    amount TEXT NOT NULL, currency TEXT NOT NULL, description TEXT NOT NULL, merchant TEXT, counterparty TEXT,
     external_id TEXT, transaction_type TEXT, balance TEXT, raw_json TEXT NOT NULL,
     fingerprint TEXT NOT NULL UNIQUE, imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
 CREATE TABLE IF NOT EXISTS import_batches (
     id INTEGER PRIMARY KEY, file_name TEXT NOT NULL, file_hash TEXT NOT NULL UNIQUE, importer TEXT NOT NULL,
     rows_found INTEGER NOT NULL, rows_inserted INTEGER NOT NULL, rows_skipped_duplicate INTEGER NOT NULL,
+    parser_version INTEGER NOT NULL DEFAULT 1,
     imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -140,10 +141,20 @@ def _migrate_bank_dates(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX idx_transactions_source ON transactions(source_key)")
 
 
+def _migrate_merchant_and_parser_version(connection: sqlite3.Connection) -> None:
+    transaction_columns = {row["name"] for row in connection.execute("PRAGMA table_info(transactions)")}
+    if "merchant" not in transaction_columns:
+        connection.execute("ALTER TABLE transactions ADD COLUMN merchant TEXT")
+    batch_columns = {row["name"] for row in connection.execute("PRAGMA table_info(import_batches)")}
+    if "parser_version" not in batch_columns:
+        connection.execute("ALTER TABLE import_batches ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 1")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
     _migrate_bank_dates,
+    _migrate_merchant_and_parser_version,
 )
 
 
@@ -170,9 +181,9 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction,
         return None
     cursor = connection.execute(
         """INSERT OR IGNORE INTO transactions
-        (account, booking_date, value_date, amount, currency, description, counterparty, external_id,
+        (account, booking_date, value_date, amount, currency, description, merchant, counterparty, external_id,
          transaction_type, balance, raw_json, fingerprint, source_key, bank_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             transaction.account,
             str(transaction.booking_date),
@@ -180,9 +191,13 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction,
             str(transaction.amount),
             transaction.currency,
             transaction.description,
+            transaction.merchant,
             transaction.counterparty,
             transaction.external_id,
-            raw.get("Rodzaj operacji") or raw.get("Type") or raw.get("Transaction type"),
+            transaction.transaction_type
+            or raw.get("Rodzaj operacji")
+            or raw.get("Type")
+            or raw.get("Transaction type"),
             str(transaction.balance) if transaction.balance is not None else None,
             json.dumps(raw, ensure_ascii=False),
             fingerprint(transaction),

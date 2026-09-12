@@ -41,6 +41,7 @@ export default function DataPage({
         : "";
       const response = await fetch(`/api/import${params}`, {
         method: "POST",
+        headers: { "X-File-Name": file.name },
         body: file,
       });
       const result = await response.json();
@@ -74,8 +75,8 @@ export default function DataPage({
         <div className="flex flex-1 flex-col gap-1 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
           <h2>Aktualizuj dane z folderu data</h2>
           <p>
-            Wczytaj wszystkie nowe eksporty Nest i Revolut umieszczone w
-            lokalnym folderze projektu.
+            Wczytaj wszystkie nowe eksporty Nest, Revolut, Erste, ING i Velo
+            umieszczone w lokalnym folderze projektu.
           </p>
         </div>
         <button
@@ -106,15 +107,16 @@ export default function DataPage({
         </button>
       </section>
       <section className="my-6 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6 flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
-        <h2>Wczytaj pojedynczy plik CSV</h2>
+        <h2>Wczytaj pojedynczy wyciąg</h2>
         <p className="text-sm leading-relaxed text-muted">
-          Wybierz eksport CSV Nest lub Revolut. Operacje oczekujące uwzględniamy
-          od razu. W Nest liczymy datę operacji.
+          Obsługujemy CSV z Nest, Revolut i Erste oraz wyciągi PDF z ING i Velo.
+          PDF powinien być oryginalnym plikiem pobranym z banku, nie skanem.
+          Operacje oczekujące z Revolut uwzględniamy od razu.
         </p>
         <label>
           Przypisz do rachunku
           <select value={account} onChange={(e) => setAccount(e.target.value)}>
-            <option value="">Rozpoznaj automatycznie (Nest lub Revolut)</option>
+            <option value="">Rozpoznaj bank automatycznie</option>
             {accounts.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -149,11 +151,11 @@ export default function DataPage({
           }}
         >
           <Upload size={28} />
-          <strong>Wybierz CSV lub przeciągnij go tutaj</strong>
-          <span>Nest i Revolut · do 20 MB</span>
+          <strong>Wybierz CSV lub PDF albo przeciągnij go tutaj</strong>
+          <span>Nest, Revolut, Erste, ING i Velo · do 20 MB</span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.pdf,text/csv,application/pdf"
             disabled={action.busy || !accountReady}
             onChange={(e) => {
               void upload(e.target.files?.[0]);
