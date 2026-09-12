@@ -67,6 +67,42 @@ def test_settings_never_return_key(client):
     assert client.get("/api/meta").json()["ai_enabled"] is False
 
 
+def test_reset_removes_finances_and_preserves_api_key(tmp_path, monkeypatch):
+    database_path = tmp_path / "test.sqlite3"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "sample.csv").write_text("sample")
+    monkeypatch.setattr(settings, "data_dir", data_dir)
+    monkeypatch.setattr(settings, "openai_api_key", None)
+
+    with TestClient(create_app(database_path)) as reset_client:
+        assert reset_client.put(
+            "/api/settings/ai", json={"api_key": "test-local-key-not-real"}
+        ).status_code == 200
+        assert reset_client.post("/api/import", content=csv()).status_code == 200
+        backups = tmp_path / "test-backups"
+        assert backups.exists()
+
+        assert reset_client.post(
+            "/api/settings/reset-data", json={"confirmation": "usuń"}
+        ).status_code == 422
+        response = reset_client.post(
+            "/api/settings/reset-data", json={"confirmation": "USUŃ DANE"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["api_key_preserved"] is True
+        assert reset_client.get("/api/ledger").json()["blocks"] == []
+        assert reset_client.get("/api/meta").json()["ai_enabled"] is True
+        assert list(data_dir.iterdir()) == []
+        assert not backups.exists()
+        assert (tmp_path / "ai-settings.json").exists()
+        assert reset_client.get("/api/recovery").json() == {
+            "can_undo": False,
+            "label": None,
+        }
+
+
 def test_backup_retention_keeps_current_undo(tmp_path):
     path = tmp_path / "test.sqlite3"
     db = Database(path)

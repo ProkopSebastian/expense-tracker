@@ -5,6 +5,7 @@ from dataclasses import asdict
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from . import ledger
 from . import web_service as service
@@ -18,6 +19,10 @@ from .web_models import Decision, GroupEntry, ManualEntry
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
+
+
+class ResetDataConfirmation(BaseModel):
+    confirmation: Literal["USUŃ DANE"]
 
 
 @router.get("/meta")
@@ -207,3 +212,14 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
 def configure_ai(entry: AIPreferences, request: Request):
     save_preferences(request.app.state.database_path, entry)
     return {"message": "Ustawienia AI zapisane."}
+
+
+@router.post("/settings/reset-data")
+def reset_data(entry: ResetDataConfirmation, request: Request):
+    from .data_reset import reset_financial_data
+
+    reset_financial_data(request.app.state.database_path, settings.data_dir)
+    return {
+        "message": "Dane finansowe zostały usunięte.",
+        "api_key_preserved": bool(settings.openai_api_key),
+    }

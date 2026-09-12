@@ -13,3 +13,5 @@ Zamknięcie okna Wydatki zatrzymuje aplikację.
 Nową wersję programu możesz wypakować do nowego folderu; dane pozostają w tym samym miejscu.
 Kopie bazy: %LOCALAPPDATA%\Wydatki\expense-tracker-backups.
 Nie udostępniaj innym folderu z danymi ani pliku ai-settings.json.
+W ustawieniach w lewym dolnym rogu można bezpiecznie usunąć wszystkie dane
+finansowe. Reset zachowuje klucz API i wymaga wpisania wyraźnego potwierdzenia.
