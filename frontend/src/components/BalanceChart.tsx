@@ -35,6 +35,7 @@ export default function BalanceChart({ data }: { data: Summary }) {
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
         formatter: (params: { dataIndex: number }[]) => {
           const point = points[params[0].dataIndex];
+          if (!point) return "";
           return `${point.date}\nWynik dnia: ${money(point.change, data.currency)}\nNarastająco: ${money(point.balance, data.currency)}`;
         },
       },

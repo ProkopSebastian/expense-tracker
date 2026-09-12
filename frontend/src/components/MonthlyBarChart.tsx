@@ -30,6 +30,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
         formatter: (params: { dataIndex: number }[]) => {
           const point = data.monthly[params[0].dataIndex];
+          if (!point) return "";
           return `${monthLabel(point.month)}\nWynik miesiąca: ${money(point.change, data.currency)}`;
         },
       },
