@@ -33,9 +33,12 @@ export function ManualForm({
   }
   return (
     <Modal title="Dodaj transakcję" onClose={onClose} busy={action.busy}>
-      <form onSubmit={submit} className="form-stack">
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3"
+      >
         <Notice error={action.error} />
-        <div className="form-grid">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label>
             Data
             <input
@@ -101,16 +104,19 @@ export function ManualForm({
           Kontrahent <small>opcjonalnie</small>
           <input name="counterparty" />
         </label>
-        <footer className="form-actions">
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             disabled={action.busy}
             onClick={onClose}
           >
             Anuluj
           </button>
-          <button className="button primary-button" disabled={action.busy}>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            disabled={action.busy}
+          >
             {action.busy ? "Zapisuję…" : "Dodaj transakcję"}
           </button>
         </footer>
@@ -182,9 +188,12 @@ export function GroupForm({
       onClose={onClose}
       busy={action.busy}
     >
-      <form onSubmit={submit} className="form-stack">
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3"
+      >
         <Notice error={action.error} />
-        <p className="form-help">
+        <p className="text-sm leading-relaxed text-muted">
           {selected.length} transakcje · suma przepływów{" "}
           {money(total, currency)}. W podsumowaniu grupa będzie jedną pozycją na
           kwotę Twojego rzeczywistego kosztu.
@@ -215,7 +224,7 @@ export function GroupForm({
           </select>
         </label>
         {kind === "own_transfer" ? (
-          <p className="notice success">
+          <p className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-emerald-50 text-emerald-700">
             Transfer własny nie zwiększa wydatków ani przychodów.
           </p>
         ) : (
@@ -228,7 +237,7 @@ export function GroupForm({
                 onChange={setCategory}
               />
             </label>
-            <div className="form-grid">
+            <div className="grid gap-4 sm:grid-cols-2">
               <label>
                 Kierunek
                 <select
@@ -255,7 +264,7 @@ export function GroupForm({
         )}
         <details>
           <summary>Role transakcji</summary>
-          <p className="form-help">
+          <p className="text-sm leading-relaxed text-muted">
             Opisowe role nie zmieniają podanej kwoty kosztu.
           </p>
           {selected.map((row) => (
@@ -278,16 +287,19 @@ export function GroupForm({
             </label>
           ))}
         </details>
-        <footer className="form-actions">
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             onClick={onClose}
             disabled={action.busy}
           >
             Anuluj
           </button>
-          <button className="button primary-button" disabled={action.busy}>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            disabled={action.busy}
+          >
             {action.busy ? "Zapisuję…" : "Utwórz grupę"}
           </button>
         </footer>

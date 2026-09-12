@@ -18,32 +18,38 @@ function ClassificationItem({
     [remember, setRemember] = useState(row.remember);
   const action = useAction(onChanged);
   return (
-    <article className="classification-row">
-      <div className="classification-description">
-        <div className="row-heading">
+    <article className="grid items-center gap-5 border-b border-line p-5 last:border-0 lg:grid-cols-[minmax(0,1fr)_220px] 2xl:grid-cols-[minmax(0,1fr)_240px_auto]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2 [&_strong]:text-sm [&_strong]:leading-relaxed [&_strong]:wrap-anywhere">
           <strong>{row.description}</strong>
           {row.suggestion_id && (
-            <span className="ai-badge">
+            <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-1 text-[10px] font-medium whitespace-nowrap text-accent">
               <Sparkles size={12} />
               AI · {Math.round((row.confidence ?? 0) * 100)}%
             </span>
           )}
         </div>
-        <div className="row-meta">
+        <div className="mt-1 text-xs leading-relaxed text-muted">
           {row.date} · {row.count > 1 ? `${row.count} transakcje · Σ ` : ""}
           {Object.entries(row.totals)
             .map(([currency, total]) => money(total, currency))
             .join(" / ")}
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
         </div>
-        {row.rationale && <p className="rationale">{row.rationale}</p>}
+        {row.rationale && (
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            {row.rationale}
+          </p>
+        )}
         <Notice error={action.error} />
       </div>
-      <div className="classification-controls">
-        <div className="category-select-field">
+      <div className="grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-center gap-2 [&_select]:w-full [&_select]:min-w-0 [&_select]:flex-1">
           <span
-            className="color-dot"
-            style={{ background: nodeColor(category || "uncategorized_expense") }}
+            className="size-2.5 shrink-0 rounded-full"
+            style={{
+              background: nodeColor(category || "uncategorized_expense"),
+            }}
           />
           <CategorySelect
             categories={categories}
@@ -52,7 +58,7 @@ function ClassificationItem({
             label={`Kategoria ${row.description}`}
           />
         </div>
-        <label className="checkbox-label">
+        <label className="flex items-center gap-2 text-xs text-muted">
           <input
             type="checkbox"
             checked={remember}
@@ -61,9 +67,9 @@ function ClassificationItem({
           Zapamiętaj regułę
         </label>
       </div>
-      <div className="inline-actions">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
-          className="button primary-button"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
           disabled={!category || action.busy}
           onClick={() =>
             action.run(() =>
@@ -82,7 +88,7 @@ function ClassificationItem({
         </button>
         {row.suggestion_id && (
           <button
-            className="text-button"
+            className="rounded-lg p-2 text-sm text-muted hover:bg-accent-soft hover:text-accent"
             disabled={action.busy}
             onClick={() =>
               action.run(() =>
@@ -139,18 +145,18 @@ export default function ClassificationPage({
     ) ?? [];
   return (
     <>
-      <div className="page-heading">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
         <div>
           <h1>Do klasyfikacji</h1>
           <p>Uporządkuj wydatki, po swojemu lub z pomocą AI.</p>
         </div>
-        <span className="page-count">
+        <span className="rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent">
           {data?.rows.length ?? 0} do przejrzenia
         </span>
       </div>
-      <div className="ai-cards">
-        <section className="ai-card">
-          <span className="feature-icon">
+      <div className="mb-5 grid gap-4 sm:grid-cols-2">
+        <section className="rounded-2xl border border-line bg-white p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
+          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
             <Sparkles size={22} />
           </span>
           <h2>Rozpoznaj sprzedawców</h2>
@@ -159,7 +165,7 @@ export default function ClassificationPage({
             partii. Ty zatwierdzasz każdą decyzję.
           </p>
           <button
-            className="button primary-button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
             disabled={
               !aiEnabled ||
               action.busy ||
@@ -171,8 +177,8 @@ export default function ClassificationPage({
             <Sparkles size={15} />
           </button>
         </section>
-        <section className="ai-card">
-          <span className="feature-icon pale">
+        <section className="rounded-2xl border border-line bg-white p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
+          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent bg-sky-50! text-sky-600!">
             <Link2 size={22} />
           </span>
           <h2>Znajdź powiązania</h2>
@@ -181,7 +187,7 @@ export default function ClassificationPage({
             najnowszych transakcji poza grupami.
           </p>
           <button
-            className="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             disabled={!aiEnabled || action.busy}
             onClick={() => analyze("relations")}
           >
@@ -193,15 +199,15 @@ export default function ClassificationPage({
       {!aiEnabled && (
         <Notice notice="Aby włączyć AI, ustaw OPENAI_API_KEY w pliku .env i uruchom aplikację ponownie." />
       )}
-      <p className="form-help">
+      <p className="text-sm leading-relaxed text-muted">
         Dane do AI są wysyłane tylko po kliknięciu przycisku. Rozpoznawanie
         sprzedawców może korzystać z wyszukiwania w internecie.
       </p>
       <Notice error={error || action.error} notice={notice || action.notice} />
-      <section className="data-card">
-        <div className="table-toolbar">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
           <h2>Przejrzyj i przypisz</h2>
-          <label className="search-field">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={16} />
             <input
               aria-label="Szukaj do klasyfikacji"
@@ -220,7 +226,7 @@ export default function ClassificationPage({
           />
         ))}
         {!rows.length && (
-          <div className="empty-state">
+          <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
             <Check size={28} />
             <h3>
               {loading
