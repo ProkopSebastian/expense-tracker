@@ -1134,6 +1134,24 @@ h2 {
   line-height: 1.6;
   margin: 0 0 20px;
 }
+.crash-screen details {
+  margin: 0 0 20px;
+  text-align: left;
+}
+.crash-screen summary {
+  cursor: pointer;
+  color: var(--muted, #666);
+}
+.crash-screen pre {
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f3f2;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .data-card {
   background: white;
   border: 1px solid var(--line);

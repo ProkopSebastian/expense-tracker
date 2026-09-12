@@ -6,8 +6,66 @@
     <meta name="theme-color" content="#123e35" />
     <title>Wydatki · Podsumowanie</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      #boot-screen {
+        max-width: 520px;
+        margin: 80px auto;
+        padding: 24px;
+        color: #263c37;
+        font:
+          14px/1.6 "Segoe UI",
+          sans-serif;
+        text-align: center;
+      }
+      #boot-screen[data-failed="true"] {
+        border: 1px solid #edcfca;
+        border-radius: 12px;
+        background: #fcf0ee;
+        color: #8d3f3a;
+      }
+      #boot-screen button {
+        margin-top: 14px;
+        padding: 9px 16px;
+        border: 1px solid #b7c8c1;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-screen" role="status">Uruchamianie aplikacji…</div>
+    <script>
+      (() => {
+        const fail = (detail) => {
+          if (document.documentElement.dataset.appReady === "true") return;
+          const screen = document.getElementById("boot-screen");
+          if (!screen) return;
+          screen.dataset.failed = "true";
+          screen.replaceChildren();
+          const title = document.createElement("strong");
+          title.textContent = "Nie udało się uruchomić interfejsu.";
+          const message = document.createElement("div");
+          message.textContent =
+            detail || "Sprawdź plik app.log w folderze danych aplikacji.";
+          const button = document.createElement("button");
+          button.textContent = "Spróbuj ponownie";
+          button.onclick = () => window.location.reload();
+          screen.append(title, message, button);
+        };
+        window.addEventListener("error", (event) => fail(event.message));
+        window.addEventListener("unhandledrejection", (event) =>
+          fail(String(event.reason || "Nieznany błąd")),
+        );
+        window.setTimeout(
+          () =>
+            fail(
+              "Interfejs nie uruchomił się w ciągu 10 sekund. Sprawdź plik app.log.",
+            ),
+          10000,
+        );
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

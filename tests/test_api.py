@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from decimal import Decimal
 
@@ -7,6 +8,25 @@ from expense_tracker.api import create_app
 from expense_tracker.database import Database
 from expense_tracker.ledger import create_case, save_decision
 from expense_tracker.models import Transaction
+
+
+def test_frontend_crash_report_is_written_to_application_log(tmp_path, caplog):
+    with TestClient(create_app(tmp_path / "errors.sqlite3")) as client, caplog.at_level(
+        logging.ERROR, logger="expense_tracker.frontend"
+    ):
+        response = client.post(
+            "/report-error",
+            json={
+                "message": "render exploded",
+                "stack": "at SummaryPage (index.js:1:2)",
+                "component_stack": "SummaryPage",
+                "url": "http://127.0.0.1/",
+            },
+        )
+
+    assert response.json() == {"ok": True}
+    assert "render exploded" in caplog.text
+    assert "SummaryPage" in caplog.text
 
 
 def test_summary_keeps_group_costs_currency_and_decimal_precision(tmp_path):
