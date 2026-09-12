@@ -16,8 +16,14 @@
 - Do not push commits unless the user explicitly requests it.
 - Preserve unrelated and user-authored working-tree changes.
 
-## Verification
+## Testing policy
 
-- Run checks appropriate to the changed area before committing.
-- Use `uv run pytest` for backend tests.
-- Use `pnpm --dir frontend run build` for frontend type checking and production builds.
+- Do not add tests merely to increase coverage or repeat the implementation.
+- Add a test only when it protects meaningful behavior, a realistic regression, or a risky edge case.
+
+## Session handoff
+
+- If `HANDOFF.md` exists, read it as temporary context for unfinished work.
+- Treat `AGENTS.md` as the source of durable rules. Treat `HANDOFF.md` only as a snapshot that may be stale, and verify it against the current Git state.
+- Keep `HANDOFF.md` local and never commit it.
+- Remove or replace stale handoff notes instead of accumulating project history in them.
