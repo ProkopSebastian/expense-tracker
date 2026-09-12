@@ -60,7 +60,7 @@ export default function BalanceChart({ data }: { data: Summary }) {
           type: "line",
           data: points.map((p) => Number(p.balance)),
           showSymbol: false,
-          lineStyle: { width: 2.5, color: lineColor },
+          lineStyle: { width: 3, color: lineColor, cap: "round", join: "round" },
           areaStyle: { opacity: 0.07, color: lineColor },
           emphasis: { disabled: true },
         },

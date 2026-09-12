@@ -53,7 +53,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
         {
           type: "bar",
           barMaxWidth: 32,
-          itemStyle: { borderRadius: 3 },
+          itemStyle: { borderRadius: 8 },
           data: data.monthly.map((p) => ({
             value: Number(p.change),
             itemStyle: { color: Number(p.change) >= 0 ? "#24846c" : "#c76565" },
