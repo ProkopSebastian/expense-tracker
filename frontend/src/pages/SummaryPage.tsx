@@ -95,8 +95,10 @@ export default function SummaryPage({
             key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
             data={data}
           />
-          <BalanceChart data={data} />
-          <MonthlyBarChart data={data} />
+          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            <BalanceChart data={data} />
+            <MonthlyBarChart data={data} />
+          </div>
           <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">
             <span>
               <LockKeyhole size={14} />
