@@ -1,3 +1,4 @@
+import CategoryIcon from "./CategoryIcon";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useState } from "react";
 import {
@@ -8,7 +9,8 @@ import {
   ListFilter,
 } from "lucide-react";
 import { money, type BreakdownNode, type Summary } from "../api";
-import CategoryChart, { nodeColor } from "./CategoryChart";
+import CategoryChart from "./CategoryChart";
+import { nodeColor } from "../categoryPresentation";
 export default function BreakdownPanel({ data }: { data: Summary }) {
   const [path, setPath] = useState<BreakdownNode[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -134,10 +136,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                     onBlur={() => setHovered(null)}
                   >
                     <span className="flex min-w-0 items-center gap-2.5 text-sm leading-relaxed [&>span:last-child]:wrap-anywhere">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: nodeColor(node.key) }}
-                      />
+                      <CategoryIcon categoryKey={node.key} />
                       <span>{node.label}</span>
                     </span>
                     <span className="flex flex-col gap-1 text-right whitespace-nowrap [&_strong]:text-sm [&_strong]:font-medium [&_strong]:tabular-nums [&>span]:text-[11px] [&>span]:text-muted">

@@ -4,7 +4,6 @@ import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
-import { nodeColor } from "../components/CategoryChart";
 function ClassificationItem({
   row,
   categories,
@@ -44,13 +43,7 @@ function ClassificationItem({
         <Notice error={action.error} />
       </div>
       <div className="grid min-w-0 gap-3">
-        <div className="flex min-w-0 items-center gap-2 [&_select]:w-full [&_select]:min-w-0 [&_select]:flex-1">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{
-              background: nodeColor(category || "uncategorized_expense"),
-            }}
-          />
+        <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
           <CategorySelect
             categories={categories}
             value={category}

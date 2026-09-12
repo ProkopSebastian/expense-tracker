@@ -1,7 +1,7 @@
+import CategoryIcon from "../components/CategoryIcon";
 import * as Accordion from "@radix-ui/react-accordion";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Popover from "@radix-ui/react-popover";
-import { nodeColor } from "../components/CategoryChart";
 import { useState, Fragment } from "react";
 import {
   Plus,
@@ -255,10 +255,7 @@ export default function LedgerPage({
                           filtersChanged();
                         }}
                       />
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: nodeColor(parent.key) }}
-                      />
+                      <CategoryIcon categoryKey={parent.key} />
                       {parent.label}
                     </label>
                     {children.map((child) => (
@@ -278,10 +275,7 @@ export default function LedgerPage({
                             filtersChanged();
                           }}
                         />
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ background: nodeColor(child.key) }}
-                        />
+                        <CategoryIcon categoryKey={child.key} />
                         {child.label}
                       </label>
                     ))}
@@ -300,7 +294,7 @@ export default function LedgerPage({
                       filtersChanged();
                     }}
                   />
-                  Do przypisania
+                  <CategoryIcon /> Do przypisania
                 </label>
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
@@ -469,11 +463,11 @@ export default function LedgerPage({
                               </td>
                               <td>
                                 <span
-                                  style={{
-                                    borderLeft: `3px solid ${nodeColor(row.category_key ?? "uncategorized_expense")}`,
-                                  }}
                                   className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-slate-50 px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-amber-200! bg-amber-50! text-amber-700" : ""}`}
                                 >
+                                  <CategoryIcon
+                                    categoryKey={row.category_key}
+                                  />
                                   {row.category_label}
                                 </span>
                               </td>
