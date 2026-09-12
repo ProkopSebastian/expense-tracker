@@ -120,7 +120,7 @@ export default function CategoryChart({
           minAngle: 1,
           label: { show: false },
           emphasis: { scaleSize: 5, itemStyle: { shadowBlur: 0 } },
-          itemStyle: { borderRadius: 5 },
+          itemStyle: { borderRadius: 9 },
           data: nodes.map((node) => ({
             id: node.key,
             name: node.label,
