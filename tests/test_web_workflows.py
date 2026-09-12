@@ -163,6 +163,7 @@ def test_pagination_never_splits_groups(client):
     assert client.post("/api/cases", json=group_payload(ids[:2])).status_code == 201
     first = client.get("/api/ledger?page=1").json()
     second = client.get("/api/ledger?page=2").json()
-    assert len(first["blocks"]) == 100 and len(second["blocks"]) == 1
-    groups = [b for b in first["blocks"] + second["blocks"] if b["case_id"]]
+    third = client.get("/api/ledger?page=3").json()
+    assert len(first["blocks"]) == 50 and len(second["blocks"]) == 50 and len(third["blocks"]) == 1
+    groups = [b for b in first["blocks"] + second["blocks"] + third["blocks"] if b["case_id"]]
     assert len(groups) == 1 and len(groups[0]["members"]) == 2

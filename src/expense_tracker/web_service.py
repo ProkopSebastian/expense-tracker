@@ -133,10 +133,11 @@ def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: 
             continue
         filtered.append(block)
     filtered.sort(key=lambda b: b["date"], reverse=True)
-    pages = max(1, (len(filtered) + 99) // 100)
+    page_size = 50
+    pages = max(1, (len(filtered) + page_size - 1) // page_size)
     page = min(page, pages)
     return {
-        "blocks": filtered[(page - 1) * 100 : page * 100],
+        "blocks": filtered[(page - 1) * page_size : page * page_size],
         "page": page,
         "pages": pages,
         "total": len(filtered),
