@@ -15,10 +15,10 @@ export default function DataPage({
   onChanged: () => void;
 }) {
   const action = useAction(onChanged);
-  const { data: recovery } = useResource<{ can_undo: boolean }>(
-    "/recovery",
-    revision,
-  );
+  const { data: recovery } = useResource<{
+    can_undo: boolean;
+    label: string | null;
+  }>("/recovery", revision);
   const [apiKey, setApiKey] = useState("");
   const [account, setAccount] = useState("");
   const [newAccount, setNewAccount] = useState("");
@@ -229,6 +229,11 @@ export default function DataPage({
           grupowania. Późniejsze zmiany wykonane poza aplikacją blokują
           cofnięcie.
         </p>
+        {recovery?.can_undo && recovery.label && (
+          <p className="form-help">
+            Ostatnia zmiana do cofnięcia: <strong>{recovery.label}</strong>
+          </p>
+        )}
         <button
           className="button"
           disabled={action.busy || !recovery?.can_undo}

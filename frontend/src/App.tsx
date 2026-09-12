@@ -24,10 +24,17 @@ export default function App() {
   const { data: meta, error } = useResource<Meta>("/meta", revision);
   const changed = () => setRevision((value) => value + 1);
   const action = useAction(changed);
-  const { data: recovery } = useResource<{ can_undo: boolean }>(
-    "/recovery",
-    revision,
-  );
+  const { data: recovery } = useResource<{
+    can_undo: boolean;
+    label: string | null;
+  }>("/recovery", revision);
+  const [undoNoticeVisible, setUndoNoticeVisible] = useState(false);
+  useEffect(() => {
+    if (revision === 0) return;
+    setUndoNoticeVisible(true);
+    const timer = setTimeout(() => setUndoNoticeVisible(false), 8000);
+    return () => clearTimeout(timer);
+  }, [revision]);
   useEffect(() => {
     const handler = () => {
       positions.current[previousPage.current] = window.scrollY;
@@ -53,9 +60,9 @@ export default function App() {
         </header>
         <div className="main-content">
           <Notice error={error || action.error} notice={action.notice} />
-          {revision > 0 && recovery?.can_undo && (
+          {undoNoticeVisible && recovery?.can_undo && (
             <div className="undo-notice" role="status">
-              <span>Zmiany zapisane</span>
+              <span>{recovery.label ?? "Zmiany zapisane"} · zapisano</span>
               <button
                 className="button"
                 disabled={action.busy}
@@ -67,6 +74,13 @@ export default function App() {
                 }
               >
                 <Undo2 size={14} /> Cofnij
+              </button>
+              <button
+                className="icon-button"
+                aria-label="Zamknij powiadomienie"
+                onClick={() => setUndoNoticeVisible(false)}
+              >
+                ×
               </button>
             </div>
           )}
