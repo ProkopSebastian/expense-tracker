@@ -153,6 +153,7 @@ export default function SummaryFilters({
               type="date"
               aria-label="Data początkowa"
               value={filters.start ?? ""}
+              max={filters.end ?? undefined}
               onChange={(event) =>
                 setFilters((previous) => ({
                   ...previous,
@@ -165,6 +166,7 @@ export default function SummaryFilters({
               type="date"
               aria-label="Data końcowa"
               value={filters.end ?? ""}
+              min={filters.start ?? undefined}
               onChange={(event) =>
                 setFilters((previous) => ({
                   ...previous,
