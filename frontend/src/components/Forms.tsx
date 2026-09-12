@@ -1,3 +1,4 @@
+import CategoryIcon from "./CategoryIcon";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, type ReactNode } from "react";
 import { X, CheckCircle2, AlertCircle } from "lucide-react";
@@ -46,30 +47,34 @@ export function CategorySelect({
 }) {
   const groups = groupCategories(categories);
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      required={required}
-    >
-      <option value="">Do przypisania</option>
-      {groups.map(({ parent, children }) =>
-        children.length ? (
-          <optgroup key={parent.key} label={parent.label}>
-            <option value={parent.key}>{parent.label} — ogólnie</option>
-            {children.map((child) => (
-              <option key={child.key} value={child.key}>
-                ↳ {child.label}
-              </option>
-            ))}
-          </optgroup>
-        ) : (
-          <option key={parent.key} value={parent.key}>
-            {parent.label}
-          </option>
-        ),
-      )}
-    </select>
+    <span className="flex min-w-0 items-center gap-2">
+      <CategoryIcon categoryKey={value} />
+      <select
+        className="min-w-0 flex-1"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+      >
+        <option value="">Do przypisania</option>
+        {groups.map(({ parent, children }) =>
+          children.length ? (
+            <optgroup key={parent.key} label={parent.label}>
+              <option value={parent.key}>{parent.label} — ogólnie</option>
+              {children.map((child) => (
+                <option key={child.key} value={child.key}>
+                  ↳ {child.label}
+                </option>
+              ))}
+            </optgroup>
+          ) : (
+            <option key={parent.key} value={parent.key}>
+              {parent.label}
+            </option>
+          ),
+        )}
+      </select>
+    </span>
   );
 }
 export function Notice({ error, notice }: { error?: string; notice?: string }) {

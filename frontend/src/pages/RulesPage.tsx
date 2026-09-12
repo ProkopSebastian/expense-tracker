@@ -3,7 +3,6 @@ import { Search, Trash2, Settings2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
-import { nodeColor } from "../components/CategoryChart";
 function RuleRow({
   rule,
   categories,
@@ -30,13 +29,7 @@ function RuleRow({
           </div>
           <Notice error={action.error} />
         </div>
-        <div className="flex min-w-0 items-center gap-2 [&_select]:w-full [&_select]:min-w-0 [&_select]:flex-1">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{
-              background: nodeColor(category || "uncategorized_expense"),
-            }}
-          />
+        <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
           <CategorySelect
             categories={categories}
             value={category}
