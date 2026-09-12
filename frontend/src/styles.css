@@ -1500,6 +1500,17 @@ h2 {
 .classification-controls select {
   width: 100%;
 }
+.category-select-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.category-select-field select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -1540,7 +1551,7 @@ input[type="checkbox"] {
 .rule-row {
   padding: 20px 23px;
   display: grid;
-  grid-template-columns: 37px minmax(0, 1fr) 240px auto 32px;
+  grid-template-columns: 37px minmax(0, 1fr) minmax(0, 240px) auto 32px;
   gap: 15px;
   align-items: center;
   border-top: 1px solid var(--line);
