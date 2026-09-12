@@ -1,4 +1,7 @@
-import { nodeColor } from "../components/CategoryChart";
+import CategoryIcon from "../components/CategoryIcon";
+import * as Accordion from "@radix-ui/react-accordion";
+import * as Tabs from "@radix-ui/react-tabs";
+import * as Popover from "@radix-ui/react-popover";
 import { useState, Fragment } from "react";
 import {
   Plus,
@@ -12,7 +15,7 @@ import {
 } from "lucide-react";
 import type { Category, LedgerData, Block } from "../domain";
 import { request, useResource, useAction, useSessionState } from "../hooks";
-import { money } from "../api";
+import { money, monthLabel } from "../api";
 import {
   CategorySelect,
   groupCategories,
@@ -36,6 +39,10 @@ export default function LedgerPage({
     [linksTab, setLinksTab] = useSessionState<"relations" | "groups">(
       "ledger.linksTab",
       "relations",
+    ),
+    [closedMonths, setClosedMonths] = useSessionState<string[]>(
+      "ledger.closedMonths",
+      [],
     ),
     [selected, setSelected] = useState<number[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
@@ -65,19 +72,26 @@ export default function LedgerPage({
     selectedRows.length >= 2 &&
     new Set(selectedRows.map((row) => row.currency)).size === 1;
   const categoryGroups = groupCategories(categories);
+  const months = new Map<string, Block[]>();
+  for (const row of data?.blocks ?? []) {
+    const month = row.date.slice(0, 7);
+    const rows = months.get(month) ?? [];
+    rows.push(row);
+    months.set(month, rows);
+  }
   function filtersChanged() {
     setPage(1);
     setSelected([]);
   }
   return (
     <>
-      <div className="page-heading">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
         <div>
           <h1>Historia transakcji</h1>
           <p>Każda transakcja. Każda grupa. Pełny obraz.</p>
         </div>
         <button
-          className="button primary-button"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
           onClick={() => setModal("manual")}
         >
           <Plus size={17} />
@@ -86,89 +100,110 @@ export default function LedgerPage({
       </div>
       <Notice error={error || action.error} notice={action.notice} />
       {!!(data?.relations.length || data?.cases.length) && (
-        <section className="data-card links-panel">
-          <div className="links-tabs" role="tablist" aria-label="Powiązania">
-            <button
-              role="tab"
-              aria-selected={linksTab === "relations"}
-              className={linksTab === "relations" ? "selected" : ""}
-              onClick={() => setLinksTab("relations")}
-            >
+        <Tabs.Root
+          value={linksTab}
+          onValueChange={(value) =>
+            setLinksTab(value as "relations" | "groups")
+          }
+          className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm p-5"
+        >
+          <Tabs.List
+            className="mb-3 flex w-fit flex-wrap gap-1 rounded-xl bg-slate-100 p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-white [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+            aria-label="Powiązania"
+          >
+            <Tabs.Trigger value="relations">
               Sugerowane powiązania{" "}
-              <span className="count">{data?.relations.length ?? 0}</span>
-            </button>
-            <button
-              role="tab"
-              aria-selected={linksTab === "groups"}
-              className={linksTab === "groups" ? "selected" : ""}
-              onClick={() => setLinksTab("groups")}
-            >
+              <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
+                {data?.relations.length ?? 0}
+              </span>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="groups">
               Twoje grupy{" "}
-              <span className="count">{data?.cases.length ?? 0}</span>
-            </button>
-          </div>
-          {linksTab === "relations" ? (
-            data?.relations.length ? (
-              data.relations.map((s) => (
-                <article className="relation-row" key={s.id}>
-                  <div>
-                    <strong>{s.payload.title}</strong>
-                    <p>{s.payload.rationale}</p>
-                    <small>
-                      {s.payload.transaction_ids.length} transakcje · Twój
-                      koszt: {money(s.payload.personal_amount, s.payload.currency)}
-                    </small>
-                  </div>
-                  <div className="inline-actions">
-                    <button
-                      className="button"
-                      disabled={action.busy}
-                      onClick={() =>
-                        action.run(
-                          () => request(`/suggestions/${s.id}/reject`, "POST"),
-                          "Sugestia odrzucona.",
-                        )
-                      }
-                    >
-                      Odrzuć
-                    </button>
-                    <button
-                      className="button primary-button"
-                      disabled={action.busy}
-                      onClick={() =>
-                        action.run(
-                          () => request(`/suggestions/${s.id}/approve`, "POST"),
-                          "Grupa utworzona.",
-                        )
-                      }
-                    >
-                      Połącz
-                    </button>
-                  </div>
-                </article>
+              <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
+                {data?.cases.length ?? 0}
+              </span>
+            </Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value={linksTab}>
+            {linksTab === "relations" ? (
+              data?.relations.length ? (
+                data.relations.map((s) => (
+                  <article
+                    className="flex flex-col justify-between gap-4 border-b border-line py-5 last:border-0 sm:flex-row sm:items-center [&_p]:my-2 [&_p]:max-w-3xl [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted [&_small]:text-xs [&_small]:text-muted"
+                    key={s.id}
+                  >
+                    <div>
+                      <strong>{s.payload.title}</strong>
+                      <p>{s.payload.rationale}</p>
+                      <small>
+                        {s.payload.transaction_ids.length} transakcje · Twój
+                        koszt:{" "}
+                        {money(s.payload.personal_amount, s.payload.currency)}
+                      </small>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(
+                            () =>
+                              request(`/suggestions/${s.id}/reject`, "POST"),
+                            "Sugestia odrzucona.",
+                          )
+                        }
+                      >
+                        Odrzuć
+                      </button>
+                      <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(
+                            () =>
+                              request(`/suggestions/${s.id}/approve`, "POST"),
+                            "Grupa utworzona.",
+                          )
+                        }
+                      >
+                        Połącz
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="text-sm leading-relaxed text-muted">
+                  Brak sugerowanych powiązań.
+                </p>
+              )
+            ) : data?.cases.length ? (
+              data.cases.map((c) => (
+                <div
+                  className="flex flex-col justify-between gap-4 border-b border-line py-5 last:border-0 sm:flex-row sm:items-center [&_p]:my-2 [&_p]:max-w-3xl [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted [&_small]:text-xs [&_small]:text-muted"
+                  key={c.id}
+                >
+                  <span>
+                    {c.title} · {money(c.personal_amount, c.currency)}
+                  </span>
+                  <button
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                    onClick={() => setDissolve(c.id)}
+                  >
+                    Rozwiąż grupę
+                  </button>
+                </div>
               ))
             ) : (
-              <p className="form-help">Brak sugerowanych powiązań.</p>
-            )
-          ) : data?.cases.length ? (
-            data.cases.map((c) => (
-              <div className="relation-row" key={c.id}>
-                <span>
-                  {c.title} · {money(c.personal_amount, c.currency)}
-                </span>
-                <button className="button" onClick={() => setDissolve(c.id)}>
-                  Rozwiąż grupę
-                </button>
-              </div>
-            ))
-          ) : (
-            <p className="form-help">Nie masz jeszcze żadnych grup.</p>
-          )}
-        </section>
+              <p className="text-sm leading-relaxed text-muted">
+                Nie masz jeszcze żadnych grup.
+              </p>
+            )}
+          </Tabs.Content>
+        </Tabs.Root>
       )}
-      <section className="data-card">
-        <div className="table-toolbar">
-          <label className="search-field">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={17} />
             <input
               placeholder="Szukaj opisu lub kontrahenta"
@@ -192,90 +227,99 @@ export default function LedgerPage({
             <option value="expense">Wydatki</option>
             <option value="income">Wpływy</option>
           </select>
-          <details className="category-filter">
-            <summary>
+          <Popover.Root>
+            <Popover.Trigger className="rounded-xl border border-line bg-white px-3 py-2.5 text-sm hover:bg-accent-soft">
               Kategorie{category.length ? ` (${category.length})` : ""}
-            </summary>
-            <div>
-              {categoryGroups.map(({ parent, children }) => (
-                <div className="category-filter-group" key={parent.key}>
-                  <label className="category-filter-parent">
-                    <input
-                      type="checkbox"
-                      checked={category.includes(parent.key)}
-                      onChange={(e) => {
-                        setCategory(
-                          e.target.checked
-                            ? [...category, parent.key]
-                            : category.filter((key) => key !== parent.key),
-                        );
-                        filtersChanged();
-                      }}
-                    />
-                    <span
-                      className="color-dot"
-                      style={{ background: nodeColor(parent.key) }}
-                    />
-                    {parent.label}
-                  </label>
-                  {children.map((child) => (
-                    <label className="category-filter-child" key={child.key}>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                sideOffset={8}
+                className="z-40 max-h-[min(360px,70dvh)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-xl [&>label]:flex [&>label]:items-center [&>label]:gap-2 [&>label]:p-2"
+              >
+                {categoryGroups.map(({ parent, children }) => (
+                  <div
+                    className="border-b border-line py-1 last:border-0"
+                    key={parent.key}
+                  >
+                    <label className="flex items-center gap-2 rounded-lg p-2 text-sm font-medium">
                       <input
                         type="checkbox"
-                        checked={category.includes(child.key)}
+                        checked={category.includes(parent.key)}
                         onChange={(e) => {
                           setCategory(
                             e.target.checked
-                              ? [...category, child.key]
-                              : category.filter((key) => key !== child.key),
+                              ? [...category, parent.key]
+                              : category.filter((key) => key !== parent.key),
                           );
                           filtersChanged();
                         }}
                       />
-                      <span
-                        className="color-dot"
-                        style={{ background: nodeColor(child.key) }}
-                      />
-                      {child.label}
+                      <CategoryIcon categoryKey={parent.key} />
+                      {parent.label}
                     </label>
-                  ))}
-                </div>
-              ))}
-              <label>
-                <input
-                  type="checkbox"
-                  checked={category.includes("")}
-                  onChange={(e) => {
-                    setCategory(
-                      e.target.checked
-                        ? [...category, ""]
-                        : category.filter((k) => k !== ""),
-                    );
+                    {children.map((child) => (
+                      <label
+                        className="flex items-center gap-2 rounded-lg py-2 pl-8 pr-2 text-sm text-muted"
+                        key={child.key}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={category.includes(child.key)}
+                          onChange={(e) => {
+                            setCategory(
+                              e.target.checked
+                                ? [...category, child.key]
+                                : category.filter((key) => key !== child.key),
+                            );
+                            filtersChanged();
+                          }}
+                        />
+                        <CategoryIcon categoryKey={child.key} />
+                        {child.label}
+                      </label>
+                    ))}
+                  </div>
+                ))}
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={category.includes("")}
+                    onChange={(e) => {
+                      setCategory(
+                        e.target.checked
+                          ? [...category, ""]
+                          : category.filter((k) => k !== ""),
+                      );
+                      filtersChanged();
+                    }}
+                  />
+                  <CategoryIcon /> Do przypisania
+                </label>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                  onClick={() => {
+                    setCategory([]);
                     filtersChanged();
                   }}
-                />
-                Do przypisania
-              </label>
-              <button
-                className="button"
-                onClick={() => {
-                  setCategory([]);
-                  filtersChanged();
-                }}
-              >
-                Wyczyść
-              </button>
-            </div>
-          </details>
+                >
+                  Wyczyść
+                </button>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
         </div>
         {selected.length > 0 && (
-          <div className="selection-bar">
+          <div className="flex flex-wrap items-center gap-3 bg-accent-soft px-5 py-3 text-sm">
             <span>{selected.length} zaznaczone</span>
-            <button className="button" onClick={() => setSelected([])}>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              onClick={() => setSelected([])}
+            >
               Odznacz
             </button>
             <button
-              className="button primary-button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
               disabled={!canGroup}
               onClick={() => setModal("group")}
             >
@@ -287,174 +331,235 @@ export default function LedgerPage({
             )}
           </div>
         )}
-        <div className="table-scroll" aria-busy={loading}>
-          <table className="ledger-table">
-            <thead>
-              <tr>
-                <th aria-label="Zaznaczenie" />
-                <th>Transakcja</th>
-                <th>Kategoria</th>
-                <th>Kwota</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data?.blocks.map((row) => (
-                <Fragment key={row.key}>
-                  <tr className={row.case_id ? "group-row" : ""}>
-                    <td>
-                      {row.case_id ? (
-                        <button
-                          className="icon-button"
-                          aria-label={`Rozwiń grupę ${row.description}`}
-                          aria-expanded={expanded.includes(row.key)}
-                          onClick={() =>
-                            setExpanded(
-                              expanded.includes(row.key)
-                                ? expanded.filter((k) => k !== row.key)
-                                : [...expanded, row.key],
-                            )
-                          }
-                        >
-                          {expanded.includes(row.key) ? (
-                            <ChevronDown size={17} />
-                          ) : (
-                            <ChevronRight size={17} />
-                          )}
-                        </button>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          aria-label={`Zaznacz ${row.description}`}
-                          checked={selected.includes(row.id!)}
-                          onChange={(e) =>
-                            setSelected(
-                              e.target.checked
-                                ? [...selected, row.id!]
-                                : selected.filter((id) => id !== row.id),
-                            )
-                          }
-                        />
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="transaction-title"
-                        onClick={() => {
-                          if (row.case_id)
-                            setExpanded(
-                              expanded.includes(row.key)
-                                ? expanded.filter((k) => k !== row.key)
-                                : [...expanded, row.key],
-                            );
-                          else {
-                            setEditing(row);
-                            setEditCategory(row.category_key ?? "");
-                          }
-                        }}
-                      >
-                        {row.case_id && <Link2 size={14} />} {row.description}
-                      </button>
-                      <div className="row-meta">
-                        {row.date} · {row.account}
-                        {["PENDING", "PROCESSING"].includes(
-                          row.bank_status ?? "",
-                        ) && (
-                          <span className="pending-label"> · Oczekująca</span>
-                        )}
-                        {row.counterparty && row.counterparty !== "—"
-                          ? ` · ${row.counterparty}`
-                          : ""}
-                        {row.case_id
-                          ? ` · ${row.members.length} transakcje`
-                          : ""}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          borderLeft: `3px solid ${nodeColor(row.category_key ?? "uncategorized_expense")}`,
-                        }}
-                        className={`category-chip ${!row.category_key ? "unassigned" : ""}`}
-                      >
-                        {row.category_label}
-                      </span>
-                    </td>
-                    <td
-                      className={`numeric ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "positive" : ""}`}
+        <div className="overflow-x-auto" aria-busy={loading}>
+          <Accordion.Root
+            type="multiple"
+            value={[...months.keys()].filter(
+              (month) => !closedMonths.includes(month),
+            )}
+            onValueChange={(open) =>
+              setClosedMonths([
+                ...closedMonths.filter((month) => !months.has(month)),
+                ...[...months.keys()].filter((month) => !open.includes(month)),
+              ])
+            }
+          >
+            {[...months].map(([month, rows]) => (
+              <Accordion.Item
+                key={month}
+                value={month}
+                className="border-b border-line last:border-0"
+              >
+                <Accordion.Header>
+                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 bg-slate-50/80 px-5 py-4 text-left text-sm font-semibold text-ink hover:bg-accent-soft">
+                    <span className="capitalize">{monthLabel(month)}</span>
+                    <span className="ml-auto text-xs font-normal text-muted">
+                      {rows.length} pozycji na tej stronie
+                    </span>
+                    <ChevronDown
+                      size={17}
+                      className="shrink-0 text-accent transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                    />
+                  </Accordion.Trigger>
+                </Accordion.Header>
+                <Accordion.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up motion-reduce:animate-none">
+                  <div className="overflow-x-auto">
+                    <table
+                      aria-label={`Transakcje: ${monthLabel(month)}`}
+                      className="w-full border-collapse text-sm [&_th]:bg-slate-50 [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
                     >
-                      {money(
-                        row.case_id ? row.real_amount : (row.amount ?? "0"),
-                        row.currency,
-                      )}
-                      {row.case_id ? (
-                        <small className="amount-note">
-                          Łącznie w bilansie
-                        </small>
-                      ) : row.category_key === "transfer_own" ? (
-                        <small className="amount-note">Poza bilansem</small>
-                      ) : null}
-                    </td>
-                    <td>
-                      {row.case_id ? (
-                        <button
-                          className="icon-button"
-                          aria-label={`Rozwiąż grupę ${row.description}`}
-                          onClick={() => setDissolve(row.case_id)}
-                        >
-                          <Unlink size={16} />
-                        </button>
-                      ) : (
-                        <button
-                          className="icon-button"
-                          aria-label={`Edytuj ${row.description}`}
-                          onClick={() => {
-                            setEditing(row);
-                            setEditCategory(row.category_key ?? "");
-                          }}
-                        >
-                          <ChevronRight size={17} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {expanded.includes(row.key) &&
-                    row.members.map((member) => (
-                      <tr className="member-row" key={member.id}>
-                        <td />
-                        <td>
-                          <span>{member.description}</span>
-                          <div className="row-meta">
-                            {member.date} · {member.account}
-                            {member.counterparty !== "—"
-                              ? ` · ${member.counterparty}`
-                              : ""}
-                          </div>
-                        </td>
-                        <td />
-                        <td className="numeric">
-                          {money(member.amount, member.currency)}
-                          <small className="amount-note">
-                            Składnik grupy · nie sumujemy osobno
-                          </small>
-                        </td>
-                        <td />
-                      </tr>
-                    ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                      <thead>
+                        <tr>
+                          <th aria-label="Zaznaczenie" />
+                          <th>Transakcja</th>
+                          <th>Kategoria</th>
+                          <th>Kwota</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => (
+                          <Fragment key={row.key}>
+                            <tr
+                              className={row.case_id ? "bg-accent-soft/60" : ""}
+                            >
+                              <td>
+                                {row.case_id ? (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Rozwiń grupę ${row.description}`}
+                                    aria-expanded={expanded.includes(row.key)}
+                                    onClick={() =>
+                                      setExpanded(
+                                        expanded.includes(row.key)
+                                          ? expanded.filter(
+                                              (k) => k !== row.key,
+                                            )
+                                          : [...expanded, row.key],
+                                      )
+                                    }
+                                  >
+                                    {expanded.includes(row.key) ? (
+                                      <ChevronDown size={17} />
+                                    ) : (
+                                      <ChevronRight size={17} />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Zaznacz ${row.description}`}
+                                    checked={selected.includes(row.id!)}
+                                    onChange={(e) =>
+                                      setSelected(
+                                        e.target.checked
+                                          ? [...selected, row.id!]
+                                          : selected.filter(
+                                              (id) => id !== row.id,
+                                            ),
+                                      )
+                                    }
+                                  />
+                                )}
+                              </td>
+                              <td>
+                                <button
+                                  className="text-left text-sm font-medium leading-relaxed wrap-anywhere hover:text-accent hover:underline [&_svg]:mr-1 [&_svg]:inline [&_svg]:align-middle"
+                                  onClick={() => {
+                                    if (row.case_id)
+                                      setExpanded(
+                                        expanded.includes(row.key)
+                                          ? expanded.filter(
+                                              (k) => k !== row.key,
+                                            )
+                                          : [...expanded, row.key],
+                                      );
+                                    else {
+                                      setEditing(row);
+                                      setEditCategory(row.category_key ?? "");
+                                    }
+                                  }}
+                                >
+                                  {row.case_id && <Link2 size={14} />}{" "}
+                                  {row.description}
+                                </button>
+                                <div className="mt-1 text-xs leading-relaxed text-muted">
+                                  {row.date} · {row.account}
+                                  {["PENDING", "PROCESSING"].includes(
+                                    row.bank_status ?? "",
+                                  ) && (
+                                    <span className="text-amber-700">
+                                      {" "}
+                                      · Oczekująca
+                                    </span>
+                                  )}
+                                  {row.counterparty && row.counterparty !== "—"
+                                    ? ` · ${row.counterparty}`
+                                    : ""}
+                                  {row.case_id
+                                    ? ` · ${row.members.length} transakcje`
+                                    : ""}
+                                </div>
+                              </td>
+                              <td>
+                                <span
+                                  className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-slate-50 px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-amber-200! bg-amber-50! text-amber-700" : ""}`}
+                                >
+                                  <CategoryIcon
+                                    categoryKey={row.category_key}
+                                  />
+                                  {row.category_label}
+                                </span>
+                              </td>
+                              <td
+                                className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-emerald-600" : ""}`}
+                              >
+                                {money(
+                                  row.case_id
+                                    ? row.real_amount
+                                    : (row.amount ?? "0"),
+                                  row.currency,
+                                )}
+                                {row.case_id ? (
+                                  <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                    Łącznie w bilansie
+                                  </small>
+                                ) : row.category_key === "transfer_own" ? (
+                                  <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                    Poza bilansem
+                                  </small>
+                                ) : null}
+                              </td>
+                              <td>
+                                {row.case_id ? (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Rozwiąż grupę ${row.description}`}
+                                    onClick={() => setDissolve(row.case_id)}
+                                  >
+                                    <Unlink size={16} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Edytuj ${row.description}`}
+                                    onClick={() => {
+                                      setEditing(row);
+                                      setEditCategory(row.category_key ?? "");
+                                    }}
+                                  >
+                                    <ChevronRight size={17} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {expanded.includes(row.key) &&
+                              row.members.map((member) => (
+                                <tr
+                                  className="bg-slate-50 text-muted [&_td]:py-3! [&_td:nth-child(2)]:pl-8!"
+                                  key={member.id}
+                                >
+                                  <td />
+                                  <td>
+                                    <span>{member.description}</span>
+                                    <div className="mt-1 text-xs leading-relaxed text-muted">
+                                      {member.date} · {member.account}
+                                      {member.counterparty !== "—"
+                                        ? ` · ${member.counterparty}`
+                                        : ""}
+                                    </div>
+                                  </td>
+                                  <td />
+                                  <td className="text-right! font-medium whitespace-nowrap tabular-nums">
+                                    {money(member.amount, member.currency)}
+                                    <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                      Składnik grupy · nie sumujemy osobno
+                                    </small>
+                                  </td>
+                                  <td />
+                                </tr>
+                              ))}
+                          </Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Accordion.Content>
+              </Accordion.Item>
+            ))}
+          </Accordion.Root>
           {!data && loading && (
-            <div className="empty-state">Wczytuję transakcje…</div>
+            <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+              Wczytuję transakcje…
+            </div>
           )}
           {data && !data.blocks.length && (
-            <div className="empty-state">
+            <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
               Brak transakcji pasujących do filtrów.
             </div>
           )}
         </div>
-        <footer className="table-footer">
+        <footer className="flex items-center justify-between gap-3 border-t border-line px-5 py-4 text-xs text-muted [&>div]:flex [&>div]:items-center [&>div]:gap-3">
           <span>
             {data && data.total
               ? `${(data.page - 1) * 50 + 1}–${(data.page - 1) * 50 + data.blocks.length} z ${data.total}`
@@ -463,7 +568,7 @@ export default function LedgerPage({
           </span>
           <div>
             <button
-              className="icon-button"
+              className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
               disabled={loading || (data?.page ?? 1) <= 1}
               aria-label="Poprzednia strona"
               onClick={() => {
@@ -477,7 +582,7 @@ export default function LedgerPage({
               {data?.page ?? 1} / {data?.pages ?? 1}
             </span>
             <button
-              className="icon-button"
+              className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
               disabled={loading || (data?.page ?? 1) >= (data?.pages ?? 1)}
               aria-label="Następna strona"
               onClick={() => {
@@ -497,7 +602,7 @@ export default function LedgerPage({
           busy={action.busy}
         >
           <form
-            className="form-stack"
+            className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3"
             onSubmit={async (e) => {
               e.preventDefault();
               if (
@@ -512,7 +617,7 @@ export default function LedgerPage({
           >
             <Notice error={action.error} />
             <p>{editing.description}</p>
-            <p className="form-help">
+            <p className="text-sm leading-relaxed text-muted">
               {editing.date} · {money(editing.amount!, editing.currency)}
             </p>
             <label>
@@ -523,8 +628,11 @@ export default function LedgerPage({
                 onChange={setEditCategory}
               />
             </label>
-            <footer className="form-actions">
-              <button className="button primary-button" disabled={action.busy}>
+            <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                disabled={action.busy}
+              >
                 Zapisz kategorię
               </button>
             </footer>
@@ -555,18 +663,21 @@ export default function LedgerPage({
           onClose={() => setDissolve(null)}
           busy={action.busy}
         >
-          <div className="form-stack">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
             <Notice error={action.error} />
             <p>
               Transakcje zostaną w historii i znów będą liczone osobno. Możesz
               później utworzyć z nich nową grupę.
             </p>
-            <footer className="form-actions">
-              <button className="button" onClick={() => setDissolve(null)}>
+            <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                onClick={() => setDissolve(null)}
+              >
                 Anuluj
               </button>
               <button
-                className="button primary-button"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
                 disabled={action.busy}
                 onClick={async () => {
                   if (

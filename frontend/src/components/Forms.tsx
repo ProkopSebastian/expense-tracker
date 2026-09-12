@@ -1,4 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import CategoryIcon from "./CategoryIcon";
+import * as Dialog from "@radix-ui/react-dialog";
+import { useRef, type ReactNode } from "react";
 import { X, CheckCircle2, AlertCircle } from "lucide-react";
 import type { Category } from "../domain";
 
@@ -45,43 +47,53 @@ export function CategorySelect({
 }) {
   const groups = groupCategories(categories);
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      required={required}
-    >
-      <option value="">Do przypisania</option>
-      {groups.map(({ parent, children }) =>
-        children.length ? (
-          <optgroup key={parent.key} label={parent.label}>
-            <option value={parent.key}>{parent.label} — ogólnie</option>
-            {children.map((child) => (
-              <option key={child.key} value={child.key}>
-                ↳ {child.label}
-              </option>
-            ))}
-          </optgroup>
-        ) : (
-          <option key={parent.key} value={parent.key}>
-            {parent.label}
-          </option>
-        ),
-      )}
-    </select>
+    <span className="flex min-w-0 items-center gap-2">
+      <CategoryIcon categoryKey={value} />
+      <select
+        className="min-w-0 flex-1"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+      >
+        <option value="">Do przypisania</option>
+        {groups.map(({ parent, children }) =>
+          children.length ? (
+            <optgroup key={parent.key} label={parent.label}>
+              <option value={parent.key}>{parent.label} — ogólnie</option>
+              {children.map((child) => (
+                <option key={child.key} value={child.key}>
+                  ↳ {child.label}
+                </option>
+              ))}
+            </optgroup>
+          ) : (
+            <option key={parent.key} value={parent.key}>
+              {parent.label}
+            </option>
+          ),
+        )}
+      </select>
+    </span>
   );
 }
 export function Notice({ error, notice }: { error?: string; notice?: string }) {
   return (
     <>
       {error && (
-        <div role="alert" className="notice error">
+        <div
+          role="alert"
+          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-rose-50 text-rose-700"
+        >
           <AlertCircle size={17} />
           {error}
         </div>
       )}
       {notice && (
-        <div role="status" className="notice success">
+        <div
+          role="status"
+          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-emerald-50 text-emerald-700"
+        >
           <CheckCircle2 size={17} />
           {notice}
         </div>
@@ -100,37 +112,48 @@ export function Modal({
   onClose: () => void;
   busy?: boolean;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    ref.current?.showModal();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
+  const returnFocus = useRef(document.activeElement as HTMLElement | null);
   return (
-    <dialog
-      ref={ref}
-      className="modal"
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!busy) onClose();
+    <Dialog.Root
+      open
+      onOpenChange={(open) => {
+        if (!open && !busy) onClose();
       }}
     >
-      <header>
-        <h2>{title}</h2>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Zamknij"
-          disabled={busy}
-          onClick={onClose}
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in motion-reduce:animate-none" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          onEscapeKeyDown={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocus.current?.focus();
+          }}
+          className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-white text-ink shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none"
         >
-          <X size={20} />
-        </button>
-      </header>
-      {children}
-    </dialog>
+          <header className="flex items-center justify-between gap-4 border-b border-line px-6 py-5">
+            <Dialog.Title className="text-lg font-semibold">
+              {title}
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                className="grid size-9 place-items-center rounded-lg text-muted hover:bg-accent-soft"
+                aria-label="Zamknij"
+                disabled={busy}
+              >
+                <X size={20} />
+              </button>
+            </Dialog.Close>
+          </header>
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

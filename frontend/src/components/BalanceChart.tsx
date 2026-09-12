@@ -60,7 +60,7 @@ export default function BalanceChart({ data }: { data: Summary }) {
           type: "line",
           data: points.map((p) => Number(p.balance)),
           showSymbol: false,
-          lineStyle: { width: 2.5, color: lineColor },
+          lineStyle: { width: 3, color: lineColor, cap: "round", join: "round" },
           areaStyle: { opacity: 0.07, color: lineColor },
           emphasis: { disabled: true },
         },
@@ -74,8 +74,8 @@ export default function BalanceChart({ data }: { data: Summary }) {
     };
   }, [data]);
   return (
-    <section className="balance-panel">
-      <div className="balance-heading">
+    <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start [&_p]:mt-2 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-muted [&>strong]:text-2xl [&>strong]:whitespace-nowrap [&>strong]:tabular-nums">
         <div>
           <h2>Bilans narastająco</h2>
           <p>
@@ -83,19 +83,25 @@ export default function BalanceChart({ data }: { data: Summary }) {
             własnych
           </p>
         </div>
-        <strong className={Number(data.balance) >= 0 ? "positive" : "negative"}>
+        <strong
+          className={
+            Number(data.balance) >= 0 ? "text-emerald-600" : "text-rose-600"
+          }
+        >
           {money(data.balance, data.currency)}
         </strong>
       </div>
       {data.daily.length ? (
         <div
-          className="balance-chart"
+          className="mt-4 h-[270px]"
           ref={container}
           role="img"
           aria-label={`Bilans od ${data.start} do ${data.end}. Początek 0, koniec ${money(data.balance, data.currency)}.`}
         />
       ) : (
-        <p className="empty-state">Brak operacji w tym okresie.</p>
+        <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+          Brak operacji w tym okresie.
+        </p>
       )}
     </section>
   );

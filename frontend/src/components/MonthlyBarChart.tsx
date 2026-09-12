@@ -53,7 +53,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
         {
           type: "bar",
           barMaxWidth: 32,
-          itemStyle: { borderRadius: 3 },
+          itemStyle: { borderRadius: 8 },
           data: data.monthly.map((p) => ({
             value: Number(p.change),
             itemStyle: { color: Number(p.change) >= 0 ? "#24846c" : "#c76565" },
@@ -70,22 +70,26 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
   }, [data]);
 
   return (
-    <section className="balance-panel">
-      <div className="balance-heading">
+    <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start [&_p]:mt-2 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-muted [&>strong]:text-2xl [&>strong]:whitespace-nowrap [&>strong]:tabular-nums">
         <div>
           <h2>Bilans miesięczny</h2>
-          <p>Wynik każdego miesiąca osobno · ostatnie {data.monthly.length} mies.</p>
+          <p>
+            Wynik każdego miesiąca osobno · ostatnie {data.monthly.length} mies.
+          </p>
         </div>
       </div>
       {data.monthly.length ? (
         <div
-          className="balance-chart"
+          className="mt-4 h-[270px]"
           ref={container}
           role="img"
           aria-label="Bilans poszczególnych miesięcy, na plusie lub na minusie."
         />
       ) : (
-        <p className="empty-state">Za mało danych, żeby pokazać miesiące.</p>
+        <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+          Za mało danych, żeby pokazać miesiące.
+        </p>
       )}
     </section>
   );
