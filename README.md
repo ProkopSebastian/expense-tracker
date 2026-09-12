@@ -1,47 +1,20 @@
-# Expense tracker
+# Expense Tracker (Wydatki)
 
-Lokalna aplikacja do importowania wyciągów Nest Banku i Revoluta oraz analizowania wydatków. Dane są przechowywane w lokalnej bazie SQLite.
+Aplikacja do śledzenia wydatków na podstawie wyciągów z banku. Została zaprojektowana tak, aby automatyzować kategoryzację i rozwiązywać codzienne problemy z analizą finansów – od rozliczeń ze znajomymi, po transfery między własnymi kontami.
 
-## Uruchomienie
+## Główne funkcje
 
-Wymagane są: Python 3.14, [uv](https://docs.astral.sh/uv/), Node.js i pnpm.
+* **Automatyczna kategoryzacja:** Aplikacja sama proponuje i przypisuje kategorie do nowych transakcji.
+* **Reguły sprzedawców:** Możesz zapamiętać własne przypisania. Przykładowo, możesz ustawić, że płatności w "KufleKapsle" będą zawsze automatycznie przypisywane do kategorii *Restauracje i dostawy*.
+* **Grupowanie transakcji (rozliczenia ze znajomymi):** Koniec z fałszywym zawyżaniem wpływów i wydatków. Kiedy zapłacisz 100 zł za pizzę, a od znajomych dostaniesz dwa przelewy BLIK po 33 zł, możesz złączyć te operacje w jedną grupę. Aplikacja potraktuje to jako jeden, rzeczywisty wydatek na kwotę 34 zł.
+* **Wsparcie AI:** Algorytmy potrafią automatycznie sugerować, które transakcje z wyciągu warto połączyć w takie grupy.
+* **Inteligentne transfery własne:** Kategoria *Transfer między własnymi kontami* nie wlicza się ani do wydatków, ani do wpływów. Dzięki temu przelanie np. 5000 zł z banku A do banku B (z których oba mają wgrane wyciągi) nie zaburzy Twoich miesięcznych podsumowań.
 
-```bash
-./start.sh
-```
+## Prywatność i dane
 
-Aplikacja będzie dostępna pod adresem [http://127.0.0.1:8000](http://127.0.0.1:8000). Zatrzymanie: `Ctrl+C` lub `./stop.sh`.
+* **Lokalna baza danych:** Wszystko zostaje u Ciebie. Aplikacja przechowuje całą historię finansową, wyciągi i konfigurację lokalnie, w plikowej bazie danych w jednym folderze. Nigdzie nie wysyła Twoich wyciągów.
+* **Funkcje AI:** Do korzystania z funkcji automatycznego sugerowania grup potrzebny jest własny klucz API (OpenAI). Jeśli go nie podasz, aplikacja nadal będzie działać, a transakcje możesz grupować ręcznie.
 
-Pliki CSV można wczytać w karcie **Dane i ustawienia** albo umieścić w katalogu `data/` i wybrać **Aktualizuj teraz**.
+## Podgląd aplikacji
 
-## Konfiguracja
-
-Opcjonalny klucz OpenAI można dodać w karcie **Dane i ustawienia**. Ustawienia można też podać w pliku `.env` na podstawie `.env.example`.
-
-## Sprawdzenie
-
-```bash
-uv run pytest
-pnpm --dir frontend build
-```
-
-## Windows
-
-```powershell
-scripts/build_windows.ps1
-```
-
-Gotowe pliki powstaną jako `dist/Wydatki.exe` i `dist/START.txt`. Artefakt
-GitHub Actions jest pobierany jako pojedynczy `Wydatki-Windows.zip`.
-
-## Aplikacja natywna na Linuksie
-
-Zamiast otwierać `start.sh` w przeglądarce, można uruchomić aplikację we
-własnym oknie (bez paska adresu):
-
-```bash
-uv run --group desktop python scripts/desktop_launcher.py
-```
-
-Skrót do menu aplikacji (GNOME/KDE): `scripts/install_linux_desktop.sh`.
-Używa tego samego katalogu roboczego co `start.sh` — te same dane.
+![Podgląd interfejsu Wydatków](docs/preview.png)
