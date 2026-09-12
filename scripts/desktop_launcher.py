@@ -17,7 +17,6 @@ from typing import TextIO
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
-APP_VERSION = "0.1.3"
 logger = logging.getLogger("expense_tracker.desktop")
 
 
@@ -54,7 +53,7 @@ def _prepare_runtime() -> tuple[Path, TextIO]:
         force=True,
     )
     faulthandler.enable(file=log, all_threads=True)
-    logger.info("START Wydatki %s; frozen=%s; platform=%s", APP_VERSION, getattr(sys, "frozen", False), sys.platform)
+    logger.info("START Wydatki; frozen=%s; platform=%s", getattr(sys, "frozen", False), sys.platform)
     return log_path, log
 
 
@@ -212,7 +211,7 @@ def main() -> int:
         return 1
     finally:
         if log is not None:
-            logger.info("STOP Wydatki %s", APP_VERSION)
+            logger.info("STOP Wydatki")
             faulthandler.disable()
             logging.shutdown()
             log.close()
