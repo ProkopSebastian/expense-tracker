@@ -127,6 +127,10 @@ export default function LedgerPage({
                         filtersChanged();
                       }}
                     />
+                    <span
+                      className="color-dot"
+                      style={{ background: nodeColor(parent.key) }}
+                    />
                     {parent.label}
                   </label>
                   {children.map((child) => (
@@ -142,6 +146,10 @@ export default function LedgerPage({
                           );
                           filtersChanged();
                         }}
+                      />
+                      <span
+                        className="color-dot"
+                        style={{ background: nodeColor(child.key) }}
                       />
                       {child.label}
                     </label>

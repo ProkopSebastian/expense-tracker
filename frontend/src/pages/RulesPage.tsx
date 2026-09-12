@@ -3,6 +3,7 @@ import { Search, Trash2, Settings2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
+import { nodeColor } from "../components/CategoryChart";
 function RuleRow({
   rule,
   categories,
@@ -27,12 +28,18 @@ function RuleRow({
           <div className="row-meta">Dodano {rule.created_at.slice(0, 10)}</div>
           <Notice error={action.error} />
         </div>
-        <CategorySelect
-          categories={categories}
-          value={category}
-          onChange={setCategory}
-          label={`Kategoria ${rule.name}`}
-        />
+        <div className="category-select-field">
+          <span
+            className="color-dot"
+            style={{ background: nodeColor(category || "uncategorized_expense") }}
+          />
+          <CategorySelect
+            categories={categories}
+            value={category}
+            onChange={setCategory}
+            label={`Kategoria ${rule.name}`}
+          />
+        </div>
         <button
           className="button"
           disabled={action.busy || category === rule.category_key || !category}

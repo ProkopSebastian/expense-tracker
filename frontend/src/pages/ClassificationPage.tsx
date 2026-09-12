@@ -4,6 +4,7 @@ import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
+import { nodeColor } from "../components/CategoryChart";
 function ClassificationItem({
   row,
   categories,
@@ -39,12 +40,18 @@ function ClassificationItem({
         <Notice error={action.error} />
       </div>
       <div className="classification-controls">
-        <CategorySelect
-          categories={categories}
-          value={category}
-          onChange={setCategory}
-          label={`Kategoria ${row.description}`}
-        />
+        <div className="category-select-field">
+          <span
+            className="color-dot"
+            style={{ background: nodeColor(category || "uncategorized_expense") }}
+          />
+          <CategorySelect
+            categories={categories}
+            value={category}
+            onChange={setCategory}
+            label={`Kategoria ${row.description}`}
+          />
+        </div>
         <label className="checkbox-label">
           <input
             type="checkbox"
