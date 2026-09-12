@@ -17,7 +17,6 @@
   --app-info: #0284c7;
 }
 
-/* Tryb ciemny wg preferencji systemu, dopóki użytkownik nie wybierze ręcznie. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --app-canvas: #14151f;
@@ -36,7 +35,6 @@
   }
 }
 
-/* Ręczny wybór trybu (przełącznik w nagłówku) nadpisuje preferencję systemu. */
 :root[data-theme="dark"] {
   --app-canvas: #14151f;
   --app-surface: #1c1e2b;
