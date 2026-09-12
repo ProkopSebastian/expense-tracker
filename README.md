@@ -31,7 +31,8 @@ pnpm --dir frontend build
 scripts/build_windows.ps1
 ```
 
-Gotowa paczka powstanie jako `dist/Wydatki-Windows.zip`.
+Gotowe pliki powstaną jako `dist/Wydatki.exe` i `dist/START.txt`. Artefakt
+GitHub Actions jest pobierany jako pojedynczy `Wydatki-Windows.zip`.
 
 ## Aplikacja natywna na Linuksie
 

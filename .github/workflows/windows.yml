@@ -27,4 +27,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: Wydatki-Windows
-          path: dist/Wydatki-Windows.zip
+          path: |
+            dist/Wydatki.exe
+            dist/START.txt
