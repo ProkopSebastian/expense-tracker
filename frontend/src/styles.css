@@ -1455,7 +1455,7 @@ h2 {
 .classification-row {
   padding: 23px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px) auto;
   gap: 22px;
   align-items: center;
   border-bottom: 1px solid var(--line);
@@ -1495,6 +1495,10 @@ h2 {
 .classification-controls {
   display: grid;
   gap: 12px;
+  min-width: 0;
+}
+.classification-controls select {
+  width: 100%;
 }
 .checkbox-label {
   display: flex;
@@ -1635,7 +1639,7 @@ input[type="checkbox"] {
 }
 @media (max-width: 1150px) {
   .classification-row {
-    grid-template-columns: 1fr 190px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 190px);
     gap: 15px;
   }
   .classification-row .inline-actions {
