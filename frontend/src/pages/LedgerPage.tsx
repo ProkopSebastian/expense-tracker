@@ -1,3 +1,4 @@
+import * as Accordion from "@radix-ui/react-accordion";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Popover from "@radix-ui/react-popover";
 import { nodeColor } from "../components/CategoryChart";
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 import type { Category, LedgerData, Block } from "../domain";
 import { request, useResource, useAction, useSessionState } from "../hooks";
-import { money } from "../api";
+import { money, monthLabel } from "../api";
 import {
   CategorySelect,
   groupCategories,
@@ -38,6 +39,10 @@ export default function LedgerPage({
     [linksTab, setLinksTab] = useSessionState<"relations" | "groups">(
       "ledger.linksTab",
       "relations",
+    ),
+    [closedMonths, setClosedMonths] = useSessionState<string[]>(
+      "ledger.closedMonths",
+      [],
     ),
     [selected, setSelected] = useState<number[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
@@ -67,6 +72,13 @@ export default function LedgerPage({
     selectedRows.length >= 2 &&
     new Set(selectedRows.map((row) => row.currency)).size === 1;
   const categoryGroups = groupCategories(categories);
+  const months = new Map<string, Block[]>();
+  for (const row of data?.blocks ?? []) {
+    const month = row.date.slice(0, 7);
+    const rows = months.get(month) ?? [];
+    rows.push(row);
+    months.set(month, rows);
+  }
   function filtersChanged() {
     setPage(1);
     setSelected([]);
@@ -326,168 +338,222 @@ export default function LedgerPage({
           </div>
         )}
         <div className="overflow-x-auto" aria-busy={loading}>
-          <table className="w-full border-collapse text-sm [&_th]:bg-slate-50 [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md">
-            <thead>
-              <tr>
-                <th aria-label="Zaznaczenie" />
-                <th>Transakcja</th>
-                <th>Kategoria</th>
-                <th>Kwota</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data?.blocks.map((row) => (
-                <Fragment key={row.key}>
-                  <tr className={row.case_id ? "bg-accent-soft/60" : ""}>
-                    <td>
-                      {row.case_id ? (
-                        <button
-                          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-                          aria-label={`Rozwiń grupę ${row.description}`}
-                          aria-expanded={expanded.includes(row.key)}
-                          onClick={() =>
-                            setExpanded(
-                              expanded.includes(row.key)
-                                ? expanded.filter((k) => k !== row.key)
-                                : [...expanded, row.key],
-                            )
-                          }
-                        >
-                          {expanded.includes(row.key) ? (
-                            <ChevronDown size={17} />
-                          ) : (
-                            <ChevronRight size={17} />
-                          )}
-                        </button>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          aria-label={`Zaznacz ${row.description}`}
-                          checked={selected.includes(row.id!)}
-                          onChange={(e) =>
-                            setSelected(
-                              e.target.checked
-                                ? [...selected, row.id!]
-                                : selected.filter((id) => id !== row.id),
-                            )
-                          }
-                        />
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="text-left text-sm font-medium leading-relaxed wrap-anywhere hover:text-accent hover:underline [&_svg]:mr-1 [&_svg]:inline [&_svg]:align-middle"
-                        onClick={() => {
-                          if (row.case_id)
-                            setExpanded(
-                              expanded.includes(row.key)
-                                ? expanded.filter((k) => k !== row.key)
-                                : [...expanded, row.key],
-                            );
-                          else {
-                            setEditing(row);
-                            setEditCategory(row.category_key ?? "");
-                          }
-                        }}
-                      >
-                        {row.case_id && <Link2 size={14} />} {row.description}
-                      </button>
-                      <div className="mt-1 text-xs leading-relaxed text-muted">
-                        {row.date} · {row.account}
-                        {["PENDING", "PROCESSING"].includes(
-                          row.bank_status ?? "",
-                        ) && (
-                          <span className="text-amber-700"> · Oczekująca</span>
-                        )}
-                        {row.counterparty && row.counterparty !== "—"
-                          ? ` · ${row.counterparty}`
-                          : ""}
-                        {row.case_id
-                          ? ` · ${row.members.length} transakcje`
-                          : ""}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          borderLeft: `3px solid ${nodeColor(row.category_key ?? "uncategorized_expense")}`,
-                        }}
-                        className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-slate-50 px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-amber-200! bg-amber-50! text-amber-700" : ""}`}
-                      >
-                        {row.category_label}
-                      </span>
-                    </td>
-                    <td
-                      className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-emerald-600" : ""}`}
+          <Accordion.Root
+            type="multiple"
+            value={[...months.keys()].filter(
+              (month) => !closedMonths.includes(month),
+            )}
+            onValueChange={(open) =>
+              setClosedMonths([
+                ...closedMonths.filter((month) => !months.has(month)),
+                ...[...months.keys()].filter((month) => !open.includes(month)),
+              ])
+            }
+          >
+            {[...months].map(([month, rows]) => (
+              <Accordion.Item
+                key={month}
+                value={month}
+                className="border-b border-line last:border-0"
+              >
+                <Accordion.Header>
+                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 bg-slate-50/80 px-5 py-4 text-left text-sm font-semibold text-ink hover:bg-accent-soft">
+                    <span className="capitalize">{monthLabel(month)}</span>
+                    <span className="ml-auto text-xs font-normal text-muted">
+                      {rows.length} pozycji na tej stronie
+                    </span>
+                    <ChevronDown
+                      size={17}
+                      className="shrink-0 text-accent transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                    />
+                  </Accordion.Trigger>
+                </Accordion.Header>
+                <Accordion.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up motion-reduce:animate-none">
+                  <div className="overflow-x-auto">
+                    <table
+                      aria-label={`Transakcje: ${monthLabel(month)}`}
+                      className="w-full border-collapse text-sm [&_th]:bg-slate-50 [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
                     >
-                      {money(
-                        row.case_id ? row.real_amount : (row.amount ?? "0"),
-                        row.currency,
-                      )}
-                      {row.case_id ? (
-                        <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
-                          Łącznie w bilansie
-                        </small>
-                      ) : row.category_key === "transfer_own" ? (
-                        <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
-                          Poza bilansem
-                        </small>
-                      ) : null}
-                    </td>
-                    <td>
-                      {row.case_id ? (
-                        <button
-                          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-                          aria-label={`Rozwiąż grupę ${row.description}`}
-                          onClick={() => setDissolve(row.case_id)}
-                        >
-                          <Unlink size={16} />
-                        </button>
-                      ) : (
-                        <button
-                          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-                          aria-label={`Edytuj ${row.description}`}
-                          onClick={() => {
-                            setEditing(row);
-                            setEditCategory(row.category_key ?? "");
-                          }}
-                        >
-                          <ChevronRight size={17} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {expanded.includes(row.key) &&
-                    row.members.map((member) => (
-                      <tr
-                        className="bg-slate-50 text-muted [&_td]:py-3! [&_td:nth-child(2)]:pl-8!"
-                        key={member.id}
-                      >
-                        <td />
-                        <td>
-                          <span>{member.description}</span>
-                          <div className="mt-1 text-xs leading-relaxed text-muted">
-                            {member.date} · {member.account}
-                            {member.counterparty !== "—"
-                              ? ` · ${member.counterparty}`
-                              : ""}
-                          </div>
-                        </td>
-                        <td />
-                        <td className="text-right! font-medium whitespace-nowrap tabular-nums">
-                          {money(member.amount, member.currency)}
-                          <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
-                            Składnik grupy · nie sumujemy osobno
-                          </small>
-                        </td>
-                        <td />
-                      </tr>
-                    ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                      <thead>
+                        <tr>
+                          <th aria-label="Zaznaczenie" />
+                          <th>Transakcja</th>
+                          <th>Kategoria</th>
+                          <th>Kwota</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => (
+                          <Fragment key={row.key}>
+                            <tr
+                              className={row.case_id ? "bg-accent-soft/60" : ""}
+                            >
+                              <td>
+                                {row.case_id ? (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Rozwiń grupę ${row.description}`}
+                                    aria-expanded={expanded.includes(row.key)}
+                                    onClick={() =>
+                                      setExpanded(
+                                        expanded.includes(row.key)
+                                          ? expanded.filter(
+                                              (k) => k !== row.key,
+                                            )
+                                          : [...expanded, row.key],
+                                      )
+                                    }
+                                  >
+                                    {expanded.includes(row.key) ? (
+                                      <ChevronDown size={17} />
+                                    ) : (
+                                      <ChevronRight size={17} />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Zaznacz ${row.description}`}
+                                    checked={selected.includes(row.id!)}
+                                    onChange={(e) =>
+                                      setSelected(
+                                        e.target.checked
+                                          ? [...selected, row.id!]
+                                          : selected.filter(
+                                              (id) => id !== row.id,
+                                            ),
+                                      )
+                                    }
+                                  />
+                                )}
+                              </td>
+                              <td>
+                                <button
+                                  className="text-left text-sm font-medium leading-relaxed wrap-anywhere hover:text-accent hover:underline [&_svg]:mr-1 [&_svg]:inline [&_svg]:align-middle"
+                                  onClick={() => {
+                                    if (row.case_id)
+                                      setExpanded(
+                                        expanded.includes(row.key)
+                                          ? expanded.filter(
+                                              (k) => k !== row.key,
+                                            )
+                                          : [...expanded, row.key],
+                                      );
+                                    else {
+                                      setEditing(row);
+                                      setEditCategory(row.category_key ?? "");
+                                    }
+                                  }}
+                                >
+                                  {row.case_id && <Link2 size={14} />}{" "}
+                                  {row.description}
+                                </button>
+                                <div className="mt-1 text-xs leading-relaxed text-muted">
+                                  {row.date} · {row.account}
+                                  {["PENDING", "PROCESSING"].includes(
+                                    row.bank_status ?? "",
+                                  ) && (
+                                    <span className="text-amber-700">
+                                      {" "}
+                                      · Oczekująca
+                                    </span>
+                                  )}
+                                  {row.counterparty && row.counterparty !== "—"
+                                    ? ` · ${row.counterparty}`
+                                    : ""}
+                                  {row.case_id
+                                    ? ` · ${row.members.length} transakcje`
+                                    : ""}
+                                </div>
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    borderLeft: `3px solid ${nodeColor(row.category_key ?? "uncategorized_expense")}`,
+                                  }}
+                                  className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-slate-50 px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-amber-200! bg-amber-50! text-amber-700" : ""}`}
+                                >
+                                  {row.category_label}
+                                </span>
+                              </td>
+                              <td
+                                className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-emerald-600" : ""}`}
+                              >
+                                {money(
+                                  row.case_id
+                                    ? row.real_amount
+                                    : (row.amount ?? "0"),
+                                  row.currency,
+                                )}
+                                {row.case_id ? (
+                                  <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                    Łącznie w bilansie
+                                  </small>
+                                ) : row.category_key === "transfer_own" ? (
+                                  <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                    Poza bilansem
+                                  </small>
+                                ) : null}
+                              </td>
+                              <td>
+                                {row.case_id ? (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Rozwiąż grupę ${row.description}`}
+                                    onClick={() => setDissolve(row.case_id)}
+                                  >
+                                    <Unlink size={16} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                    aria-label={`Edytuj ${row.description}`}
+                                    onClick={() => {
+                                      setEditing(row);
+                                      setEditCategory(row.category_key ?? "");
+                                    }}
+                                  >
+                                    <ChevronRight size={17} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {expanded.includes(row.key) &&
+                              row.members.map((member) => (
+                                <tr
+                                  className="bg-slate-50 text-muted [&_td]:py-3! [&_td:nth-child(2)]:pl-8!"
+                                  key={member.id}
+                                >
+                                  <td />
+                                  <td>
+                                    <span>{member.description}</span>
+                                    <div className="mt-1 text-xs leading-relaxed text-muted">
+                                      {member.date} · {member.account}
+                                      {member.counterparty !== "—"
+                                        ? ` · ${member.counterparty}`
+                                        : ""}
+                                    </div>
+                                  </td>
+                                  <td />
+                                  <td className="text-right! font-medium whitespace-nowrap tabular-nums">
+                                    {money(member.amount, member.currency)}
+                                    <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
+                                      Składnik grupy · nie sumujemy osobno
+                                    </small>
+                                  </td>
+                                  <td />
+                                </tr>
+                              ))}
+                          </Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Accordion.Content>
+              </Accordion.Item>
+            ))}
+          </Accordion.Root>
           {!data && loading && (
             <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
               Wczytuję transakcje…
