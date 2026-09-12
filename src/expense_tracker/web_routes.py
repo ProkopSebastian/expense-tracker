@@ -157,7 +157,7 @@ def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
 def recovery(request: Request):
     from .recovery import undo_available
 
-    return {"can_undo": undo_available(request.app.state.database_path)}
+    return undo_available(request.app.state.database_path)
 
 
 @router.post("/undo")
