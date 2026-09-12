@@ -4,16 +4,24 @@ import { BarChart } from "echarts/charts";
 import { GridComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { money, monthLabel, monthShortLabel, type Summary } from "../api";
+import { themeVar, useThemeSignal } from "../theme";
 
 echarts.use([BarChart, GridComponent, TooltipComponent, SVGRenderer]);
 
 export default function MonthlyBarChart({ data }: { data: Summary }) {
   const container = useRef<HTMLDivElement>(null);
+  const themeSignal = useThemeSignal();
   useEffect(() => {
     if (!container.current || !data.monthly.length) return;
     const chart = echarts.init(container.current, undefined, {
       renderer: "svg",
     });
+    const success = themeVar("--app-success");
+    const danger = themeVar("--app-danger");
+    const surface = themeVar("--app-surface");
+    const line = themeVar("--app-line");
+    const ink = themeVar("--app-ink");
+    const muted = themeVar("--app-muted");
     chart.setOption({
       animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       animationDuration: 350,
@@ -22,12 +30,12 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
         trigger: "axis",
         confine: true,
         renderMode: "richText",
-        backgroundColor: "#ffffff",
-        borderColor: "#e7ece9",
+        backgroundColor: surface,
+        borderColor: line,
         borderWidth: 1,
         padding: 10,
-        textStyle: { color: "#123e35" },
-        extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
+        textStyle: { color: ink },
+        extraCssText: "box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);",
         formatter: (params: { dataIndex: number }[]) => {
           const point = data.monthly[params[0].dataIndex];
           if (!point) return "";
@@ -39,15 +47,15 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
         data: data.monthly.map((p) => monthShortLabel(p.month)),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: "#798880" },
+        axisLabel: { color: muted },
       },
       yAxis: {
         type: "value",
         axisLabel: {
-          color: "#798880",
+          color: muted,
           formatter: (value: number) => money(value, data.currency),
         },
-        splitLine: { lineStyle: { color: "#edf1ee" } },
+        splitLine: { lineStyle: { color: line } },
       },
       series: [
         {
@@ -56,7 +64,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
           itemStyle: { borderRadius: 8 },
           data: data.monthly.map((p) => ({
             value: Number(p.change),
-            itemStyle: { color: Number(p.change) >= 0 ? "#24846c" : "#c76565" },
+            itemStyle: { color: Number(p.change) >= 0 ? success : danger },
           })),
         },
       ],
@@ -67,10 +75,10 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
       observer.disconnect();
       chart.dispose();
     };
-  }, [data]);
+  }, [data, themeSignal]);
 
   return (
-    <section className="my-6 rounded-2xl border border-line bg-white p-5 shadow-sm lg:p-6">
+    <section className="my-6 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start [&_p]:mt-2 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-muted [&>strong]:text-2xl [&>strong]:whitespace-nowrap [&>strong]:tabular-nums">
         <div>
           <h2>Bilans miesięczny</h2>

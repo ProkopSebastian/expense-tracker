@@ -5,6 +5,7 @@ import { pages, type Page, type Meta } from "./domain";
 import { request, useResource, useAction } from "./hooks";
 import DataPage from "./pages/DataPage";
 import Sidebar from "./components/Sidebar";
+import ThemeToggle from "./components/ThemeToggle";
 import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
 import LedgerPage from "./pages/LedgerPage";
@@ -51,12 +52,13 @@ export default function App() {
       <div className="min-h-screen bg-canvas font-sans text-ink md:grid md:grid-cols-[84px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)] [&_main]:min-w-0">
         <Sidebar page={page} />
         <main>
-          <header className="flex h-16 items-center border-b border-line bg-white/60 px-5 text-xs text-muted backdrop-blur md:px-8 lg:px-10 [&>span]:flex [&>span]:items-center [&>span]:gap-3 [&_strong]:font-medium [&_strong]:text-ink">
+          <header className="flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/60 px-5 text-xs text-muted backdrop-blur md:px-8 lg:px-10 [&>span]:flex [&>span]:items-center [&>span]:gap-3 [&_strong]:font-medium [&_strong]:text-ink">
             <span>
               Twoje finanse
               <ChevronRight size={14} />
               <strong>{pages[page].title}</strong>
             </span>
+            <ThemeToggle />
           </header>
           <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
             <Notice error={error || action.error} notice={action.notice} />
@@ -65,14 +67,14 @@ export default function App() {
                 key={revision}
                 open={undoNoticeVisible}
                 onOpenChange={setUndoNoticeVisible}
-                className="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 text-sm shadow-xl"
+                className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-sm shadow-xl"
               >
                 <Toast.Title>
                   {recovery.label ?? "Zmiany zapisane"} · zapisano
                 </Toast.Title>
                 <Toast.Action altText="Cofnij ostatnią zapisaną zmianę" asChild>
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                     disabled={action.busy}
                     onClick={() =>
                       action.run(
@@ -98,7 +100,7 @@ export default function App() {
               <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
                 {error ? (
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
                     onClick={changed}
                   >
                     Spróbuj ponownie
