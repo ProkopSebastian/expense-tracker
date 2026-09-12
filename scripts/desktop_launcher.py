@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import faulthandler
 import html
+import importlib
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ from urllib.parse import urljoin
 from urllib.request import urlopen
 
 logger = logging.getLogger("expense_tracker.desktop")
+_linux_app = None
 
 
 def _asset_root() -> Path:
@@ -28,6 +30,24 @@ def _icon_path() -> Path:
     """Return an icon format supported by the native GUI backend."""
     filename = "app.ico" if sys.platform == "win32" else "app.png"
     return _asset_root() / "assets" / filename
+
+
+def _configure_linux_app_identity(icon_path: Path) -> None:
+    global _linux_app
+
+    if not sys.platform.startswith("linux"):
+        return
+
+    from qtpy.QtGui import QIcon
+    from qtpy.QtWidgets import QApplication
+
+    importlib.import_module("qtpy.QtWebEngineWidgets")
+    _linux_app = QApplication.instance() or QApplication(sys.argv)
+    _linux_app.setApplicationName("Wydatki")
+    _linux_app.setApplicationDisplayName("Wydatki")
+    _linux_app.setDesktopFileName("wydatki")
+    if icon_path.exists():
+        _linux_app.setWindowIcon(QIcon(str(icon_path)))
 
 
 def _prepare_runtime() -> tuple[Path, TextIO]:
@@ -116,6 +136,7 @@ def _wait_until_ready(server, worker: threading.Thread, base_url: str) -> None:
 
 def _run_desktop(webview, log_path: Path) -> None:
     icon_path = _icon_path()
+    _configure_linux_app_identity(icon_path)
     if sys.platform == "win32":
         import ctypes
 

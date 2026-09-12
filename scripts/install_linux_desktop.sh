@@ -18,6 +18,7 @@ Exec=$repo_root/scripts/launch_desktop.sh
 Icon=$repo_root/scripts/assets/app.png
 Terminal=false
 Categories=Office;Finance;
+StartupWMClass=Wydatki
 EOF
 
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$apps_dir" || true
