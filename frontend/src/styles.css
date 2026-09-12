@@ -1370,8 +1370,34 @@ h2 {
   padding-left: 30px;
   color: #6f8175;
 }
-.related {
+.related,
+.links-panel {
   padding: 24px;
+}
+.links-tabs {
+  display: flex;
+  padding: 3px;
+  border: 1px solid #e4eae6;
+  border-radius: 7px;
+  gap: 2px;
+  margin-bottom: 8px;
+  width: fit-content;
+}
+.links-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 14px;
+  background: transparent;
+  font-size: 0.875rem;
+  color: #8b978e;
+}
+.links-tabs button.selected {
+  color: #32664f;
+  background: #edf4ef;
+  font-weight: 600;
 }
 .relation-row {
   display: flex;
@@ -1399,14 +1425,6 @@ h2 {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-}
-.group-list {
-  padding: 20px 24px;
-}
-.group-list > summary {
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 550;
 }
 .page-count {
   font-size: 13px;
