@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { reportError } from "./errorReporting";
-import "./styles.css";
+import "./theme.css";
 
 function showFatalError(message: string) {
   const root = document.getElementById("root");

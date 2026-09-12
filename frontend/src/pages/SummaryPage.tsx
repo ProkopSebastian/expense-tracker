@@ -45,7 +45,7 @@ export default function SummaryPage({
 
   return (
     <>
-      <div className="page-heading">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
         <div>
           <h1>Podsumowanie</h1>
           <p>Wydatki i przychody w wybranym okresie.</p>
@@ -60,24 +60,34 @@ export default function SummaryPage({
       />
 
       {error ? (
-        <div role="alert" className="empty-state">
+        <div
+          role="alert"
+          className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted"
+        >
           <CircleHelp />
           <h2>Nie udało się pobrać danych</h2>
           <p>{error}</p>
           <button
-            className="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
             onClick={() => setRevision((value) => value + 1)}
           >
             Spróbuj ponownie
           </button>
         </div>
       ) : !data ? (
-        <div role="status" className="empty-state">
+        <div
+          role="status"
+          className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted"
+        >
           Wczytuję podsumowanie…
         </div>
       ) : (
         <div
-          className={loading ? "results loading" : "results"}
+          className={
+            loading
+              ? "transition-opacity motion-reduce:transition-none opacity-60"
+              : "transition-opacity motion-reduce:transition-none"
+          }
           aria-busy={loading}
         >
           <SummaryCards data={data} />
@@ -87,7 +97,7 @@ export default function SummaryPage({
           />
           <BalanceChart data={data} />
           <MonthlyBarChart data={data} />
-          <div className="bottom-note">
+          <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">
             <span>
               <LockKeyhole size={14} />
               Dane z lokalnej bazy · waluty liczone osobno

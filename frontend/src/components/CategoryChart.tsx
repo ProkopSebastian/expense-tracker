@@ -117,13 +117,19 @@ export default function CategoryChart({
         padding: 10,
         textStyle: { color: "#123e35" },
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
-        formatter: (params: { name: string; value: number; percent: number }) => {
+        formatter: (params: {
+          name: string;
+          value: number;
+          percent: number;
+        }) => {
           // params.value/percent can be transiently NaN while echarts animates
           // between two datasets (e.g. drilling into a category), since the pie
           // interpolates the numeric value during the transition. The node list
           // itself is always the current source of truth, so look the amount up
           // there instead of trusting the animated value.
-          const node = handlers.current.nodes.find((n) => n.label === params.name);
+          const node = handlers.current.nodes.find(
+            (n) => n.label === params.name,
+          );
           const content = document.createElement("div");
           const name = document.createElement("div");
           const amount = document.createElement("div");
@@ -169,17 +175,19 @@ export default function CategoryChart({
   }, [hovered, nodes]);
 
   return (
-    <div className="donut-wrap">
-      <div className="donut" ref={container} aria-hidden="true" />
+    <div className="relative mx-auto aspect-square w-full max-w-[355px]">
+      <div className="size-full" ref={container} aria-hidden="true" />
       <button
-        className="donut-center"
+        className="absolute left-[23%] top-[29%] flex h-[42%] w-[54%] flex-col items-center justify-center gap-3 rounded-full disabled:opacity-100! enabled:hover:bg-accent-soft [&_strong]:text-xl [&_strong]:font-semibold [&_strong]:tracking-tight [&_strong]:whitespace-nowrap sm:[&_strong]:text-2xl"
         onClick={onBack}
         disabled={!canGoBack}
         aria-label="Wróć o poziom wyżej"
       >
-        <span className="donut-kicker">{title}</span>
+        <span className="max-w-full text-xs leading-snug wrap-anywhere text-muted">
+          {title}
+        </span>
         <strong>{money(total, currency)}</strong>
-        <span className="donut-back">
+        <span className="flex items-center gap-1 text-[11px] text-muted">
           {canGoBack ? (
             <>
               <ArrowLeft size={14} /> Wróć

@@ -19,19 +19,23 @@ function RuleRow({
   useEffect(() => setCategory(rule.category_key), [rule.category_key]);
   return (
     <>
-      <div className="rule-row">
-        <span className="rule-icon">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-center gap-3 border-t border-line p-5 xl:grid-cols-[36px_minmax(150px,1fr)_minmax(220px,1fr)_auto_36px]">
+        <span className="hidden size-9 place-items-center rounded-xl bg-accent-soft text-accent xl:grid">
           <Settings2 size={18} />
         </span>
-        <div className="rule-name">
+        <div className="col-span-full xl:col-auto [&_strong]:text-sm [&_strong]:font-medium [&_strong]:wrap-anywhere">
           <strong>{rule.name}</strong>
-          <div className="row-meta">Dodano {rule.created_at.slice(0, 10)}</div>
+          <div className="mt-1 text-xs leading-relaxed text-muted">
+            Dodano {rule.created_at.slice(0, 10)}
+          </div>
           <Notice error={action.error} />
         </div>
-        <div className="category-select-field">
+        <div className="flex min-w-0 items-center gap-2 [&_select]:w-full [&_select]:min-w-0 [&_select]:flex-1">
           <span
-            className="color-dot"
-            style={{ background: nodeColor(category || "uncategorized_expense") }}
+            className="size-2.5 shrink-0 rounded-full"
+            style={{
+              background: nodeColor(category || "uncategorized_expense"),
+            }}
           />
           <CategorySelect
             categories={categories}
@@ -41,7 +45,7 @@ function RuleRow({
           />
         </div>
         <button
-          className="button"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
           disabled={action.busy || category === rule.category_key || !category}
           onClick={() =>
             action.run(() =>
@@ -52,7 +56,7 @@ function RuleRow({
           Zapisz
         </button>
         <button
-          className="icon-button"
+          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
           aria-label={`Usuń regułę ${rule.name}`}
           onClick={() => setRemove(true)}
         >
@@ -65,19 +69,22 @@ function RuleRow({
           onClose={() => setRemove(false)}
           busy={action.busy}
         >
-          <div className="form-stack">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
             <p>{rule.name}</p>
-            <p className="form-help">
+            <p className="text-sm leading-relaxed text-muted">
               Przyszłe transakcje tego sprzedawcy nie będą już klasyfikowane
               przez tę regułę. Dotychczasowe kategorie pozostaną.
             </p>
             <Notice error={action.error} />
-            <footer className="form-actions">
-              <button className="button" onClick={() => setRemove(false)}>
+            <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                onClick={() => setRemove(false)}
+              >
                 Anuluj
               </button>
               <button
-                className="button danger-button"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-rose-200! bg-rose-50! text-rose-700! hover:bg-rose-100!"
                 disabled={action.busy}
                 onClick={() =>
                   action.run(() => request(`/rules/${rule.id}`, "DELETE"))
@@ -112,14 +119,16 @@ export default function RulesPage({
     ) ?? [];
   return (
     <>
-      <div className="page-heading">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
         <div>
           <h1>Reguły sprzedawców</h1>
           <p>Jedna decyzja teraz. Mniej pracy przy kolejnych wydatkach.</p>
         </div>
-        <span className="page-count">{data?.rules.length ?? 0} reguł</span>
+        <span className="rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent">
+          {data?.rules.length ?? 0} reguł
+        </span>
       </div>
-      <div className="info-banner">
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-accent/10 bg-accent-soft p-5 text-accent [&_svg]:mt-0.5 [&_svg]:shrink-0 [&_p]:max-w-4xl [&_p]:text-sm [&_p]:leading-relaxed">
         <Settings2 size={20} />
         <p>
           Zmiana reguły poprawia również wcześniejsze transakcje sklasyfikowane
@@ -128,10 +137,10 @@ export default function RulesPage({
         </p>
       </div>
       <Notice error={error} />
-      <section className="data-card">
-        <div className="table-toolbar">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
           <h2>Zapamiętani sprzedawcy</h2>
-          <label className="search-field">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={16} />
             <input
               aria-label="Szukaj reguł"
@@ -150,7 +159,7 @@ export default function RulesPage({
           />
         ))}
         {!rules.length && (
-          <div className="empty-state">
+          <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
             <Settings2 size={28} />
             <h3>{loading ? "Wczytuję…" : "Brak reguł do pokazania"}</h3>
             <p>
