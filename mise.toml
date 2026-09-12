@@ -1,0 +1,10 @@
+[tools]
+node = "22"
+pnpm = "10"
+
+[tasks.frontend-build]
+description = "Install dependencies and build the frontend"
+run = """
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend build
+"""
