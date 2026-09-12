@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
+import { reportError } from "../errorReporting";
 
 interface Props {
   children: ReactNode;
@@ -7,26 +8,22 @@ interface Props {
 
 interface State {
   error: Error | null;
+  reported: boolean | null;
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, reported: null };
 
   static getDerivedStateFromError(error: Error): State {
-    return { error };
+    return { error, reported: null };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    fetch("/report-error", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: error.message,
-        stack: error.stack ?? "",
-        component_stack: info.componentStack ?? "",
-        url: window.location.href,
-      }),
-    }).catch(() => {});
+    void reportError({
+      message: error.message,
+      stack: error.stack ?? "",
+      component_stack: info.componentStack ?? "",
+    }).then((reported) => this.setState({ reported }));
   }
 
   render() {
@@ -38,10 +35,16 @@ export default class ErrorBoundary extends Component<Props, State> {
             Coś poszło nie tak i aplikacja nie mogła wyświetlić tego widoku.
           </div>
           <p>
-            Błąd został zapisany w dzienniku aplikacji. Spróbuj odświeżyć
-            stronę — jeśli problem wróci, opisz co robiłeś/aś przed jego
-            wystąpieniem.
+            {this.state.reported === null
+              ? "Zapisywanie szczegółów błędu…"
+              : this.state.reported
+                ? "Błąd został zapisany w dzienniku aplikacji."
+                : "Nie udało się zapisać błędu. Skopiuj poniższe szczegóły."}
           </p>
+          <details>
+            <summary>Szczegóły techniczne</summary>
+            <pre>{this.state.error.stack ?? this.state.error.message}</pre>
+          </details>
           <button className="button" onClick={() => window.location.reload()}>
             Odśwież stronę
           </button>

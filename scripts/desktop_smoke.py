@@ -2,13 +2,15 @@
 
 import json
 import os
+import re
 import socket
 import sys
 import threading
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from urllib.request import urlopen
+from urllib.parse import urljoin
+from urllib.request import Request, urlopen
 
 
 def run() -> None:
@@ -42,7 +44,21 @@ def run() -> None:
                 with urlopen(url + "/api/meta", timeout=5) as response:
                     assert json.load(response)["categories"]
                 with urlopen(url, timeout=5) as response:
-                    assert b'id="root"' in response.read()
+                    document = response.read()
+                assert b'id="root"' in document
+                assert b'id="boot-screen"' in document
+                match = re.search(rb'<script[^>]+src="([^"]+\.js)"', document)
+                assert match is not None
+                with urlopen(urljoin(url, match.group(1).decode("utf-8")), timeout=5) as response:
+                    assert response.read(1)
+                report = Request(
+                    url + "/report-error",
+                    data=json.dumps({"message": "packaged smoke test", "stack": ""}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(report, timeout=5) as response:
+                    assert json.load(response) == {"ok": True}
             finally:
                 server.should_exit = True
                 worker.join(timeout=15)
