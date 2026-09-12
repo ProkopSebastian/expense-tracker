@@ -36,10 +36,11 @@ def test_upload_update_and_undo(client):
     assert client.post("/api/import", content=csv("COMPLETED", "-41")).status_code == 200
     [row] = client.get("/api/ledger").json()["blocks"]
     assert (row["id"], row["amount"], row["category_key"]) == (tid, "-41", "groceries")
+    assert client.get("/api/recovery").json() == {"can_undo": True, "label": "Import wyciągu"}
     assert client.post("/api/undo").status_code == 200
     [row] = client.get("/api/ledger").json()["blocks"]
     assert (row["amount"], row["bank_status"]) == ("-40", "PENDING")
-    assert client.get("/api/recovery").json() == {"can_undo": False}
+    assert client.get("/api/recovery").json() == {"can_undo": False, "label": None}
 
 
 def test_account_isolation_and_default_name_idempotence(client):
@@ -72,10 +73,10 @@ def test_backup_retention_keeps_current_undo(tmp_path):
     tid = db.insert_transaction(Transaction("cash", date(2026, 9, 1), Decimal(-10), "PLN", "Test"))
     initial = backup_database(path, "action")
     save_decision(db.connection, tid, "groceries")
-    record_undo(path, initial)
+    record_undo(path, initial, "test")
     for _ in range(31):
         snapshot = backup_database(path, "action")
-        record_undo(path, snapshot)
+        record_undo(path, snapshot, "test")
     assert initial.exists()
     undo_last(path)
     assert transactions(db.connection)[0]["category_key"] is None

@@ -43,24 +43,48 @@ def digest(connection: sqlite3.Connection) -> str:
     return value.hexdigest()
 
 
-def record_undo(path: Path, backup: Path) -> None:
+ACTION_LABELS: dict[tuple[str, str], str] = {
+    ("POST", "/api/transactions"): "Dodanie transakcji ręcznej",
+    ("PUT", "/api/transactions/{}/category"): "Zmiana kategorii transakcji",
+    ("POST", "/api/cases"): "Utworzenie grupy transakcji",
+    ("DELETE", "/api/cases/{}"): "Rozwiązanie grupy transakcji",
+    ("POST", "/api/suggestions/{}/approve"): "Zatwierdzenie sugestii",
+    ("POST", "/api/suggestions/{}/reject"): "Odrzucenie sugestii",
+    ("PUT", "/api/rules/{}"): "Zmiana reguły sprzedawcy",
+    ("DELETE", "/api/rules/{}"): "Usunięcie reguły sprzedawcy",
+    ("POST", "/api/sync"): "Synchronizacja katalogu danych",
+    ("POST", "/api/ai/{}"): "Analiza AI",
+    ("POST", "/api/import"): "Import wyciągu",
+    ("PUT", "/api/settings/ai"): "Zmiana ustawień AI",
+}
+
+
+def describe_action(method: str, path: str) -> str:
+    """Human-readable Polish label for what a mutating request did, for the undo notice."""
+    generic = "/".join("{}" if segment.isdigit() else segment for segment in path.split("/"))
+    label = ACTION_LABELS.get((method, generic))
+    return label or f"Zmiana danych ({method} {path})"
+
+
+def record_undo(path: Path, backup: Path, label: str) -> None:
     with closing(sqlite3.connect(path)) as current, closing(sqlite3.connect(backup)) as previous:
         after = digest(current)
         if after == digest(previous):
             return
     manifest = backup.parent / "undo.json"
     temporary = manifest.with_suffix(".tmp")
-    temporary.write_text(json.dumps({"backup": backup.name, "after": after}))
+    temporary.write_text(json.dumps({"backup": backup.name, "after": after, "label": label}))
     temporary.chmod(0o600)
     temporary.replace(manifest)
 
 
-def undo_available(path: Path) -> bool:
+def undo_available(path: Path) -> dict[str, object]:
     manifest = path.parent / f"{path.stem}-backups" / "undo.json"
     if not manifest.exists():
-        return False
+        return {"can_undo": False, "label": None}
     info = json.loads(manifest.read_text())
-    return (manifest.parent / Path(info["backup"]).name).is_file()
+    available = (manifest.parent / Path(info["backup"]).name).is_file()
+    return {"can_undo": available, "label": info.get("label") if available else None}
 
 
 def undo_last(path: Path) -> None:

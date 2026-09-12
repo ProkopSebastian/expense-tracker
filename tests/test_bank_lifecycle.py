@@ -97,12 +97,12 @@ def test_undo_restores_and_refuses_external_changes(tmp_path):
     tid = db.insert_transaction(operation())
     backup = backup_database(path, "action")
     save_decision(db.connection, tid, "groceries")
-    record_undo(path, backup)
+    record_undo(path, backup, "test")
     undo_last(path)
     assert transactions(db.connection)[0]["category_key"] is None
     backup = backup_database(path, "action")
     save_decision(db.connection, tid, "groceries")
-    record_undo(path, backup)
+    record_undo(path, backup, "test")
     save_decision(db.connection, tid, "shopping")
     with pytest.raises(ValueError, match="poza aplikacją"):
         undo_last(path)

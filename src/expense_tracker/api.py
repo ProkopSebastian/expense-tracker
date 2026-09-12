@@ -57,13 +57,14 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path.startswith("/api/"):
             from starlette.concurrency import run_in_threadpool
 
-            from .recovery import backup_database, record_undo
+            from .recovery import backup_database, describe_action, record_undo
 
             async with app.state.write_lock:
                 backup = await run_in_threadpool(backup_database, path, "action")
                 response = await call_next(request)
                 if request.url.path != "/api/undo":
-                    await run_in_threadpool(record_undo, path, backup)
+                    label = describe_action(request.method, request.url.path)
+                    await run_in_threadpool(record_undo, path, backup, label)
                 return response
         return await call_next(request)
 
