@@ -33,6 +33,10 @@ export default function LedgerPage({
     [direction, setDirection] = useSessionState("ledger.direction", "all"),
     [category, setCategory] = useSessionState<string[]>("ledger.category", []),
     [page, setPage] = useSessionState("ledger.page", 1),
+    [linksTab, setLinksTab] = useSessionState<"relations" | "groups">(
+      "ledger.linksTab",
+      "relations",
+    ),
     [selected, setSelected] = useState<number[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
@@ -81,6 +85,87 @@ export default function LedgerPage({
         </button>
       </div>
       <Notice error={error || action.error} notice={action.notice} />
+      {!!(data?.relations.length || data?.cases.length) && (
+        <section className="data-card links-panel">
+          <div className="links-tabs" role="tablist" aria-label="Powiązania">
+            <button
+              role="tab"
+              aria-selected={linksTab === "relations"}
+              className={linksTab === "relations" ? "selected" : ""}
+              onClick={() => setLinksTab("relations")}
+            >
+              Sugerowane powiązania{" "}
+              <span className="count">{data?.relations.length ?? 0}</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={linksTab === "groups"}
+              className={linksTab === "groups" ? "selected" : ""}
+              onClick={() => setLinksTab("groups")}
+            >
+              Twoje grupy{" "}
+              <span className="count">{data?.cases.length ?? 0}</span>
+            </button>
+          </div>
+          {linksTab === "relations" ? (
+            data?.relations.length ? (
+              data.relations.map((s) => (
+                <article className="relation-row" key={s.id}>
+                  <div>
+                    <strong>{s.payload.title}</strong>
+                    <p>{s.payload.rationale}</p>
+                    <small>
+                      {s.payload.transaction_ids.length} transakcje · Twój
+                      koszt: {money(s.payload.personal_amount, s.payload.currency)}
+                    </small>
+                  </div>
+                  <div className="inline-actions">
+                    <button
+                      className="button"
+                      disabled={action.busy}
+                      onClick={() =>
+                        action.run(
+                          () => request(`/suggestions/${s.id}/reject`, "POST"),
+                          "Sugestia odrzucona.",
+                        )
+                      }
+                    >
+                      Odrzuć
+                    </button>
+                    <button
+                      className="button primary-button"
+                      disabled={action.busy}
+                      onClick={() =>
+                        action.run(
+                          () => request(`/suggestions/${s.id}/approve`, "POST"),
+                          "Grupa utworzona.",
+                        )
+                      }
+                    >
+                      Połącz
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="form-help">Brak sugerowanych powiązań.</p>
+            )
+          ) : data?.cases.length ? (
+            data.cases.map((c) => (
+              <div className="relation-row" key={c.id}>
+                <span>
+                  {c.title} · {money(c.personal_amount, c.currency)}
+                </span>
+                <button className="button" onClick={() => setDissolve(c.id)}>
+                  Rozwiąż grupę
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="form-help">Nie masz jeszcze żadnych grup.</p>
+          )}
+        </section>
+      )}
       <section className="data-card">
         <div className="table-toolbar">
           <label className="search-field">
@@ -371,7 +456,10 @@ export default function LedgerPage({
         </div>
         <footer className="table-footer">
           <span>
-            {data?.total ?? 0} pozycji · grupy liczone jako jedna pozycja
+            {data && data.total
+              ? `${(data.page - 1) * 50 + 1}–${(data.page - 1) * 50 + data.blocks.length} z ${data.total}`
+              : "0"}{" "}
+            pozycji · grupy liczone jako jedna pozycja
           </span>
           <div>
             <button
@@ -402,69 +490,6 @@ export default function LedgerPage({
           </div>
         </footer>
       </section>
-      {!!data?.relations.length && (
-        <section className="data-card related">
-          <h2>
-            Sugerowane powiązania{" "}
-            <span className="count">{data.relations.length}</span>
-          </h2>
-          {data.relations.map((s) => (
-            <article className="relation-row" key={s.id}>
-              <div>
-                <strong>{s.payload.title}</strong>
-                <p>{s.payload.rationale}</p>
-                <small>
-                  {s.payload.transaction_ids.length} transakcje · Twój koszt:{" "}
-                  {money(s.payload.personal_amount, s.payload.currency)}
-                </small>
-              </div>
-              <div className="inline-actions">
-                <button
-                  className="button"
-                  disabled={action.busy}
-                  onClick={() =>
-                    action.run(
-                      () => request(`/suggestions/${s.id}/reject`, "POST"),
-                      "Sugestia odrzucona.",
-                    )
-                  }
-                >
-                  Odrzuć
-                </button>
-                <button
-                  className="button primary-button"
-                  disabled={action.busy}
-                  onClick={() =>
-                    action.run(
-                      () => request(`/suggestions/${s.id}/approve`, "POST"),
-                      "Grupa utworzona.",
-                    )
-                  }
-                >
-                  Połącz
-                </button>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-      {!!data?.cases.length && (
-        <details className="data-card group-list">
-          <summary>
-            Twoje grupy <span className="count">{data.cases.length}</span>
-          </summary>
-          {data.cases.map((c) => (
-            <div className="relation-row" key={c.id}>
-              <span>
-                {c.title} · {money(c.personal_amount, c.currency)}
-              </span>
-              <button className="button" onClick={() => setDissolve(c.id)}>
-                Rozwiąż grupę
-              </button>
-            </div>
-          ))}
-        </details>
-      )}
       {editing && (
         <Modal
           title="Zmień kategorię"
