@@ -431,8 +431,15 @@ export default function LedgerPage({
                   <div className="overflow-x-auto">
                     <table
                       aria-label={`Transakcje: ${monthLabel(month)}`}
-                      className="w-full min-w-[740px] border-collapse text-sm [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-3.5 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
+                      className="w-full min-w-[780px] table-fixed border-collapse text-sm [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-3.5 [&_td]:align-middle"
                     >
+                      <colgroup>
+                        <col className="w-16" />
+                        <col />
+                        <col className="w-48" />
+                        <col className="w-44" />
+                        <col className="w-16" />
+                      </colgroup>
                       <thead>
                         <tr>
                           <th aria-label="Zaznaczenie" />
