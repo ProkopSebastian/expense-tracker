@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
-import { Search, Trash2 } from "lucide-react";
+import { useState, useEffect, useTransition } from "react";
+import { LoaderCircle, Search, Trash2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
+
+const RULES_PAGE_SIZE = 25;
+
 function RuleRow({
   rule,
   categories,
@@ -104,11 +107,16 @@ export default function RulesPage({
     "/rules",
     revision,
   );
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(""),
+    [visibleRulesCount, setVisibleRulesCount] = useState(RULES_PAGE_SIZE);
+  const [isLoadingMore, startLoadingMore] = useTransition();
+  useEffect(() => setVisibleRulesCount(RULES_PAGE_SIZE), [revision]);
   const rules =
     data?.rules.filter((r) =>
       r.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     ) ?? [];
+  const visibleRules = rules.slice(0, visibleRulesCount);
+  const remainingRulesCount = rules.length - visibleRules.length;
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -132,11 +140,14 @@ export default function RulesPage({
               aria-label="Szukaj automatycznych przypisań"
               placeholder="Szukaj sprzedawcy"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisibleRulesCount(RULES_PAGE_SIZE);
+              }}
             />
           </label>
         </div>
-        {rules.map((rule) => (
+        {visibleRules.map((rule) => (
           <RuleRow
             key={rule.id}
             rule={rule}
@@ -156,6 +167,37 @@ export default function RulesPage({
             {!loading && !query && (
               <p>Możesz je zapisać podczas klasyfikacji transakcji.</p>
             )}
+          </div>
+        )}
+        {remainingRulesCount > 0 && (
+          <div className="flex justify-center pt-5">
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
+              disabled={isLoadingMore}
+              aria-busy={isLoadingMore}
+              onClick={() =>
+                startLoadingMore(() =>
+                  setVisibleRulesCount((count) => count + RULES_PAGE_SIZE),
+                )
+              }
+            >
+              {isLoadingMore ? (
+                <>
+                  <LoaderCircle
+                    size={16}
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                  Wczytuję…
+                </>
+              ) : (
+                <>
+                  Pokaż kolejne {Math.min(RULES_PAGE_SIZE, remainingRulesCount)}
+                  <span className="text-muted">
+                    · zostało {remainingRulesCount}
+                  </span>
+                </>
+              )}
+            </button>
           </div>
         )}
       </section>
