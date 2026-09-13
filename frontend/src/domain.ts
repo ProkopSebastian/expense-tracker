@@ -77,7 +77,10 @@ export interface Rule {
 }
 export type Page = "data" | "summary" | "ledger" | "classification" | "rules";
 export const pages: Record<Page, { title: string; description: string }> = {
-  data: { title: "Dane i ustawienia", description: "Import i kopie zapasowe" },
+  data: {
+    title: "Import danych",
+    description: "Dodawaj wyciągi i synchronizuj folder",
+  },
   summary: {
     title: "Podsumowanie",
     description: "Wydatki i przychody w wybranym okresie.",

@@ -30,7 +30,24 @@ class ResetDataConfirmation(BaseModel):
     confirmation: Literal["USUŃ DANE"]
 
 
-ThemeName = Literal["system", "light", "dark", "ocean", "forest", "rose", "sand", "midnight", "graphite"]
+ThemeName = Literal[
+    "system",
+    "light",
+    "dark",
+    "ocean",
+    "forest",
+    "rose",
+    "sand",
+    "midnight",
+    "mocha",
+    "lavender",
+    "nord",
+    "dracula",
+    "gruvbox",
+    "one-dark",
+    "tokyo-night",
+    "catppuccin",
+]
 
 
 class AppearancePreference(BaseModel):

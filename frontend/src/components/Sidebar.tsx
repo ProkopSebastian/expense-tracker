@@ -1,28 +1,31 @@
 import {
   Wallet,
-  LayoutDashboard,
-  History,
-  Sparkles,
+  ChartNoAxesCombined,
+  ReceiptText,
+  Tags,
+  ListChecks,
+  FolderArchive,
   Settings2,
-  LockKeyhole,
 } from "lucide-react";
 import { useState } from "react";
 import { pages, type Page } from "../domain";
 import SettingsDialog from "./SettingsDialog";
 const icons = {
-  data: Wallet,
-  summary: LayoutDashboard,
-  ledger: History,
-  classification: Sparkles,
-  rules: Settings2,
+  data: FolderArchive,
+  summary: ChartNoAxesCombined,
+  ledger: ReceiptText,
+  classification: Tags,
+  rules: ListChecks,
 };
 export default function Sidebar({
   page,
   aiEnabled,
+  onChanged,
   onDataReset,
 }: {
   page: Page;
   aiEnabled: boolean;
+  onChanged: () => void;
   onDataReset: (apiKeyPreserved: boolean) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -71,14 +74,11 @@ export default function Sidebar({
           <Settings2 size={19} />
           <span className="hidden xl:inline">Ustawienia</span>
         </button>
-        <div className="hidden items-center gap-2 pt-4 text-xs leading-relaxed text-muted xl:flex">
-          <LockKeyhole size={16} />
-          <span>Lokalnie na Twoim komputerze</span>
-        </div>
       </aside>
       {settingsOpen && (
         <SettingsDialog
           aiEnabled={aiEnabled}
+          onChanged={onChanged}
           onClose={() => setSettingsOpen(false)}
           onDataReset={onDataReset}
         />

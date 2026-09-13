@@ -50,10 +50,52 @@ export const themeOptions = [
     colors: ["#74b9dc", "#172632", "#283e4d"],
   },
   {
-    id: "graphite",
-    label: "Grafit",
-    description: "Neutralna ciemność i miękka mięta",
-    colors: ["#78c7b5", "#1e2525", "#333f3e"],
+    id: "mocha",
+    label: "Mokka",
+    description: "Ciepły ciemny motyw z bursztynowym akcentem",
+    colors: ["#d97706", "#292524", "#44403c"],
+  },
+  {
+    id: "lavender",
+    label: "Lawenda",
+    description: "Chłodny, pastelowy fiolet",
+    colors: ["#8b5cf6", "#ffffff", "#eceaf5"],
+  },
+  {
+    id: "nord",
+    label: "Nord",
+    description: "Arktyczny chłód i mroźne błękity",
+    colors: ["#88c0d0", "#3b4252", "#434c5e"],
+  },
+  {
+    id: "dracula",
+    label: "Dracula",
+    description: "Neonowy mrok o wysokim kontraście",
+    colors: ["#bd93f9", "#44475a", "#3a3c4e"],
+  },
+  {
+    id: "gruvbox",
+    label: "Gruvbox Dark",
+    description: "Retro groove w ciepłych barwach ziemi",
+    colors: ["#fe8019", "#3c3836", "#504945"],
+  },
+  {
+    id: "one-dark",
+    label: "One Dark",
+    description: "Ciemny motyw inspirowany edytorem Atom",
+    colors: ["#61afef", "#21252b", "#2c313a"],
+  },
+  {
+    id: "tokyo-night",
+    label: "Tokyo Night",
+    description: "Głęboki granat z jasnymi akcentami",
+    colors: ["#7aa2f7", "#24283b", "#292e42"],
+  },
+  {
+    id: "catppuccin",
+    label: "Catppuccin Macchiato",
+    description: "Nowoczesny, pastelowy ciemny motyw",
+    colors: ["#c6a0f6", "#363a4f", "#494d64"],
   },
 ] as const;
 
@@ -122,7 +164,17 @@ export function useResolvedTheme(preference: ThemePreference) {
   }, []);
 
   if (preference === "system") return systemDark ? "dark" : "light";
-  return ["dark", "midnight", "graphite"].includes(preference)
+  return [
+    "dark",
+    "midnight",
+    "mocha",
+    "nord",
+    "dracula",
+    "gruvbox",
+    "one-dark",
+    "tokyo-night",
+    "catppuccin",
+  ].includes(preference)
     ? "dark"
     : "light";
 }

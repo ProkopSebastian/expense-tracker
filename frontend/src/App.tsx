@@ -1,8 +1,7 @@
-import * as Toast from "@radix-ui/react-toast";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
-import { ChevronRight, Undo2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { pages, type Page, type Meta } from "./domain";
-import { request, useResource, useAction } from "./hooks";
+import { useResource } from "./hooks";
 import DataPage from "./pages/DataPage";
 import Sidebar from "./components/Sidebar";
 import ThemeToggle from "./components/ThemeToggle";
@@ -29,16 +28,6 @@ export default function App() {
     setAppNotice("");
     setRevision((value) => value + 1);
   };
-  const action = useAction(changed);
-  const { data: recovery } = useResource<{
-    can_undo: boolean;
-    label: string | null;
-  }>("/recovery", revision);
-  const [undoNoticeVisible, setUndoNoticeVisible] = useState(false);
-  useEffect(() => {
-    if (revision === 0) return;
-    setUndoNoticeVisible(true);
-  }, [revision]);
   useEffect(() => {
     const handler = () => {
       positions.current[previousPage.current] = window.scrollY;
@@ -52,11 +41,11 @@ export default function App() {
     document.title = `Wydatki · ${pages[page].title}`;
   }, [page]);
   return (
-    <Toast.Provider duration={8000}>
-      <div className="min-h-screen bg-canvas font-sans text-ink md:grid md:grid-cols-[84px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)] [&_main]:min-w-0">
+    <div className="min-h-screen bg-canvas font-sans text-ink md:grid md:grid-cols-[84px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)] [&_main]:min-w-0">
         <Sidebar
           page={page}
           aiEnabled={Boolean(meta?.ai_enabled)}
+          onChanged={changed}
           onDataReset={(apiKeyPreserved) => {
             setAppNotice(
               apiKeyPreserved
@@ -77,44 +66,7 @@ export default function App() {
             <ThemeToggle />
           </header>
           <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
-            <Notice
-              error={error || action.error}
-              notice={appNotice || action.notice}
-            />
-            {recovery?.can_undo && (
-              <Toast.Root
-                key={revision}
-                open={undoNoticeVisible}
-                onOpenChange={setUndoNoticeVisible}
-                className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-sm shadow-xl"
-              >
-                <Toast.Title>
-                  {recovery.label ?? "Zmiany zapisane"} · zapisano
-                </Toast.Title>
-                <Toast.Action altText="Cofnij ostatnią zapisaną zmianę" asChild>
-                  <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
-                    disabled={action.busy}
-                    onClick={() =>
-                      action.run(
-                        () => request("/undo", "POST"),
-                        "Ostatnia zmiana została cofnięta.",
-                      )
-                    }
-                  >
-                    <Undo2 size={14} /> Cofnij
-                  </button>
-                </Toast.Action>
-                <Toast.Close asChild>
-                  <button
-                    className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-                    aria-label="Zamknij powiadomienie"
-                  >
-                    ×
-                  </button>
-                </Toast.Close>
-              </Toast.Root>
-            )}
+            <Notice error={error} notice={appNotice} />
             {!meta ? (
               <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
                 {error ? (
@@ -131,7 +83,6 @@ export default function App() {
             ) : page === "data" ? (
               <DataPage
                 accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
-                aiEnabled={meta.ai_enabled}
                 revision={revision}
                 onChanged={changed}
               />
@@ -159,8 +110,6 @@ export default function App() {
             )}
           </div>
         </main>
-      </div>
-      <Toast.Viewport className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-lg flex-col gap-2 outline-none" />
-    </Toast.Provider>
+    </div>
   );
 }
