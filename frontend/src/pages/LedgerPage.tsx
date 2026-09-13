@@ -24,6 +24,43 @@ import {
   Notice,
 } from "../components/Forms";
 import { ManualForm, GroupForm } from "../components/TransactionForms";
+
+function PageNavigation({
+  page,
+  pages,
+  loading,
+  onPageChange,
+}: {
+  page: number;
+  pages: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+        disabled={loading || page <= 1}
+        aria-label="Poprzednia strona"
+        onClick={() => onPageChange(page - 1)}
+      >
+        <ArrowLeft size={16} />
+      </button>
+      <span>
+        {page} / {pages}
+      </span>
+      <button
+        className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+        disabled={loading || page >= pages}
+        aria-label="Następna strona"
+        onClick={() => onPageChange(page + 1)}
+      >
+        <ArrowRight size={16} />
+      </button>
+    </div>
+  );
+}
+
 export default function LedgerPage({
   categories,
   revision,
@@ -82,6 +119,10 @@ export default function LedgerPage({
   }
   function filtersChanged() {
     setPage(1);
+    setSelected([]);
+  }
+  function changePage(nextPage: number) {
+    setPage(nextPage);
     setSelected([]);
   }
   return (
@@ -333,6 +374,15 @@ export default function LedgerPage({
             )}
           </div>
         )}
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 text-xs text-muted">
+          <span>Strona transakcji</span>
+          <PageNavigation
+            page={data?.page ?? page}
+            pages={data?.pages ?? 1}
+            loading={loading}
+            onPageChange={changePage}
+          />
+        </div>
         <div className="overflow-x-auto" aria-busy={loading}>
           <Accordion.Root
             type="multiple"
@@ -568,33 +618,12 @@ export default function LedgerPage({
               : "0"}{" "}
             pozycji · grupy liczone jako jedna pozycja
           </span>
-          <div>
-            <button
-              className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-              disabled={loading || (data?.page ?? 1) <= 1}
-              aria-label="Poprzednia strona"
-              onClick={() => {
-                setPage(page - 1);
-                setSelected([]);
-              }}
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <span>
-              {data?.page ?? 1} / {data?.pages ?? 1}
-            </span>
-            <button
-              className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-              disabled={loading || (data?.page ?? 1) >= (data?.pages ?? 1)}
-              aria-label="Następna strona"
-              onClick={() => {
-                setPage(page + 1);
-                setSelected([]);
-              }}
-            >
-              <ArrowRight size={16} />
-            </button>
-          </div>
+          <PageNavigation
+            page={data?.page ?? page}
+            pages={data?.pages ?? 1}
+            loading={loading}
+            onPageChange={changePage}
+          />
         </footer>
       </section>
       {editing && (
