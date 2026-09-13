@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Link2, Check, Search } from "lucide-react";
+import { Sparkles, Link2, Check, LoaderCircle, Search } from "lucide-react";
 import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
@@ -147,8 +147,21 @@ export default function ClassificationPage({
           <h1>Do klasyfikacji</h1>
           <p>Uporządkuj wydatki, po swojemu lub z pomocą AI.</p>
         </div>
-        <span className="rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent">
-          {data?.rows.length ?? 0} do przejrzenia
+        <span
+          className="inline-flex items-center gap-2 rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent"
+          role="status"
+        >
+          {loading && !data ? (
+            <>
+              <LoaderCircle
+                size={14}
+                className="animate-spin motion-reduce:animate-none"
+              />
+              Wczytuję klasyfikacje…
+            </>
+          ) : (
+            `${data?.rows.length ?? 0} do przejrzenia`
+          )}
         </span>
       </div>
       {!aiEnabled && (
@@ -243,7 +256,14 @@ export default function ClassificationPage({
         ))}
         {!rows.length && (
           <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
-            <Check size={28} />
+            {loading ? (
+              <LoaderCircle
+                size={28}
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <Check size={28} />
+            )}
             <h3>
               {loading
                 ? "Wczytuję…"
