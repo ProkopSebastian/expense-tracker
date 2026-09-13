@@ -1,13 +1,7 @@
 import CategoryIcon from "./CategoryIcon";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useState } from "react";
-import {
-  PieChart,
-  BarChart3,
-  ChevronRight,
-  Wallet,
-  ListFilter,
-} from "lucide-react";
+import { PieChart, BarChart3, ChevronRight, Wallet } from "lucide-react";
 import { money, type BreakdownNode, type Summary } from "../api";
 import CategoryChart from "./CategoryChart";
 import { nodeColor } from "../categoryPresentation";
@@ -27,12 +21,11 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
     <Tabs.Root
       value={view}
       onValueChange={(value) => setView(value as "donut" | "bars")}
-      className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm"
+      className="overflow-hidden"
     >
-      <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-4 pt-6 lg:px-7 [&_p]:mt-1.5 [&_p]:text-sm [&_p]:text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-3">
         <div>
           <h2>Na co wydajesz?</h2>
-          <p>Od kategorii do pojedynczego sprzedawcy.</p>
         </div>
         <Tabs.List
           className="flex gap-1 rounded-xl border border-line bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
@@ -49,7 +42,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
         </Tabs.List>
       </div>
       <div
-        className="flex min-h-9 flex-wrap items-center gap-2 px-5 text-xs text-muted lg:px-7 [&>span]:flex [&>span]:items-center [&>span]:gap-2 [&_button]:rounded-md [&_button]:px-2 [&_button]:py-1 [&_button]:text-accent [&_button:disabled]:text-muted [&_button:disabled]:opacity-100"
+        className="flex min-h-9 flex-wrap items-center gap-2 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2 [&_button]:rounded-md [&_button]:px-2 [&_button]:py-1 [&_button]:text-accent [&_button:disabled]:text-muted [&_button:disabled]:opacity-100"
         aria-label="Poziom kategorii"
       >
         <button
@@ -89,7 +82,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           </div>
         ) : (
           <div
-            className={`grid items-center gap-6 p-5 lg:grid-cols-2 lg:p-7 ${view === "bars" ? "lg:grid-cols-1!" : ""}`}
+            className={`grid items-center gap-6 py-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10 ${view === "bars" ? "lg:grid-cols-1!" : ""}`}
           >
             {view === "donut" && (
               <div className="min-w-0">
@@ -108,8 +101,8 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                 />
                 <p className="text-center text-xs text-muted">
                   {path.length
-                    ? "Kliknij środek, żeby wrócić wyżej"
-                    : "Kliknij kategorię, żeby zobaczyć szczegóły"}
+                    ? "Wybierz środek wykresu, aby wrócić"
+                    : "Wybierz kategorię, aby zobaczyć szczegóły"}
                 </p>
               </div>
             )}
@@ -174,8 +167,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           </div>
         )}
       </Tabs.Content>
-      <footer className="flex items-start gap-2 border-t border-line bg-surface-muted/70 px-5 py-4 text-xs leading-relaxed text-muted [&_svg]:shrink-0">
-        <ListFilter size={15} />
+      <footer className="border-t border-line pt-4 text-xs leading-relaxed text-muted">
         <span>Kwoty uwzględniają grupy, zwroty i Twój udział w wydatkach.</span>
       </footer>
     </Tabs.Root>

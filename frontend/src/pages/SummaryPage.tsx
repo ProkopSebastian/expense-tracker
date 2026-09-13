@@ -90,13 +90,15 @@ export default function SummaryPage({
           }
           aria-busy={loading}
         >
-          <SummaryCards data={data} />
+          <div className="mb-8 grid gap-8 border-y border-line py-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-0">
+            <SummaryCards data={data} />
+            <BalanceChart data={data} />
+          </div>
           <BreakdownPanel
             key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
             data={data}
           />
-          <div className="mt-6 grid gap-4 xl:grid-cols-2">
-            <BalanceChart data={data} />
+          <div className="mt-8">
             <MonthlyBarChart data={data} />
           </div>
           <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">

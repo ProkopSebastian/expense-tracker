@@ -68,7 +68,12 @@ export default function BalanceChart({ data }: { data: Summary }) {
           type: "line",
           data: points.map((p) => Number(p.balance)),
           showSymbol: false,
-          lineStyle: { width: 3, color: lineColor, cap: "round", join: "round" },
+          lineStyle: {
+            width: 3,
+            color: lineColor,
+            cap: "round",
+            join: "round",
+          },
           areaStyle: { opacity: 0.07, color: lineColor },
           emphasis: { disabled: true },
         },
@@ -82,26 +87,11 @@ export default function BalanceChart({ data }: { data: Summary }) {
     };
   }, [data, themeSignal]);
   return (
-    <section className="min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-sm lg:p-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start [&_p]:mt-2 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-muted [&>strong]:text-2xl [&>strong]:whitespace-nowrap [&>strong]:tabular-nums">
-        <div>
-          <h2>Bilans narastająco</h2>
-          <p>
-            Od zera, dzień po dniu · po rozliczeniu grup i bez przelewów
-            własnych
-          </p>
-        </div>
-        <strong
-          className={
-            Number(data.balance) >= 0 ? "text-success" : "text-danger"
-          }
-        >
-          {money(data.balance, data.currency)}
-        </strong>
-      </div>
+    <section className="min-w-0 lg:border-l lg:border-line lg:pl-8">
+      <h2>Bilans w czasie</h2>
       {data.daily.length ? (
         <div
-          className="mt-4 h-[240px]"
+          className="mt-3 h-[190px]"
           ref={container}
           role="img"
           aria-label={`Bilans od ${data.start} do ${data.end}. Początek 0, koniec ${money(data.balance, data.currency)}.`}

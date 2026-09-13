@@ -136,7 +136,7 @@ export default function CategoryChart({
   }, [hovered, nodes]);
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[355px]">
+    <div className="relative mx-auto aspect-square w-full max-w-[390px]">
       <div className="size-full" ref={container} aria-hidden="true" />
       <button
         className="absolute left-[23%] top-[29%] flex h-[42%] w-[54%] flex-col items-center justify-center gap-3 rounded-full disabled:opacity-100! enabled:hover:bg-accent-soft [&_strong]:text-xl [&_strong]:font-semibold [&_strong]:tracking-tight [&_strong]:whitespace-nowrap sm:[&_strong]:text-2xl"
