@@ -1,5 +1,6 @@
 import { useState, useTransition } from "react";
-import { Sparkles, Link2, Check, LoaderCircle, Search } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { Sparkles, Check, LoaderCircle, Search } from "lucide-react";
 import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
@@ -36,30 +37,31 @@ function ClassificationItem({
   const [category, setCategory] = useState(row.category_key ?? ""),
     [remember, setRemember] = useState(row.remember);
   const action = useAction(onChanged);
-  const direction = transactionDirection(row.totals);
-  const directionPresentation = {
-    expense: {
-      sign: "−",
-      amountClassName: "text-danger",
-    },
-    income: {
-      sign: "+",
-      amountClassName: "text-success",
-    },
-    mixed: {
-      sign: "±",
-      amountClassName: "text-info",
-    },
-  }[direction];
+  const amountClassName = {
+    expense: "text-danger",
+    income: "text-success",
+    mixed: "text-info",
+  }[transactionDirection(row.totals)];
+  const amount = Object.entries(row.totals)
+    .map(([currency, total]) => {
+      const value = Number(total);
+      const sign = value < 0 ? "−" : value > 0 ? "+" : "";
+      return `${sign} ${money(Math.abs(value), currency)}`.trim();
+    })
+    .join(" / ");
   return (
-    <article className="grid items-center gap-5 border-b border-line p-5 last:border-0 lg:grid-cols-[minmax(0,1fr)_minmax(140px,180px)_220px_auto] 2xl:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_240px_auto]">
+    <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(130px,160px)_minmax(180px,220px)_auto] lg:items-center lg:gap-5">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 [&_strong]:text-sm [&_strong]:leading-relaxed [&_strong]:wrap-anywhere">
-          <strong>{row.description}</strong>
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="text-sm font-medium leading-relaxed wrap-anywhere">
+            {row.description}
+          </strong>
           {row.suggestion_id && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-1 text-[10px] font-medium whitespace-nowrap text-accent">
-              <Sparkles size={12} />
-              AI · {Math.round((row.confidence ?? 0) * 100)}%
+            <span className="text-xs whitespace-nowrap text-muted">
+              AI
+              {row.confidence !== null
+                ? ` · ${Math.round(row.confidence * 100)}%`
+                : ""}
             </span>
           )}
         </div>
@@ -69,26 +71,22 @@ function ClassificationItem({
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
         </div>
         {row.rationale && (
-          <p className="mt-2 text-xs leading-relaxed text-muted">
-            {row.rationale}
-          </p>
+          <details className="mt-2 text-xs text-muted">
+            <summary className="w-fit hover:text-accent">
+              Dlaczego ta kategoria?
+            </summary>
+            <p className="mt-2 max-w-xl leading-relaxed">{row.rationale}</p>
+          </details>
         )}
         <Notice error={action.error} />
       </div>
       <strong
-        className={`text-left text-lg font-semibold tracking-tight tabular-nums lg:text-center ${directionPresentation.amountClassName}`}
-        aria-label={`Kwota transakcji: ${Object.entries(row.totals)
-          .map(([currency, total]) => money(Math.abs(Number(total)), currency))
-          .join(" / ")}`}
+        className={`max-w-40 text-right text-base font-semibold tracking-tight tabular-nums wrap-anywhere lg:justify-self-end ${amountClassName}`}
+        aria-label={`Kwota transakcji: ${amount}`}
       >
-        {Object.entries(row.totals)
-          .map(
-            ([currency, total]) =>
-              `${directionPresentation.sign} ${money(Math.abs(Number(total)), currency)}`,
-          )
-          .join(" / ")}
+        {amount}
       </strong>
-      <div className="grid min-w-0 gap-3">
+      <div className="col-span-2 grid min-w-0 gap-2 lg:col-span-1">
         <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
           <CategorySelect
             categories={categories}
@@ -106,9 +104,9 @@ function ClassificationItem({
           Zapamiętaj regułę
         </label>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
           disabled={!category || action.busy}
           onClick={() =>
             action.run(() =>
@@ -123,12 +121,13 @@ function ClassificationItem({
           }
         >
           <Check size={16} />
-          Zapisz
+          {row.suggestion_id ? "Zatwierdź" : "Przypisz"}
         </button>
         {row.suggestion_id && (
           <button
-            className="rounded-lg p-2 text-sm text-muted hover:bg-accent-soft hover:text-accent"
+            className="rounded-lg px-2 py-2 text-sm text-muted transition hover:bg-accent-soft hover:text-accent"
             disabled={action.busy}
+            aria-label={`Odrzuć sugestię dla ${row.description}`}
             onClick={() =>
               action.run(() =>
                 request(`/suggestions/${row.suggestion_id}/reject`, "POST"),
@@ -190,17 +189,31 @@ export default function ClassificationPage({
         .toLocaleLowerCase()
         .includes(query.toLocaleLowerCase()),
     ) ?? [];
-  const visibleRows = rows.slice(0, visibleRowsCount);
+  const suggestions = rows.filter((row) => row.suggestion_id);
+  const unclassified = rows.filter((row) => !row.suggestion_id);
+  const visibleRows = [...suggestions, ...unclassified].slice(
+    0,
+    visibleRowsCount,
+  );
   const remainingRowsCount = rows.length - visibleRows.length;
+  const groups = [
+    {
+      title: "Sugestie do zatwierdzenia",
+      count: suggestions.length,
+      rows: visibleRows.filter((row) => row.suggestion_id),
+    },
+    {
+      title: "Bez kategorii",
+      count: unclassified.length,
+      rows: visibleRows.filter((row) => !row.suggestion_id),
+    },
+  ];
   return (
     <>
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-        <div>
-          <h1>Do klasyfikacji</h1>
-          <p>Uporządkuj wydatki, po swojemu lub z pomocą AI.</p>
-        </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1>Do klasyfikacji</h1>
         <span
-          className="inline-flex items-center gap-2 rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent"
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted"
           role="status"
         >
           {loading && !data ? (
@@ -216,101 +229,95 @@ export default function ClassificationPage({
           )}
         </span>
       </div>
-      {!aiEnabled && (
-        <div className="mb-5 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
-          Aby korzystać z AI, dodaj klucz API w zakładce{" "}
-          <a
-            className="font-semibold text-accent underline underline-offset-2"
-            href="#data"
-          >
-            Dane i ustawienia
-          </a>
-          .
-        </div>
-      )}
       <Notice error={error} />
-      <div className="mb-5 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
-            <Sparkles size={22} />
-          </span>
-          <h2>Rozpoznaj sprzedawców</h2>
-          <p>
-            AI proponuje kategorie dla maksymalnie 20 sprzedawców w jednej
-            partii. Ty zatwierdzasz każdą decyzję.
-          </p>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
-            disabled={
-              !aiEnabled ||
-              action.busy ||
-              !data?.rows.some((r) => r.transaction_id)
-            }
-            onClick={() => analyze("merchants")}
-          >
-            {action.busy ? "Analiza trwa…" : "Zaproponuj kategorie"}
-            <Sparkles size={15} />
-          </button>
-          {activeKind === "merchants" && (
-            <div className="mt-4">
-              <Notice error={action.error} notice={notice || action.notice} />
-            </div>
-          )}
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-          <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent bg-info/10! text-info!">
-            <Link2 size={22} />
-          </span>
-          <h2>Znajdź powiązania</h2>
-          <p>
-            Wspólne zakupy, zwroty i rozliczenia. Analiza obejmuje do 100
-            najnowszych transakcji poza grupami.
-          </p>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
-            disabled={!aiEnabled || action.busy}
-            onClick={() => analyze("relations")}
-          >
-            Wykryj powiązania
-            <Link2 size={15} />
-          </button>
-          {activeKind === "relations" && (
-            <div className="mt-4">
-              <Notice error={action.error} notice={notice || action.notice} />
-            </div>
-          )}
-        </section>
-      </div>
-      <p className="text-sm leading-relaxed text-muted">
-        Dane do AI są wysyłane tylko po kliknięciu przycisku. Rozpoznawanie
-        sprzedawców może korzystać z wyszukiwania w internecie.
-      </p>
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
-          <h2>Przejrzyj i przypisz</h2>
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
-            <Search size={16} />
-            <input
-              aria-label="Szukaj do klasyfikacji"
-              placeholder="Szukaj sprzedawcy"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setVisibleRowsCount(CLASSIFICATION_PAGE_SIZE);
-              }}
-            />
-          </label>
-        </div>
-        {visibleRows.map((row) => (
-          <ClassificationItem
-            key={row.key}
-            row={row}
-            categories={categories}
-            onChanged={onChanged}
+      <div className="flex flex-wrap items-center gap-3 border-y border-line py-4">
+        <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+          <Search size={16} />
+          <input
+            aria-label="Szukaj do klasyfikacji"
+            placeholder="Szukaj sprzedawcy"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setVisibleRowsCount(CLASSIFICATION_PAGE_SIZE);
+            }}
           />
-        ))}
-        {!rows.length && (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+        </label>
+        <button
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+          disabled={
+            !aiEnabled ||
+            action.busy ||
+            !data?.rows.some((row) => row.transaction_id)
+          }
+          onClick={() => analyze("merchants")}
+        >
+          <Sparkles size={15} />
+          {action.busy && activeKind === "merchants"
+            ? "Analiza trwa…"
+            : "Zaproponuj kategorie"}
+        </button>
+        <Popover.Root>
+          <Popover.Trigger className="rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft">
+            Narzędzia AI
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              align="end"
+              sideOffset={6}
+              className="z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm shadow-xl"
+            >
+              <h2>Znajdź powiązania</h2>
+              <p className="mt-2 leading-relaxed text-muted">
+                Wspólne zakupy, zwroty i rozliczenia. Wyniki znajdziesz w
+                Historii transakcji.
+              </p>
+              <Popover.Close asChild>
+                <button
+                  className="mt-4 rounded-lg border border-line px-3.5 py-2 font-medium transition hover:bg-accent-soft"
+                  disabled={!aiEnabled || action.busy}
+                  onClick={() => analyze("relations")}
+                >
+                  Wykryj powiązania
+                </button>
+              </Popover.Close>
+              <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
+                Analiza obejmuje do 100 najnowszych transakcji poza grupami.
+              </p>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+      </div>
+      <p className="mb-6 mt-2 text-xs leading-relaxed text-muted">
+        {aiEnabled
+          ? "AI analizuje dane dopiero po kliknięciu. Rozpoznawanie może korzystać z internetu."
+          : "Aby korzystać z AI, dodaj klucz API w Ustawieniach."}
+      </p>
+      {activeKind && (
+        <Notice error={action.error} notice={notice || action.notice} />
+      )}
+      <div className="mb-6">
+        {groups.map(
+          (group) =>
+            group.rows.length > 0 && (
+              <section className="mb-7" key={group.title}>
+                <div className="flex items-baseline gap-2 border-b border-line pb-2">
+                  <h2>{group.title}</h2>
+                  <span className="text-xs text-muted">{group.count}</span>
+                </div>
+                {group.rows.map((row) => (
+                  <ClassificationItem
+                    key={row.key}
+                    row={row}
+                    categories={categories}
+                    onChanged={onChanged}
+                  />
+                ))}
+              </section>
+            ),
+        )}
+        {!rows.length && !error && (
+          <div className="flex min-h-48 flex-col items-center justify-center gap-4 py-8 text-center text-sm text-muted">
             {loading ? (
               <LoaderCircle
                 size={28}
@@ -332,9 +339,9 @@ export default function ClassificationPage({
           </div>
         )}
         {remainingRowsCount > 0 && (
-          <div className="flex justify-center border-t border-line p-4">
+          <div className="flex justify-center">
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
               disabled={isLoadingMore}
               aria-busy={isLoadingMore}
               onClick={() =>
@@ -365,7 +372,7 @@ export default function ClassificationPage({
             </button>
           </div>
         )}
-      </section>
+      </div>
     </>
   );
 }
