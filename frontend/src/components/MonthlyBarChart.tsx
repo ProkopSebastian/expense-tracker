@@ -77,21 +77,16 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
     };
   }, [data, themeSignal]);
 
-  return (
-    <section className="min-w-0 border-t border-line pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
-      <h2>Bilans miesięczny</h2>
-      {data.monthly.length ? (
-        <div
-          className="mt-4 h-[240px]"
-          ref={container}
-          role="img"
-          aria-label="Bilans poszczególnych miesięcy, na plusie lub na minusie."
-        />
-      ) : (
-        <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
-          Za mało danych, żeby pokazać miesiące.
-        </p>
-      )}
-    </section>
+  return data.monthly.length ? (
+    <div
+      className="h-[190px]"
+      ref={container}
+      role="img"
+      aria-label="Bilans poszczególnych miesięcy, na plusie lub na minusie."
+    />
+  ) : (
+    <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+      Za mało danych, żeby pokazać miesiące.
+    </p>
   );
 }

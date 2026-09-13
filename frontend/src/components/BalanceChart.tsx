@@ -86,21 +86,16 @@ export default function BalanceChart({ data }: { data: Summary }) {
       chart.dispose();
     };
   }, [data, themeSignal]);
-  return (
-    <section className="min-w-0 lg:border-l lg:border-line lg:pl-8">
-      <h2>Bilans w czasie</h2>
-      {data.daily.length ? (
-        <div
-          className="mt-3 h-[190px]"
-          ref={container}
-          role="img"
-          aria-label={`Bilans od ${data.start} do ${data.end}. Początek 0, koniec ${money(data.balance, data.currency)}.`}
-        />
-      ) : (
-        <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
-          Brak operacji w tym okresie.
-        </p>
-      )}
-    </section>
+  return data.daily.length ? (
+    <div
+      className="h-[190px]"
+      ref={container}
+      role="img"
+      aria-label={`Bilans od ${data.start} do ${data.end}. Początek 0, koniec ${money(data.balance, data.currency)}.`}
+    />
+  ) : (
+    <p className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
+      Brak operacji w tym okresie.
+    </p>
   );
 }

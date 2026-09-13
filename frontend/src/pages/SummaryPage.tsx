@@ -1,6 +1,5 @@
 import { useSessionState } from "../hooks";
-import BalanceChart from "../components/BalanceChart";
-import MonthlyBarChart from "../components/MonthlyBarChart";
+import BalanceTimeline from "../components/BalanceTimeline";
 import { useEffect, useState } from "react";
 import { CircleHelp, LockKeyhole } from "lucide-react";
 import { fetchSummary, type Filters, type Summary } from "../api";
@@ -92,15 +91,12 @@ export default function SummaryPage({
         >
           <div className="mb-8 grid gap-8 border-y border-line py-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-0">
             <SummaryCards data={data} />
-            <BalanceChart data={data} />
+            <BalanceTimeline data={data} />
           </div>
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_330px] xl:gap-0">
-            <BreakdownPanel
-              key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
-              data={data}
-            />
-            <MonthlyBarChart data={data} />
-          </div>
+          <BreakdownPanel
+            key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
+            data={data}
+          />
           <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">
             <span>
               <LockKeyhole size={14} />
