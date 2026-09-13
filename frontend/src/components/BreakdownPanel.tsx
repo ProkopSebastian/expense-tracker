@@ -91,20 +91,21 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                   : "invisible pointer-events-none [grid-area:1/1]"
               }
             >
-              <CategoryChart
-                active={view === "donut"}
-                nodes={nodes}
-                currency={data.currency}
-                title={path.at(-1)?.label ?? "Łącznie"}
-                canGoBack={path.length > 0}
-                onSelect={selectNode}
-                onBack={() => {
-                  setPath(path.slice(0, -1));
-                  setHovered(null);
-                }}
-                hovered={hovered}
-                onHover={setHovered}
-              />
+              {view === "donut" && (
+                <CategoryChart
+                  nodes={nodes}
+                  currency={data.currency}
+                  title={path.at(-1)?.label ?? "Łącznie"}
+                  canGoBack={path.length > 0}
+                  onSelect={selectNode}
+                  onBack={() => {
+                    setPath(path.slice(0, -1));
+                    setHovered(null);
+                  }}
+                  hovered={hovered}
+                  onHover={setHovered}
+                />
+              )}
               <p className="text-center text-xs text-muted">
                 {path.length
                   ? "Wybierz środek wykresu, aby wrócić"

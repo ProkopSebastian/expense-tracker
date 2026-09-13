@@ -1,5 +1,5 @@
 import { nodeColor } from "../categoryPresentation";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import { PieChart } from "echarts/charts";
 import { TooltipComponent } from "echarts/components";
@@ -11,7 +11,6 @@ import { ArrowLeft } from "lucide-react";
 echarts.use([PieChart, TooltipComponent, SVGRenderer]);
 
 interface Props {
-  active: boolean;
   nodes: BreakdownNode[];
   currency: string;
   title: string;
@@ -23,7 +22,6 @@ interface Props {
 }
 
 export default function CategoryChart({
-  active,
   nodes,
   currency,
   title,
@@ -35,8 +33,6 @@ export default function CategoryChart({
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.EChartsType | null>(null);
-  const wasActive = useRef(active);
-  const currentOption = useRef<echarts.EChartsCoreOption | null>(null);
   const handlers = useRef({ onSelect, onHover, nodes });
   handlers.current = { onSelect, onHover, nodes };
   const total = nodes.reduce((sum, node) => sum + Number(node.total), 0);
@@ -131,38 +127,8 @@ export default function CategoryChart({
     };
     const instance = chart.current;
     if (!instance) return;
-    currentOption.current = option;
     instance.setOption(option);
   }, [nodes, currency]);
-
-  useLayoutEffect(() => {
-    const becameActive = active && !wasActive.current;
-    wasActive.current = active;
-    if (!chart.current || !currentOption.current) return;
-    const instance = chart.current;
-    const option = currentOption.current;
-    if (
-      !active &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      instance.setOption({
-        animation: false,
-        series: [
-          {
-            id: "categories",
-            data: [
-              {
-                id: "initial",
-                value: total,
-                itemStyle: { color: nodeColor("initial") },
-              },
-            ],
-          },
-        ],
-      });
-    }
-    if (becameActive) instance.setOption(option);
-  }, [active, total]);
 
   useEffect(() => {
     chart.current?.dispatchAction({ type: "downplay", seriesIndex: 0 });
