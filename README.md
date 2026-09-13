@@ -18,3 +18,13 @@ Aplikacja do śledzenia wydatków na podstawie wyciągów z banku. Została zapr
 ## Podgląd aplikacji
 
 ![Podgląd interfejsu Wydatków](docs/preview.png)
+
+## Budowanie wersji Linux
+
+Aby lokalnie zbudować samodzielny plik dla bieżącej architektury Linuksa, uruchom:
+
+```bash
+scripts/build_linux.sh
+```
+
+Wynikiem będzie `dist/Wydatki`. Skrypt wydaniowy na GitHubie używa tego samego mechanizmu i dołącza program, ikonę oraz instalator do paczki.

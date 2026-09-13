@@ -7,7 +7,6 @@ import html
 import importlib
 import json
 import logging
-import os
 import re
 import socket
 import sys
@@ -50,19 +49,20 @@ def _configure_linux_app_identity(icon_path: Path) -> None:
         _linux_app.setWindowIcon(QIcon(str(icon_path)))
 
 
+def _runtime_data_directory() -> Path:
+    from expense_tracker.paths import application_paths
+
+    return application_paths().data_dir
+
+
 def _prepare_runtime() -> tuple[Path, TextIO]:
-    if sys.platform == "win32":
-        directory = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share")) / "Wydatki"
-        directory.mkdir(parents=True, exist_ok=True)
-        os.chdir(directory)
-        os.environ["DATABASE_PATH"] = str(directory / "expense-tracker.sqlite3")
-        os.environ["DATA_DIR"] = str(directory / "data")
-        (directory / "data").mkdir(exist_ok=True)
-        log_path = directory / "app.log"
-    else:
-        log_dir = Path.home() / ".local" / "state" / "Wydatki"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / "app.log"
+    from expense_tracker.paths import application_paths
+
+    paths = application_paths()
+    paths.data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    (paths.data_dir / "data").mkdir(mode=0o700, exist_ok=True)
+    paths.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    log_path = paths.state_dir / "app.log"
 
     log = log_path.open("a", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = log

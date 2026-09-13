@@ -37,13 +37,13 @@ class AppearancePreference(BaseModel):
     theme: ThemeName
 
 
-def _appearance_path(database_path: Path) -> Path:
-    return database_path.parent / "appearance.json"
+def _appearance_path(configuration_dir: Path) -> Path:
+    return configuration_dir / "appearance.json"
 
 
 @router.get("/settings/appearance", response_model=AppearancePreference)
 def get_appearance(request: Request):
-    path = _appearance_path(request.app.state.database_path)
+    path = _appearance_path(request.app.state.configuration_dir)
     if not path.exists():
         return AppearancePreference(theme="system")
     try:
@@ -54,8 +54,8 @@ def get_appearance(request: Request):
 
 @router.put("/settings/appearance")
 def save_appearance(entry: AppearancePreference, request: Request):
-    path = _appearance_path(request.app.state.database_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = _appearance_path(request.app.state.configuration_dir)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(entry.model_dump()), encoding="utf-8")
     temporary.replace(path)
@@ -277,7 +277,7 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
 
 @router.put("/settings/ai")
 def configure_ai(entry: AIPreferences, request: Request):
-    save_preferences(request.app.state.database_path, entry)
+    save_preferences(request.app.state.configuration_dir, entry)
     return {"message": "Ustawienia AI zapisane."}
 
 

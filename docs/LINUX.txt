@@ -1,0 +1,17 @@
+WYDATKI — instalacja na Linuksie
+
+1. Rozpakuj archiwum do dowolnego folderu.
+2. W terminalu w tym folderze uruchom: ./install.sh
+3. Otwórz „Wydatki” z menu aplikacji.
+
+Nie trzeba instalować Pythona ani Node.js.
+Program trafia do ~/.local/bin/Wydatki, a ikona i wpis menu do katalogów
+użytkownika zgodnych ze standardem XDG.
+
+Dane aplikacji są niezależne od miejsca, z którego pobrano program:
+- baza i importowane wyciągi: ~/.local/share/Wydatki
+- ustawienia i klucz API: ~/.config/Wydatki
+- log działania: ~/.local/state/Wydatki/app.log
+
+Nową wersję zainstaluj przez ./install.sh z nowo rozpakowanej paczki. Program
+i ikona zostaną podmienione, ale dane pozostaną bez zmian.

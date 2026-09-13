@@ -27,8 +27,11 @@ from .web_routes import router
 logger = logging.getLogger("expense_tracker.frontend")
 
 
-def create_app(database_path: Path | None = None) -> FastAPI:
+def create_app(database_path: Path | None = None, configuration_dir: Path | None = None) -> FastAPI:
     path = database_path if database_path is not None else settings.database_path
+    preferences_directory = configuration_dir if configuration_dir is not None else (
+        path.parent if database_path is not None else settings.configuration_dir
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -37,11 +40,12 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         database.close()
         from .preferences import load_preferences
 
-        load_preferences(path)
+        load_preferences(preferences_directory)
         yield
 
     app = FastAPI(title="Expense Tracker", version="0.1.0", lifespan=lifespan)
     app.state.database_path = path
+    app.state.configuration_dir = preferences_directory
     from threading import Lock
 
     app.state.ai_lock = Lock()

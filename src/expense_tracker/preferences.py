@@ -13,8 +13,8 @@ class AIPreferences(BaseModel):
     clear_key: bool = False
 
 
-def load_preferences(database_path: Path) -> None:
-    path = database_path.parent / "ai-settings.json"
+def load_preferences(configuration_dir: Path) -> None:
+    path = configuration_dir / "ai-settings.json"
     if path.exists():
         try:
             data = json.loads(path.read_text())
@@ -23,7 +23,7 @@ def load_preferences(database_path: Path) -> None:
         settings.openai_api_key = SecretStr(data["api_key"]) if data.get("api_key") else None
 
 
-def save_preferences(database_path: Path, entry: AIPreferences) -> None:
+def save_preferences(configuration_dir: Path, entry: AIPreferences) -> None:
     key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
     if entry.clear_key:
         key = ""
@@ -31,7 +31,8 @@ def save_preferences(database_path: Path, entry: AIPreferences) -> None:
         key = entry.api_key.get_secret_value().strip()
         if not key or len(key) > 500:
             raise ValueError("Podaj poprawny klucz albo wybierz jego usunięcie.")
-    path = database_path.parent / "ai-settings.json"
+    path = configuration_dir / "ai-settings.json"
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps({"api_key": key}))
     temporary.chmod(0o600)
