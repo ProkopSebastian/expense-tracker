@@ -113,9 +113,13 @@ export default function ClassificationPage({
   );
   const action = useAction(onChanged);
   const [notice, setNotice] = useState(""),
+    [activeKind, setActiveKind] = useState<"merchants" | "relations" | null>(
+      null,
+    ),
     [query, setQuery] = useState("");
   async function analyze(kind: "merchants" | "relations") {
     setNotice("");
+    setActiveKind(kind);
     await action.run(async () => {
       const result = await request<{
         saved: number;
@@ -147,6 +151,19 @@ export default function ClassificationPage({
           {data?.rows.length ?? 0} do przejrzenia
         </span>
       </div>
+      {!aiEnabled && (
+        <div className="mb-5 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
+          Aby korzystać z AI, dodaj klucz API w zakładce{" "}
+          <a
+            className="font-semibold text-accent underline underline-offset-2"
+            href="#data"
+          >
+            Dane i ustawienia
+          </a>
+          .
+        </div>
+      )}
+      <Notice error={error} />
       <div className="mb-5 grid gap-4 sm:grid-cols-2">
         <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
           <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
@@ -169,6 +186,11 @@ export default function ClassificationPage({
             {action.busy ? "Analiza trwa…" : "Zaproponuj kategorie"}
             <Sparkles size={15} />
           </button>
+          {activeKind === "merchants" && (
+            <div className="mt-4">
+              <Notice error={action.error} notice={notice || action.notice} />
+            </div>
+          )}
         </section>
         <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm [&_p]:my-4 [&_p]:max-w-md [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
           <span className="mb-5 grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent bg-info/10! text-info!">
@@ -187,16 +209,17 @@ export default function ClassificationPage({
             Wykryj powiązania
             <Link2 size={15} />
           </button>
+          {activeKind === "relations" && (
+            <div className="mt-4">
+              <Notice error={action.error} notice={notice || action.notice} />
+            </div>
+          )}
         </section>
       </div>
-      {!aiEnabled && (
-        <Notice notice="Aby włączyć AI, ustaw OPENAI_API_KEY w pliku .env i uruchom aplikację ponownie." />
-      )}
       <p className="text-sm leading-relaxed text-muted">
         Dane do AI są wysyłane tylko po kliknięciu przycisku. Rozpoznawanie
         sprzedawców może korzystać z wyszukiwania w internecie.
       </p>
-      <Notice error={error || action.error} notice={notice || action.notice} />
       <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
           <h2>Przejrzyj i przypisz</h2>

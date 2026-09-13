@@ -1,8 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+from openai import APIConnectionError, AuthenticationError, RateLimitError
 
 from expense_tracker.api import create_app
 from expense_tracker.config import settings
@@ -150,6 +152,37 @@ def test_classification_suggestions_and_ai_adapter(tmp_path, monkeypatch):
         client.app.state.ai_lock.acquire()
         assert client.post("/api/ai/relations").status_code == 409
         client.app.state.ai_lock.release()
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_status", "expected_message"),
+    [
+        ("authentication", 401, "Klucz API jest nieprawidłowy"),
+        ("quota", 429, "Brak dostępnych środków"),
+        ("rate_limit", 429, "chwilowy limit"),
+        ("connection", 502, "Nie udało się połączyć"),
+    ],
+)
+def test_ai_errors_have_actionable_messages(client, monkeypatch, kind, expected_status, expected_message):
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr("test-only"))
+    request = httpx.Request("POST", "https://api.openai.com/v1/responses")
+    response = httpx.Response(429 if kind in {"quota", "rate_limit"} else 401, request=request)
+    errors = {
+        "authentication": AuthenticationError("invalid", response=response, body={"code": "invalid_api_key"}),
+        "quota": RateLimitError("quota", response=response, body={"code": "insufficient_quota"}),
+        "rate_limit": RateLimitError("slow down", response=response, body={"code": "rate_limit_exceeded"}),
+        "connection": APIConnectionError(request=request),
+    }
+
+    def fail_analysis(db):
+        raise errors[kind]
+
+    monkeypatch.setattr("expense_tracker.web_routes.ai.analyze_merchants", fail_analysis)
+    result = client.post("/api/ai/merchants")
+    assert result.status_code == expected_status
+    assert expected_message in result.json()["detail"]
 
 
 def test_write_origin_guard_and_empty_sync(client, tmp_path, monkeypatch):

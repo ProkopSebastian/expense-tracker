@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
 from . import ledger
@@ -21,6 +23,7 @@ from .web_models import Decision, GroupEntry, ManualEntry
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
+logger = logging.getLogger("expense_tracker.ai")
 
 
 class ResetDataConfirmation(BaseModel):
@@ -184,10 +187,37 @@ def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
         if kind == "merchants":
             return asdict(ai.analyze_merchants(db))
         return {"saved": ai.analyze_relations(db)}
-    except Exception as error:
+    except AuthenticationError as error:
+        logger.warning("AI authentication failed (status=%s, code=%s)", error.status_code, error.code)
         raise HTTPException(
-            502, "Analiza AI nie powiodła się. Sprawdź połączenie i konfigurację, a potem spróbuj ponownie."
+            401,
+            "Klucz API jest nieprawidłowy lub został unieważniony. Dodaj poprawny klucz w zakładce Dane i ustawienia.",
         ) from error
+    except PermissionDeniedError as error:
+        logger.warning("AI access denied (status=%s, code=%s)", error.status_code, error.code)
+        raise HTTPException(
+            403, "Klucz API nie ma dostępu do tej usługi lub modelu. Sprawdź ustawienia konta OpenAI."
+        ) from error
+    except RateLimitError as error:
+        logger.warning("AI rate limited (status=%s, code=%s)", error.status_code, error.code)
+        if error.code in {"insufficient_quota", "billing_hard_limit_reached"}:
+            raise HTTPException(
+                429, "Brak dostępnych środków lub przekroczono budżet API. Sprawdź rozliczenia konta OpenAI."
+            ) from error
+        raise HTTPException(
+            429, "Przekroczono chwilowy limit zapytań AI. Odczekaj chwilę i spróbuj ponownie."
+        ) from error
+    except APIConnectionError as error:
+        logger.warning("AI connection failed (%s)", type(error).__name__)
+        raise HTTPException(502, "Nie udało się połączyć z usługą AI. Sprawdź internet i spróbuj ponownie.") from error
+    except APIStatusError as error:
+        logger.warning("AI request failed (status=%s, code=%s)", error.status_code, error.code)
+        raise HTTPException(
+            502, "Usługa AI odrzuciła żądanie. Spróbuj ponownie później lub sprawdź konfigurację."
+        ) from error
+    except Exception as error:
+        logger.exception("Unexpected AI analysis failure")
+        raise HTTPException(502, "Analiza AI nie powiodła się. Spróbuj ponownie później.") from error
     finally:
         lock.release()
 
