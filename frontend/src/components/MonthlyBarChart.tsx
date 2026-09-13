@@ -24,7 +24,9 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
     const muted = themeVar("--app-muted");
     chart.setOption({
       animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-      animationDuration: 350,
+      animationDuration: 650,
+      animationDelay: 100,
+      animationEasing: "cubicOut",
       grid: { left: 16, right: 16, top: 20, bottom: 15, containLabel: true },
       tooltip: {
         trigger: "axis",
@@ -79,7 +81,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
 
   return data.monthly.length ? (
     <div
-      className="h-[190px]"
+      className="chart-enter-monthly h-[190px]"
       ref={container}
       role="img"
       aria-label="Bilans poszczególnych miesięcy, na plusie lub na minusie."

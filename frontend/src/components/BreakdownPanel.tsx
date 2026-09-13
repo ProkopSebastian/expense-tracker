@@ -69,7 +69,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           </span>
         ))}
       </div>
-      <Tabs.Content value={view}>
+      <Tabs.Content value={view} forceMount>
         {!nodes.length ? (
           <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
             <Wallet size={30} />
@@ -84,29 +84,36 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           <div
             className={`grid items-center gap-6 py-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10 ${view === "bars" ? "lg:grid-cols-1!" : ""}`}
           >
-            {view === "donut" && (
-              <div className="min-w-0">
-                <CategoryChart
-                  nodes={nodes}
-                  currency={data.currency}
-                  title={path.at(-1)?.label ?? "Łącznie"}
-                  canGoBack={path.length > 0}
-                  onSelect={selectNode}
-                  onBack={() => {
-                    setPath(path.slice(0, -1));
-                    setHovered(null);
-                  }}
-                  hovered={hovered}
-                  onHover={setHovered}
-                />
-                <p className="text-center text-xs text-muted">
-                  {path.length
-                    ? "Wybierz środek wykresu, aby wrócić"
-                    : "Wybierz kategorię, aby zobaczyć szczegóły"}
-                </p>
-              </div>
-            )}
-            <div className="flex min-w-0 flex-col justify-center self-stretch">
+            <div
+              className={
+                view === "donut"
+                  ? "min-w-0"
+                  : "invisible pointer-events-none [grid-area:1/1]"
+              }
+            >
+              <CategoryChart
+                active={view === "donut"}
+                nodes={nodes}
+                currency={data.currency}
+                title={path.at(-1)?.label ?? "Łącznie"}
+                canGoBack={path.length > 0}
+                onSelect={selectNode}
+                onBack={() => {
+                  setPath(path.slice(0, -1));
+                  setHovered(null);
+                }}
+                hovered={hovered}
+                onHover={setHovered}
+              />
+              <p className="text-center text-xs text-muted">
+                {path.length
+                  ? "Wybierz środek wykresu, aby wrócić"
+                  : "Wybierz kategorię, aby zobaczyć szczegóły"}
+              </p>
+            </div>
+            <div
+              className={`flex min-w-0 flex-col justify-center self-stretch ${view === "bars" ? "[grid-area:1/1]" : ""}`}
+            >
               <div className="flex items-center justify-between gap-2 border-b border-line pb-3 text-[10px] font-medium tracking-wider text-muted">
                 <span>
                   {path.length > 1 ? "SPRZEDAWCA" : "KATEGORIA"}{" "}
@@ -149,6 +156,7 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                     {view === "bars" && (
                       <span className="col-span-full h-1.5 overflow-hidden rounded-full bg-surface-muted [&>span]:block [&>span]:h-full [&>span]:rounded-full">
                         <span
+                          className="chart-bar-fill"
                           style={{
                             width: `${currentTotal ? (Number(node.total) / currentTotal) * 100 : 0}%`,
                             background: nodeColor(node.key),

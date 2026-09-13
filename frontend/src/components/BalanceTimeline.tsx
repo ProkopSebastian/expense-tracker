@@ -20,10 +20,16 @@ export default function BalanceTimeline({ data }: { data: Summary }) {
         </Tabs.List>
       </div>
       <Tabs.Content value="daily" className="mt-3">
-        <BalanceChart data={data} />
+        <BalanceChart
+          key={`${data.start}:${data.end}:${data.currency}`}
+          data={data}
+        />
       </Tabs.Content>
       <Tabs.Content value="monthly" className="mt-3">
-        <MonthlyBarChart data={data} />
+        <MonthlyBarChart
+          key={`${data.start}:${data.end}:${data.currency}`}
+          data={data}
+        />
       </Tabs.Content>
     </Tabs.Root>
   );

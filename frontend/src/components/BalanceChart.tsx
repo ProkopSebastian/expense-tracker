@@ -29,7 +29,9 @@ export default function BalanceChart({ data }: { data: Summary }) {
     const lineColor = Number(data.balance) >= 0 ? success : danger;
     chart.setOption({
       animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-      animationDuration: 350,
+      animationDuration: 650,
+      animationDelay: 100,
+      animationEasing: "cubicOut",
       grid: { left: 16, right: 24, top: 25, bottom: 15, containLabel: true },
       tooltip: {
         trigger: "axis",
@@ -88,7 +90,7 @@ export default function BalanceChart({ data }: { data: Summary }) {
   }, [data, themeSignal]);
   return data.daily.length ? (
     <div
-      className="h-[190px]"
+      className="chart-enter-daily h-[190px]"
       ref={container}
       role="img"
       aria-label={`Bilans od ${data.start} do ${data.end}. Początek 0, koniec ${money(data.balance, data.currency)}.`}
