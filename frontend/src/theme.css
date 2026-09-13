@@ -325,37 +325,9 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .chart-enter-daily {
-    animation: chart-reveal-daily 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .chart-enter-monthly {
-    animation: chart-reveal-monthly 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
   .chart-bar-fill {
     transform-origin: left center;
     animation: chart-grow-bar 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-}
-
-@keyframes chart-reveal-daily {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-@keyframes chart-reveal-monthly {
-  from {
-    clip-path: inset(100% 0 0 0);
-  }
-
-  to {
-    clip-path: inset(0 0 0 0);
   }
 }
 

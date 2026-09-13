@@ -72,8 +72,10 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
       ],
     });
     const observer = new ResizeObserver(() => chart.resize());
-    observer.observe(container.current);
+    const observeResizes = () => observer.observe(container.current!);
+    chart.on("finished", observeResizes);
     return () => {
+      chart.off("finished", observeResizes);
       observer.disconnect();
       chart.dispose();
     };
@@ -81,7 +83,7 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
 
   return data.monthly.length ? (
     <div
-      className="chart-enter-monthly h-[190px]"
+      className="h-[190px]"
       ref={container}
       role="img"
       aria-label="Bilans poszczególnych miesięcy, na plusie lub na minusie."

@@ -58,8 +58,10 @@ export default function CategoryChart({
     );
     instance.on("globalout", () => handlers.current.onHover(null));
     const observer = new ResizeObserver(() => instance.resize());
-    observer.observe(container.current);
+    const observeResizes = () => observer.observe(container.current!);
+    instance.on("finished", observeResizes);
     return () => {
+      instance.off("finished", observeResizes);
       observer.disconnect();
       instance.dispose();
       chart.current = null;
