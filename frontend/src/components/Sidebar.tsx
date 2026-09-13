@@ -34,7 +34,7 @@ export default function Sidebar({
           href="#summary"
           aria-label="Wydatki — strona główna"
         >
-          <span className="grid size-10 shrink-0 -rotate-6 place-items-center rounded-2xl bg-gradient-to-br from-accent to-blue-500 text-white shadow-lg shadow-accent/20">
+          <span className="grid size-10 shrink-0 -rotate-6 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-hover text-white shadow-lg shadow-accent/20">
             <Wallet size={23} />
           </span>
           wydatki<span className="-ml-2 text-accent md:max-xl:hidden">.</span>
@@ -63,9 +63,10 @@ export default function Sidebar({
         </nav>
         <button
           type="button"
-          className="mt-auto hidden items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent md:flex xl:justify-start"
+          className="mt-3 flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent md:mt-auto xl:justify-start"
           onClick={() => setSettingsOpen(true)}
           title="Ustawienia aplikacji"
+          aria-label="Ustawienia aplikacji"
         >
           <Settings2 size={19} />
           <span className="hidden xl:inline">Ustawienia</span>

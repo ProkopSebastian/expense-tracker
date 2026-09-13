@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { reportError } from "./errorReporting";
+import { loadTheme } from "./theme";
 import "./theme.css";
 
 function showFatalError(message: string) {
@@ -32,13 +33,16 @@ window.addEventListener("unhandledrejection", (event) => {
 const root = document.getElementById("root");
 if (!root) throw new Error("Brak elementu #root w stronie startowej.");
 const appRoot: HTMLElement = root;
-ReactDOM.createRoot(appRoot).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>,
-);
+void loadTheme().finally(() => {
+  ReactDOM.createRoot(appRoot).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>,
+  );
+  window.requestAnimationFrame(markReadyAfterFirstRender);
+});
 function markReadyAfterFirstRender() {
   if (appRoot.childElementCount === 0) {
     window.requestAnimationFrame(markReadyAfterFirstRender);
@@ -47,4 +51,3 @@ function markReadyAfterFirstRender() {
   document.documentElement.dataset.appReady = "true";
   document.getElementById("boot-screen")?.remove();
 }
-window.requestAnimationFrame(markReadyAfterFirstRender);

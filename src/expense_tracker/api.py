@@ -60,7 +60,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             from .recovery import backup_database, describe_action, record_undo
 
             async with app.state.write_lock:
-                if request.url.path == "/api/settings/reset-data":
+                if request.url.path in {"/api/settings/reset-data", "/api/settings/appearance"}:
                     return await call_next(request)
                 backup = await run_in_threadpool(backup_database, path, "action")
                 response = await call_next(request)

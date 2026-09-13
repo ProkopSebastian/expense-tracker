@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import asdict
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -23,6 +25,38 @@ DB = Annotated[sqlite3.Connection, Depends(get_connection)]
 
 class ResetDataConfirmation(BaseModel):
     confirmation: Literal["USUŃ DANE"]
+
+
+ThemeName = Literal["system", "light", "dark", "ocean", "forest", "rose"]
+
+
+class AppearancePreference(BaseModel):
+    theme: ThemeName
+
+
+def _appearance_path(database_path: Path) -> Path:
+    return database_path.parent / "appearance.json"
+
+
+@router.get("/settings/appearance", response_model=AppearancePreference)
+def get_appearance(request: Request):
+    path = _appearance_path(request.app.state.database_path)
+    if not path.exists():
+        return AppearancePreference(theme="system")
+    try:
+        return AppearancePreference.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return AppearancePreference(theme="system")
+
+
+@router.put("/settings/appearance")
+def save_appearance(entry: AppearancePreference, request: Request):
+    path = _appearance_path(request.app.state.database_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(entry.model_dump()), encoding="utf-8")
+    temporary.replace(path)
+    return entry
 
 
 @router.get("/meta")

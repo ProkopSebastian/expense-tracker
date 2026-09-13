@@ -12,7 +12,9 @@ export default function ThemeToggle() {
       <Sun size={15} className={dark ? "" : "text-accent"} />
       <Switch.Root
         checked={dark}
-        onCheckedChange={(checked) => setPreference(checked ? "dark" : "light")}
+        onCheckedChange={(checked) => {
+          void setPreference(checked ? "dark" : "light").catch(() => undefined);
+        }}
         className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors data-[state=checked]:bg-accent"
         aria-label={dark ? "Przełącz na tryb jasny" : "Przełącz na tryb ciemny"}
       >
