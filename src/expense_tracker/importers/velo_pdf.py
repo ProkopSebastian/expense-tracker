@@ -19,6 +19,10 @@ _PARTY = re.compile(
     re.I,
 )
 _TITLE = re.compile(r"(?:Tytułem|Tytuł):\s*(.+)$", re.I)
+_REPEATED_TITLE = re.compile(
+    r"^(?P<title>.+?)\s+(?P<reference>[\d*][\d* ./-]*)\s+(?P=title)$",
+    re.I,
+)
 
 
 def _card_merchant(value: str) -> str:
@@ -30,6 +34,12 @@ def _card_merchant(value: str) -> str:
     return ", ".join(parts).strip() or value.strip()
 
 
+def _transfer_title(value: str) -> str:
+    title = value.strip(" ,.")
+    repeated = _REPEATED_TITLE.fullmatch(title)
+    return repeated.group("title").strip(" ,.") if repeated else title
+
+
 def _merchant_party_and_type(description: str) -> tuple[str, str | None, str]:
     card_match = _CARD_MERCHANT.match(description)
     if card_match:
@@ -38,7 +48,7 @@ def _merchant_party_and_type(description: str) -> tuple[str, str | None, str]:
     party_match = _PARTY.search(description)
     title_match = _TITLE.search(description)
     counterparty = party_match.group(1).strip(" ,.") if party_match else None
-    merchant = counterparty or (title_match.group(1).strip() if title_match else description)
+    merchant = _transfer_title(title_match.group(1)) if title_match else (counterparty or description)
     if description.casefold().startswith("przelew wychodzący"):
         transaction_type = "Outgoing Transfer"
     elif description.casefold().startswith("przelew przychodzący"):

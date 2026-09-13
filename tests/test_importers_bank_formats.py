@@ -71,6 +71,20 @@ Zwrot operacji kartą 1234 xxxx 5678 na kwotę 20,00 PLN w TEST SHOP, WARSZAWA, 
 120,00
 """
 
+VELO_PHONE_TRANSFER_TEXT = """
+VeloBank S.A.
+Waluta rachunku: PLN
+2026.08.08
+2026.08.08
+Przelew przychodzący zewnętrzny Z rachunku:
+PL71124050801111001101319248
+Prowadzonego na rzecz: ZUZANNA
+CZYŻOWSKA Tytułem: Przelew na telefon
+48693***734. Przelew na telefon
+100,00
+220,00
+"""
+
 
 def test_imports_headerless_erste_csv(tmp_path: Path) -> None:
     path = tmp_path / "erste.csv"
@@ -102,7 +116,7 @@ def test_parses_velo_pdf_rows_with_wrapped_descriptions() -> None:
     assert rows[0].external_id is not None
     assert str(rows[1].amount) == "45.58"
     assert str(rows[1].balance) == "389.91"
-    assert rows[1].merchant == "Test Sender"
+    assert rows[1].merchant == "Zwrot"
     assert rows[1].counterparty == "Test Sender"
 
 
@@ -116,6 +130,15 @@ def test_parses_velo_card_refund_merchant() -> None:
 
     assert row.merchant == "TEST SHOP"
     assert row.transaction_type == "Card Refund"
+
+
+def test_parses_velo_phone_transfer_title_without_repeating_the_counterparty() -> None:
+    [row] = _parse_velo_pdf_text(VELO_PHONE_TRANSFER_TEXT)
+
+    assert row.merchant == "Przelew na telefon"
+    assert row.counterparty == "ZUZANNA CZYŻOWSKA"
+    assert row.transaction_type == "Incoming Transfer"
+    assert "48693***734" in row.description
 
 
 def test_parses_ing_pdf_rows_and_stable_transaction_ids() -> None:

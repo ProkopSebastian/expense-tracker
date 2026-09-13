@@ -32,7 +32,7 @@ DEFAULT_ACCOUNTS = {
     "ing_pdf": "ing",
     "velo_pdf": "velo",
 }
-PARSER_VERSION = 2
+PARSER_VERSION = 3
 
 
 @dataclass
