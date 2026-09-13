@@ -18,7 +18,7 @@ function RuleRow({
   useEffect(() => setCategory(rule.category_key), [rule.category_key]);
   return (
     <>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,300px)_auto_auto] lg:gap-5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(200px,240px)_auto_auto] lg:gap-4">
         <div className="col-span-2 min-w-0 lg:col-span-1">
           <strong className="text-sm font-medium wrap-anywhere">
             {rule.name}
@@ -110,8 +110,8 @@ export default function RulesPage({
       r.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     ) ?? [];
   return (
-    <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <h1>Automatyczne przypisania</h1>
         <span className="text-sm font-medium text-muted" role="status">
           {loading && !data
@@ -159,6 +159,6 @@ export default function RulesPage({
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
