@@ -4,6 +4,9 @@ import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
+
+const CLASSIFICATION_PAGE_SIZE = 25;
+
 function ClassificationItem({
   row,
   categories,
@@ -116,7 +119,10 @@ export default function ClassificationPage({
     [activeKind, setActiveKind] = useState<"merchants" | "relations" | null>(
       null,
     ),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useState(""),
+    [visibleRowsCount, setVisibleRowsCount] = useState(
+      CLASSIFICATION_PAGE_SIZE,
+    );
   async function analyze(kind: "merchants" | "relations") {
     setNotice("");
     setActiveKind(kind);
@@ -140,6 +146,8 @@ export default function ClassificationPage({
         .toLocaleLowerCase()
         .includes(query.toLocaleLowerCase()),
     ) ?? [];
+  const visibleRows = rows.slice(0, visibleRowsCount);
+  const remainingRowsCount = rows.length - visibleRows.length;
   return (
     <>
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
@@ -242,11 +250,14 @@ export default function ClassificationPage({
               aria-label="Szukaj do klasyfikacji"
               placeholder="Szukaj sprzedawcy"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisibleRowsCount(CLASSIFICATION_PAGE_SIZE);
+              }}
             />
           </label>
         </div>
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <ClassificationItem
             key={row.key}
             row={row}
@@ -274,6 +285,21 @@ export default function ClassificationPage({
             {!query && !loading && (
               <p>Nowe transakcje pojawią się tutaj po imporcie.</p>
             )}
+          </div>
+        )}
+        {remainingRowsCount > 0 && (
+          <div className="flex justify-center border-t border-line p-4">
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              onClick={() =>
+                setVisibleRowsCount(
+                  (count) => count + CLASSIFICATION_PAGE_SIZE,
+                )
+              }
+            >
+              Pokaż kolejne {Math.min(CLASSIFICATION_PAGE_SIZE, remainingRowsCount)}
+              <span className="text-muted">· zostało {remainingRowsCount}</span>
+            </button>
           </div>
         )}
       </section>
