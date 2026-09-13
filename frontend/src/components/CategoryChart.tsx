@@ -88,24 +88,15 @@ export default function CategoryChart({
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
         formatter: (params: {
           name: string;
-          value: number;
           percent: number;
+          data: { amount: number };
         }) => {
-          // params.value/percent can be transiently NaN while echarts animates
-          // between two datasets (e.g. drilling into a category), since the pie
-          // interpolates the numeric value during the transition. The node list
-          // itself is always the current source of truth, so look the amount up
-          // there instead of trusting the animated value.
-          const node = handlers.current.nodes.find(
-            (n) => n.label === params.name,
-          );
           const content = document.createElement("div");
           const name = document.createElement("div");
           const amount = document.createElement("div");
           name.textContent = params.name;
-          const value = node ? Number(node.total) : params.value;
           const percent = Number.isFinite(params.percent) ? params.percent : 0;
-          amount.textContent = `${money(value, currency)} · ${percent}%`;
+          amount.textContent = `${money(params.data.amount, currency)} · ${percent}%`;
           content.append(name, amount);
           return content;
         },
@@ -125,6 +116,7 @@ export default function CategoryChart({
             id: node.key,
             name: node.label,
             value: Number(node.total),
+            amount: Number(node.total),
             itemStyle: { color: nodeColor(node.key) },
           })),
         },
