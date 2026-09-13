@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, type ReactNode } from "react";
 import { X, CheckCircle2, AlertCircle } from "lucide-react";
 import type { Category } from "../domain";
+import AppSelect from "./AppSelect";
 
 export interface CategoryGroup {
   parent: Category;
@@ -46,34 +47,32 @@ export function CategorySelect({
   label?: string;
 }) {
   const groups = groupCategories(categories);
+  const options = [
+    { value: "", label: "Do przypisania" },
+    ...groups.flatMap(({ parent, children }) => [
+      {
+        value: parent.key,
+        label: children.length ? `${parent.label} — ogólnie` : parent.label,
+        group: children.length ? parent.label : undefined,
+      },
+      ...children.map((child) => ({
+        value: child.key,
+        label: `↳ ${child.label}`,
+        group: parent.label,
+      })),
+    ]),
+  ];
   return (
     <span className="flex min-w-0 items-center gap-2">
       <CategoryIcon categoryKey={value} />
-      <select
+      <AppSelect
         className="min-w-0 flex-1"
-        aria-label={label}
+        ariaLabel={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onValueChange={onChange}
         required={required}
-      >
-        <option value="">Do przypisania</option>
-        {groups.map(({ parent, children }) =>
-          children.length ? (
-            <optgroup key={parent.key} label={parent.label}>
-              <option value={parent.key}>{parent.label} — ogólnie</option>
-              {children.map((child) => (
-                <option key={child.key} value={child.key}>
-                  ↳ {child.label}
-                </option>
-              ))}
-            </optgroup>
-          ) : (
-            <option key={parent.key} value={parent.key}>
-              {parent.label}
-            </option>
-          ),
-        )}
-      </select>
+        options={options}
+      />
     </span>
   );
 }

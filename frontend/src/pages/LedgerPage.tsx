@@ -1,4 +1,5 @@
 import CategoryIcon from "../components/CategoryIcon";
+import AppSelect from "../components/AppSelect";
 import * as Accordion from "@radix-ui/react-accordion";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Popover from "@radix-ui/react-popover";
@@ -215,18 +216,19 @@ export default function LedgerPage({
               }}
             />
           </label>
-          <select
-            aria-label="Kierunek"
+          <AppSelect
+            ariaLabel="Kierunek"
             value={direction}
-            onChange={(e) => {
-              setDirection(e.target.value);
+            onValueChange={(value) => {
+              setDirection(value);
               filtersChanged();
             }}
-          >
-            <option value="all">Wszystkie przepływy</option>
-            <option value="expense">Wydatki</option>
-            <option value="income">Wpływy</option>
-          </select>
+            options={[
+              { value: "all", label: "Wszystkie przepływy" },
+              { value: "expense", label: "Wydatki" },
+              { value: "income", label: "Wpływy" },
+            ]}
+          />
           <Popover.Root>
             <Popover.Trigger className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm hover:bg-accent-soft">
               Kategorie{category.length ? ` (${category.length})` : ""}

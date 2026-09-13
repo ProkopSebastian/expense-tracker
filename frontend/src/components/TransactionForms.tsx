@@ -3,6 +3,7 @@ import type { Category, Block } from "../domain";
 import { request, useAction } from "../hooks";
 import { money } from "../api";
 import { Modal, CategorySelect, Notice } from "./Forms";
+import AppSelect from "./AppSelect";
 export function ManualForm({
   categories,
   onClose,
@@ -59,10 +60,15 @@ export function ManualForm({
           </label>
           <label>
             Rodzaj
-            <select name="direction">
-              <option value="expense">Wydatek</option>
-              <option value="income">Przychód</option>
-            </select>
+            <AppSelect
+              ariaLabel="Rodzaj"
+              name="direction"
+              defaultValue="expense"
+              options={[
+                { value: "expense", label: "Wydatek" },
+                { value: "income", label: "Przychód" },
+              ]}
+            />
           </label>
           <label>
             Kwota
@@ -76,11 +82,15 @@ export function ManualForm({
           </label>
           <label>
             Waluta
-            <select name="currency">
-              {["PLN", "EUR", "USD", "GBP"].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            <AppSelect
+              ariaLabel="Waluta"
+              name="currency"
+              defaultValue="PLN"
+              options={["PLN", "EUR", "USD", "GBP"].map((currency) => ({
+                value: currency,
+                label: currency,
+              }))}
+            />
           </label>
           <label>
             Kategoria
@@ -209,19 +219,18 @@ export function GroupForm({
         </label>
         <label>
           Rodzaj grupy
-          <select
+          <AppSelect
+            ariaLabel="Rodzaj grupy"
             value={kind}
-            onChange={(e) => {
-              setKind(e.target.value);
+            onValueChange={(value) => {
+              setKind(value);
               setOverrides({});
             }}
-          >
-            {Object.entries(kinds).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+            options={Object.entries(kinds).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+          />
         </label>
         {kind === "own_transfer" ? (
           <p className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-success/10 text-success">
@@ -240,13 +249,15 @@ export function GroupForm({
             <div className="grid gap-4 sm:grid-cols-2">
               <label>
                 Kierunek
-                <select
+                <AppSelect
+                  ariaLabel="Kierunek"
                   name="direction"
                   defaultValue={total > 0 ? "income" : "expense"}
-                >
-                  <option value="expense">Wydatek</option>
-                  <option value="income">Zwrot na moją korzyść</option>
-                </select>
+                  options={[
+                    { value: "expense", label: "Wydatek" },
+                    { value: "income", label: "Zwrot na moją korzyść" },
+                  ]}
+                />
               </label>
               <label>
                 Twój rzeczywisty koszt ({currency})
@@ -270,20 +281,19 @@ export function GroupForm({
           {selected.map((row) => (
             <label key={row.id}>
               {row.description} · {money(row.amount!, currency)}
-              <select
+              <AppSelect
+                ariaLabel={`Rola transakcji ${row.description}`}
                 value={
                   overrides[row.id!] ?? defaultRole(kind, Number(row.amount))
                 }
-                onChange={(e) =>
-                  setOverrides({ ...overrides, [row.id!]: e.target.value })
+                onValueChange={(value) =>
+                  setOverrides({ ...overrides, [row.id!]: value })
                 }
-              >
-                {Object.entries(roles).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
+                options={Object.entries(roles).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
             </label>
           ))}
         </details>

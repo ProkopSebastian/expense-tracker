@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
 import { Notice } from "../components/Forms";
+import AppSelect from "../components/AppSelect";
 
 export default function DataPage({
   accounts,
@@ -115,15 +116,16 @@ export default function DataPage({
         </p>
         <label>
           Przypisz do rachunku
-          <select value={account} onChange={(e) => setAccount(e.target.value)}>
-            <option value="">Rozpoznaj bank automatycznie</option>
-            {accounts.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-            <option value="__new__">+ Dodaj nowy rachunek…</option>
-          </select>
+          <AppSelect
+            ariaLabel="Przypisz do rachunku"
+            value={account}
+            onValueChange={setAccount}
+            options={[
+              { value: "", label: "Rozpoznaj bank automatycznie" },
+              ...accounts.map((name) => ({ value: name, label: name })),
+              { value: "__new__", label: "+ Dodaj nowy rachunek…" },
+            ]}
+          />
         </label>
         {account === "__new__" && (
           <label>

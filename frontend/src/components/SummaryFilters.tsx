@@ -1,5 +1,6 @@
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Popover from "@radix-ui/react-popover";
+import AppSelect from "./AppSelect";
 import type { Dispatch, SetStateAction } from "react";
 import {
   CalendarDays,
@@ -71,26 +72,23 @@ export default function SummaryFilters({
           ))}
         </Tabs.List>
         <div className="flex items-center gap-3 text-sm text-muted">
-          <label htmlFor="currency">Waluta</label>
-          <select
-            id="currency"
+          <span>Waluta</span>
+          <AppSelect
+            ariaLabel="Waluta"
             value={data?.currency ?? "PLN"}
-            onChange={(event) =>
+            onValueChange={(currency) =>
               setFilters((previous) => ({
                 mode: previous.mode,
-                currency: event.target.value,
+                currency,
                 ...(previous.mode === "custom"
                   ? { start: previous.start, end: previous.end }
                   : {}),
               }))
             }
-          >
-            {(data?.currencies.length ? data.currencies : ["PLN"]).map(
-              (currency) => (
-                <option key={currency}>{currency}</option>
-              ),
+            options={(data?.currencies.length ? data.currencies : ["PLN"]).map(
+              (currency) => ({ value: currency, label: currency }),
             )}
-          </select>
+          />
         </div>
       </section>
       <Tabs.Content
