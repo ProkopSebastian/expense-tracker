@@ -37,6 +37,24 @@ export const themeOptions = [
     description: "Ciepłe odcienie i śliwkowy akcent",
     colors: ["#aa5175", "#fffdfc", "#f8eaf0"],
   },
+  {
+    id: "sand",
+    label: "Piasek",
+    description: "Ciepły krem i miedziany akcent",
+    colors: ["#a46038", "#fffdf8", "#f3e9d9"],
+  },
+  {
+    id: "midnight",
+    label: "Noc",
+    description: "Głęboki granat i chłodny błękit",
+    colors: ["#74b9dc", "#172632", "#283e4d"],
+  },
+  {
+    id: "graphite",
+    label: "Grafit",
+    description: "Neutralna ciemność i miękka mięta",
+    colors: ["#78c7b5", "#1e2525", "#333f3e"],
+  },
 ] as const;
 
 export type ThemePreference = (typeof themeOptions)[number]["id"];
@@ -104,7 +122,9 @@ export function useResolvedTheme(preference: ThemePreference) {
   }, []);
 
   if (preference === "system") return systemDark ? "dark" : "light";
-  return preference === "dark" ? "dark" : "light";
+  return ["dark", "midnight", "graphite"].includes(preference)
+    ? "dark"
+    : "light";
 }
 
 export function useThemeSignal() {

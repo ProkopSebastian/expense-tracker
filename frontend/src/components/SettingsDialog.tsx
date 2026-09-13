@@ -1,7 +1,19 @@
 import { useState } from "react";
-import { Check, KeyRound, Palette, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Check,
+  KeyRound,
+  Monitor,
+  Palette,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { request } from "../hooks";
-import { themeOptions, useTheme } from "../theme";
+import {
+  themeOptions,
+  useResolvedTheme,
+  useTheme,
+  type ThemePreference,
+} from "../theme";
 import { Modal, Notice } from "./Forms";
 
 const CONFIRMATION = "USUŃ DANE";
@@ -20,6 +32,14 @@ export default function SettingsDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useTheme();
+  const systemAppearance = useResolvedTheme("system");
+
+  function selectTheme(next: ThemePreference) {
+    setError("");
+    void setTheme(next).catch(() =>
+      setError("Nie udało się zapisać motywu. Spróbuj ponownie."),
+    );
+  }
 
   async function resetData() {
     setBusy(true);
@@ -62,50 +82,79 @@ export default function SettingsDialog({
             </div>
           </div>
           <div
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
             role="group"
             aria-label="Motyw kolorystyczny"
+            className="space-y-4"
           >
-            {themeOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={theme === option.id}
-                onClick={() => {
-                  setError("");
-                  void setTheme(option.id).catch(() =>
-                    setError("Nie udało się zapisać motywu. Spróbuj ponownie."),
-                  );
-                }}
-                className={`group min-w-0 rounded-xl border p-2.5 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${theme === option.id ? "border-accent bg-accent-soft" : "border-line bg-surface"}`}
-              >
-                <span
-                  className="mb-2 flex h-11 items-center justify-between rounded-lg border border-black/5 px-2"
-                  style={{ backgroundColor: option.colors[1] }}
-                  aria-hidden="true"
-                >
-                  <span className="flex gap-1.5">
-                    <span
-                      className="size-4 rounded-full"
-                      style={{ backgroundColor: option.colors[0] }}
-                    />
-                    <span
-                      className="size-4 rounded-full"
-                      style={{ backgroundColor: option.colors[2] }}
-                    />
-                  </span>
-                  {theme === option.id && (
-                    <Check size={16} style={{ color: option.colors[0] }} />
-                  )}
+            <button
+              type="button"
+              aria-pressed={theme === "system"}
+              onClick={() => selectTheme("system")}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:border-accent ${theme === "system" ? "border-accent bg-accent-soft" : "border-line bg-surface"}`}
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-muted text-accent">
+                <Monitor size={19} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">
+                  Automatycznie
                 </span>
-                <span className="block text-sm font-semibold text-ink">
-                  {option.label}
+                <span className="block text-xs text-muted">
+                  Zgodnie z urządzeniem · teraz{" "}
+                  {systemAppearance === "dark" ? "ciemny" : "jasny"}
                 </span>
-                <span className="mt-0.5 block text-xs leading-snug text-muted">
-                  {option.description}
-                </span>
-              </button>
-            ))}
+              </span>
+              {theme === "system" && (
+                <Check size={18} className="shrink-0 text-accent" />
+              )}
+            </button>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                Wybierz konkretny styl
+              </p>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {themeOptions
+                  .filter((option) => option.id !== "system")
+                  .map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={theme === option.id}
+                      onClick={() => selectTheme(option.id)}
+                      className={`group min-w-0 rounded-xl border p-2.5 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${theme === option.id ? "border-accent bg-accent-soft" : "border-line bg-surface"}`}
+                    >
+                      <span
+                        className="mb-2 flex h-11 items-center justify-between rounded-lg border border-black/5 px-2"
+                        style={{ backgroundColor: option.colors[1] }}
+                        aria-hidden="true"
+                      >
+                        <span className="flex gap-1.5">
+                          <span
+                            className="size-4 rounded-full"
+                            style={{ backgroundColor: option.colors[0] }}
+                          />
+                          <span
+                            className="size-4 rounded-full"
+                            style={{ backgroundColor: option.colors[2] }}
+                          />
+                        </span>
+                        {theme === option.id && (
+                          <Check
+                            size={16}
+                            style={{ color: option.colors[0] }}
+                          />
+                        )}
+                      </span>
+                      <span className="block text-sm font-semibold text-ink">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted">
+                        {option.description}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -124,9 +173,7 @@ export default function SettingsDialog({
                   Przechowywanie lokalne
                 </h3>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
-                  Baza i importowane pliki pozostają na tym komputerze. Wybrany
-                  motyw jest zapisywany obok bazy i pozostaje po aktualizacji
-                  aplikacji.
+                  Baza i importowane pliki pozostają na tym komputerze.
                 </p>
               </div>
             </div>
@@ -136,7 +183,7 @@ export default function SettingsDialog({
                 <h3 className="text-sm font-semibold">Klucz API</h3>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
                   {aiEnabled
-                    ? "Klucz jest zapisany i pozostanie dostępny po usunięciu danych finansowych."
+                    ? "Klucz jest zapisany i pozostanie dostępny nawet po usunięciu danych finansowych."
                     : "Klucz API nie jest obecnie zapisany."}
                 </p>
               </div>

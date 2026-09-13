@@ -1,10 +1,12 @@
 import * as Tabs from "@radix-ui/react-tabs";
+import * as Popover from "@radix-ui/react-popover";
 import type { Dispatch, SetStateAction } from "react";
 import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Check,
 } from "lucide-react";
 import {
   monthLabel,
@@ -96,9 +98,10 @@ export default function SummaryFilters({
         className="flex min-h-20 flex-wrap items-center justify-between gap-3 py-3"
       >
         {filters.mode === "month" && currentMonth ? (
-          <div className="flex items-center gap-2 [&>button]:grid [&>button]:size-8 [&>button]:place-items-center [&>button]:rounded-lg [&>button]:border [&>button]:border-line [&>button]:bg-surface [&_label]:relative [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label>svg:last-child]:pointer-events-none [&_label>svg:last-child]:absolute [&_label>svg:last-child]:right-1 [&_select]:appearance-none [&_select]:border-0 [&_select]:bg-transparent [&_select]:pr-7 [&_select]:font-medium">
+          <div className="flex items-center gap-2">
             <button
               aria-label="Poprzedni miesiąc"
+              className="grid size-9 place-items-center rounded-lg border border-line bg-surface transition hover:bg-accent-soft"
               disabled={
                 !data ||
                 monthIndex < 0 ||
@@ -114,28 +117,45 @@ export default function SummaryFilters({
             >
               <ChevronLeft size={17} />
             </button>
-            <label>
-              <CalendarDays size={17} />
-              <select
-                aria-label="Miesiąc"
-                value={currentMonth}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    month: event.target.value,
-                  }))
-                }
+            <Popover.Root>
+              <Popover.Trigger
+                aria-label={`Wybierz miesiąc, obecnie ${monthLabel(currentMonth)}`}
+                className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-accent-soft"
               >
-                {data?.months.map((month) => (
-                  <option key={month} value={month}>
-                    {monthLabel(month)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} />
-            </label>
+                <CalendarDays size={16} className="text-accent" />
+                {monthLabel(currentMonth)}
+                <ChevronDown size={15} className="text-muted" />
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  align="center"
+                  sideOffset={6}
+                  className="z-50 max-h-[min(22rem,65dvh)] w-60 overflow-y-auto rounded-xl border border-line bg-surface p-1.5 text-ink shadow-xl"
+                  aria-label="Wybierz miesiąc"
+                >
+                  {data?.months.map((month) => (
+                    <Popover.Close asChild key={month}>
+                      <button
+                        type="button"
+                        aria-current={
+                          month === currentMonth ? "date" : undefined
+                        }
+                        onClick={() =>
+                          setFilters((previous) => ({ ...previous, month }))
+                        }
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent-soft hover:text-accent aria-[current=date]:bg-accent-soft aria-[current=date]:font-semibold aria-[current=date]:text-accent"
+                      >
+                        {monthLabel(month)}
+                        {month === currentMonth && <Check size={15} />}
+                      </button>
+                    </Popover.Close>
+                  ))}
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
             <button
               aria-label="Następny miesiąc"
+              className="grid size-9 place-items-center rounded-lg border border-line bg-surface transition hover:bg-accent-soft"
               disabled={monthIndex <= 0 || loading}
               onClick={() =>
                 setFilters((previous) => ({

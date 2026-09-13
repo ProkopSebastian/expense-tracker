@@ -13,5 +13,6 @@ def test_appearance_survives_app_restart(tmp_path):
 
     with TestClient(create_app(database_path)) as client:
         assert client.get("/api/settings/appearance").json() == {"theme": "forest"}
+        assert client.put("/api/settings/appearance", json={"theme": "midnight"}).status_code == 200
 
-    assert (tmp_path / "appearance.json").read_text(encoding="utf-8") == '{"theme": "forest"}'
+    assert (tmp_path / "appearance.json").read_text(encoding="utf-8") == '{"theme": "midnight"}'
