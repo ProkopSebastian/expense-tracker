@@ -94,11 +94,11 @@ export default function SummaryPage({
             <SummaryCards data={data} />
             <BalanceChart data={data} />
           </div>
-          <BreakdownPanel
-            key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
-            data={data}
-          />
-          <div className="mt-8">
+          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_330px] xl:gap-0">
+            <BreakdownPanel
+              key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
+              data={data}
+            />
             <MonthlyBarChart data={data} />
           </div>
           <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">

@@ -78,15 +78,8 @@ export default function MonthlyBarChart({ data }: { data: Summary }) {
   }, [data, themeSignal]);
 
   return (
-    <section className="min-w-0 border-t border-line pt-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start [&_p]:mt-2 [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-muted [&>strong]:text-2xl [&>strong]:whitespace-nowrap [&>strong]:tabular-nums">
-        <div>
-          <h2>Bilans miesięczny</h2>
-          <p>
-            Wynik każdego miesiąca osobno · ostatnie {data.monthly.length} mies.
-          </p>
-        </div>
-      </div>
+    <section className="min-w-0 border-t border-line pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
+      <h2>Bilans miesięczny</h2>
       {data.monthly.length ? (
         <div
           className="mt-4 h-[240px]"

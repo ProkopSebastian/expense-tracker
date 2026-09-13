@@ -167,9 +167,6 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           </div>
         )}
       </Tabs.Content>
-      <footer className="border-t border-line pt-4 text-xs leading-relaxed text-muted">
-        <span>Kwoty uwzględniają grupy, zwroty i Twój udział w wydatkach.</span>
-      </footer>
     </Tabs.Root>
   );
 }
