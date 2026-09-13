@@ -174,7 +174,9 @@ def _run_desktop(webview, log_path: Path) -> None:
     closing = threading.Event()
     try:
         _wait_until_ready(server, worker, base_url)
-        window = webview.create_window("Wydatki", base_url, width=1200, height=820, min_size=(380, 500))
+        window = webview.create_window(
+            "Wydatki", base_url, width=1200, height=820, min_size=(380, 500), text_select=True
+        )
 
         def close_server() -> None:
             closing.set()
