@@ -127,13 +127,10 @@ export default function LedgerPage({
   }
   return (
     <>
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-        <div>
-          <h1>Historia transakcji</h1>
-          <p>Każda transakcja. Każda grupa. Pełny obraz.</p>
-        </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1>Historia transakcji</h1>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft"
           onClick={() => setModal("manual")}
         >
           <Plus size={17} />
@@ -142,110 +139,126 @@ export default function LedgerPage({
       </div>
       <Notice error={error || action.error} notice={action.notice} />
       {!!(data?.relations.length || data?.cases.length) && (
-        <Tabs.Root
-          value={linksTab}
-          onValueChange={(value) =>
-            setLinksTab(value as "relations" | "groups")
-          }
-          className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm p-5"
-        >
-          <Tabs.List
-            className="mb-3 flex w-fit flex-wrap gap-1 rounded-xl bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
-            aria-label="Powiązania"
+        <details className="mb-6">
+          <summary className="group flex items-center justify-between gap-3 border-y border-line py-3 text-sm font-medium hover:text-accent">
+            <span>
+              Powiązania i grupy
+              {data.relations.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-muted">
+                  {data.relations.length} sugestii
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              size={17}
+              className="shrink-0 text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <Tabs.Root
+            value={linksTab}
+            onValueChange={(value) =>
+              setLinksTab(value as "relations" | "groups")
+            }
+            className="pt-4"
           >
-            <Tabs.Trigger value="relations">
-              Sugerowane powiązania{" "}
-              <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
-                {data?.relations.length ?? 0}
-              </span>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="groups">
-              Twoje grupy{" "}
-              <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
-                {data?.cases.length ?? 0}
-              </span>
-            </Tabs.Trigger>
-          </Tabs.List>
-          <Tabs.Content value={linksTab}>
-            {linksTab === "relations" ? (
-              data?.relations.length ? (
-                data.relations.map((s) => (
-                  <article
+            <Tabs.List
+              className="mb-3 flex w-fit flex-wrap gap-1 rounded-xl bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+              aria-label="Powiązania"
+            >
+              <Tabs.Trigger value="relations">
+                Sugerowane powiązania{" "}
+                <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
+                  {data?.relations.length ?? 0}
+                </span>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="groups">
+                Twoje grupy{" "}
+                <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs tracking-normal text-accent">
+                  {data?.cases.length ?? 0}
+                </span>
+              </Tabs.Trigger>
+            </Tabs.List>
+            <Tabs.Content value={linksTab}>
+              {linksTab === "relations" ? (
+                data?.relations.length ? (
+                  data.relations.map((s) => (
+                    <article
+                      className="flex flex-col justify-between gap-4 border-b border-line py-5 last:border-0 sm:flex-row sm:items-center [&_p]:my-2 [&_p]:max-w-3xl [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted [&_small]:text-xs [&_small]:text-muted"
+                      key={s.id}
+                    >
+                      <div>
+                        <strong>{s.payload.title}</strong>
+                        <p>{s.payload.rationale}</p>
+                        <small>
+                          {s.payload.transaction_ids.length} transakcje · Twój
+                          koszt:{" "}
+                          {money(s.payload.personal_amount, s.payload.currency)}
+                        </small>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <button
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                          disabled={action.busy}
+                          onClick={() =>
+                            action.run(
+                              () =>
+                                request(`/suggestions/${s.id}/reject`, "POST"),
+                              "Sugestia odrzucona.",
+                            )
+                          }
+                        >
+                          Odrzuć
+                        </button>
+                        <button
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+                          disabled={action.busy}
+                          onClick={() =>
+                            action.run(
+                              () =>
+                                request(`/suggestions/${s.id}/approve`, "POST"),
+                              "Grupa utworzona.",
+                            )
+                          }
+                        >
+                          Połącz
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted">
+                    Brak sugerowanych powiązań.
+                  </p>
+                )
+              ) : data?.cases.length ? (
+                data.cases.map((c) => (
+                  <div
                     className="flex flex-col justify-between gap-4 border-b border-line py-5 last:border-0 sm:flex-row sm:items-center [&_p]:my-2 [&_p]:max-w-3xl [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted [&_small]:text-xs [&_small]:text-muted"
-                    key={s.id}
+                    key={c.id}
                   >
-                    <div>
-                      <strong>{s.payload.title}</strong>
-                      <p>{s.payload.rationale}</p>
-                      <small>
-                        {s.payload.transaction_ids.length} transakcje · Twój
-                        koszt:{" "}
-                        {money(s.payload.personal_amount, s.payload.currency)}
-                      </small>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <button
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
-                        disabled={action.busy}
-                        onClick={() =>
-                          action.run(
-                            () =>
-                              request(`/suggestions/${s.id}/reject`, "POST"),
-                            "Sugestia odrzucona.",
-                          )
-                        }
-                      >
-                        Odrzuć
-                      </button>
-                      <button
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
-                        disabled={action.busy}
-                        onClick={() =>
-                          action.run(
-                            () =>
-                              request(`/suggestions/${s.id}/approve`, "POST"),
-                            "Grupa utworzona.",
-                          )
-                        }
-                      >
-                        Połącz
-                      </button>
-                    </div>
-                  </article>
+                    <span>
+                      {c.title} · {money(c.personal_amount, c.currency)}
+                    </span>
+                    <button
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                      onClick={() => setDissolve(c.id)}
+                    >
+                      Rozwiąż grupę
+                    </button>
+                  </div>
                 ))
               ) : (
                 <p className="text-sm leading-relaxed text-muted">
-                  Brak sugerowanych powiązań.
+                  Nie masz jeszcze żadnych grup.
                 </p>
-              )
-            ) : data?.cases.length ? (
-              data.cases.map((c) => (
-                <div
-                  className="flex flex-col justify-between gap-4 border-b border-line py-5 last:border-0 sm:flex-row sm:items-center [&_p]:my-2 [&_p]:max-w-3xl [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted [&_small]:text-xs [&_small]:text-muted"
-                  key={c.id}
-                >
-                  <span>
-                    {c.title} · {money(c.personal_amount, c.currency)}
-                  </span>
-                  <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
-                    onClick={() => setDissolve(c.id)}
-                  >
-                    Rozwiąż grupę
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm leading-relaxed text-muted">
-                Nie masz jeszcze żadnych grup.
-              </p>
-            )}
-          </Tabs.Content>
-        </Tabs.Root>
+              )}
+            </Tabs.Content>
+          </Tabs.Root>
+        </details>
       )}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+      <section className="mb-6 border-t border-line">
+        <div className="flex flex-wrap items-center gap-3 border-b border-line py-4">
+          <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={17} />
             <input
               placeholder="Szukaj opisu lub kontrahenta"
@@ -353,7 +366,7 @@ export default function LedgerPage({
           </Popover.Root>
         </div>
         {selected.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 bg-accent-soft px-5 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 border-b border-line bg-accent-soft px-4 py-3 text-sm">
             <span>{selected.length} zaznaczone</span>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
@@ -374,8 +387,8 @@ export default function LedgerPage({
             )}
           </div>
         )}
-        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 text-xs text-muted">
-          <span>Strona transakcji</span>
+        <div className="flex items-center justify-between gap-3 border-b border-line py-3 text-xs text-muted">
+          <span>{data ? `${data.total} pozycji` : "Transakcje"}</span>
           <PageNavigation
             page={data?.page ?? page}
             pages={data?.pages ?? 1}
@@ -383,7 +396,7 @@ export default function LedgerPage({
             onPageChange={changePage}
           />
         </div>
-        <div className="overflow-x-auto" aria-busy={loading}>
+        <div className="min-w-0" aria-busy={loading}>
           <Accordion.Root
             type="multiple"
             value={[...months.keys()].filter(
@@ -403,7 +416,7 @@ export default function LedgerPage({
                 className="border-b border-line last:border-0"
               >
                 <Accordion.Header>
-                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 bg-surface-muted/80 px-5 py-4 text-left text-sm font-semibold text-ink hover:bg-accent-soft">
+                  <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 py-4 text-left text-sm font-semibold text-ink hover:text-accent">
                     <span className="capitalize">{monthLabel(month)}</span>
                     <span className="ml-auto text-xs font-normal text-muted">
                       {rows.length} pozycji na tej stronie
@@ -418,7 +431,7 @@ export default function LedgerPage({
                   <div className="overflow-x-auto">
                     <table
                       aria-label={`Transakcje: ${monthLabel(month)}`}
-                      className="w-full border-collapse text-sm [&_th]:bg-surface-muted [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-4 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
+                      className="w-full min-w-[740px] border-collapse text-sm [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:whitespace-nowrap [&_th]:text-muted [&_td]:border-t [&_td]:border-line/70 [&_td]:px-3 [&_td]:py-3.5 [&_td]:align-middle [&_td:first-child]:w-12 [&_td:nth-child(2)]:min-w-52 [&_td:nth-child(2)]:max-w-md"
                     >
                       <thead>
                         <tr>
@@ -515,7 +528,7 @@ export default function LedgerPage({
                               </td>
                               <td>
                                 <span
-                                  className={`inline-flex max-w-64 items-center gap-2 rounded-lg border border-line bg-surface-muted px-2 py-1 text-xs leading-relaxed ${!row.category_key ? "border-warning/25! bg-warning/10! text-warning" : ""}`}
+                                  className={`inline-flex max-w-64 items-center gap-2 text-xs leading-relaxed ${!row.category_key ? "text-warning" : "text-muted"}`}
                                 >
                                   <CategoryIcon
                                     categoryKey={row.category_key}
@@ -611,12 +624,12 @@ export default function LedgerPage({
             </div>
           )}
         </div>
-        <footer className="flex items-center justify-between gap-3 border-t border-line px-5 py-4 text-xs text-muted [&>div]:flex [&>div]:items-center [&>div]:gap-3">
+        <footer className="flex items-center justify-between gap-3 border-t border-line py-4 text-xs text-muted [&>div]:flex [&>div]:items-center [&>div]:gap-3">
           <span>
             {data && data.total
               ? `${(data.page - 1) * 50 + 1}–${(data.page - 1) * 50 + data.blocks.length} z ${data.total}`
               : "0"}{" "}
-            pozycji · grupy liczone jako jedna pozycja
+            pozycji
           </span>
           <PageNavigation
             page={data?.page ?? page}
