@@ -7,6 +7,23 @@ import { CategorySelect, Notice } from "../components/Forms";
 
 const CLASSIFICATION_PAGE_SIZE = 25;
 
+function transactionDirection(totals: Record<string, string>) {
+  const values = Object.values(totals).map(Number);
+  if (
+    values.every((value) => value <= 0) &&
+    values.some((value) => value < 0)
+  ) {
+    return "expense";
+  }
+  if (
+    values.every((value) => value >= 0) &&
+    values.some((value) => value > 0)
+  ) {
+    return "income";
+  }
+  return "mixed";
+}
+
 function ClassificationItem({
   row,
   categories,
@@ -19,8 +36,23 @@ function ClassificationItem({
   const [category, setCategory] = useState(row.category_key ?? ""),
     [remember, setRemember] = useState(row.remember);
   const action = useAction(onChanged);
+  const direction = transactionDirection(row.totals);
+  const directionPresentation = {
+    expense: {
+      sign: "−",
+      amountClassName: "text-danger",
+    },
+    income: {
+      sign: "+",
+      amountClassName: "text-success",
+    },
+    mixed: {
+      sign: "±",
+      amountClassName: "text-info",
+    },
+  }[direction];
   return (
-    <article className="grid items-center gap-5 border-b border-line p-5 last:border-0 lg:grid-cols-[minmax(0,1fr)_220px] 2xl:grid-cols-[minmax(0,1fr)_240px_auto]">
+    <article className="grid items-center gap-5 border-b border-line p-5 last:border-0 lg:grid-cols-[minmax(0,1fr)_minmax(140px,180px)_220px_auto] 2xl:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_240px_auto]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2 [&_strong]:text-sm [&_strong]:leading-relaxed [&_strong]:wrap-anywhere">
           <strong>{row.description}</strong>
@@ -32,10 +64,8 @@ function ClassificationItem({
           )}
         </div>
         <div className="mt-1 text-xs leading-relaxed text-muted">
-          {row.date} · {row.count > 1 ? `${row.count} transakcje · Σ ` : ""}
-          {Object.entries(row.totals)
-            .map(([currency, total]) => money(total, currency))
-            .join(" / ")}
+          {row.date}
+          {row.count > 1 ? ` · ${row.count} transakcje` : ""}
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
         </div>
         {row.rationale && (
@@ -45,6 +75,19 @@ function ClassificationItem({
         )}
         <Notice error={action.error} />
       </div>
+      <strong
+        className={`text-left text-lg font-semibold tracking-tight tabular-nums lg:text-center ${directionPresentation.amountClassName}`}
+        aria-label={`Kwota transakcji: ${Object.entries(row.totals)
+          .map(([currency, total]) => money(Math.abs(Number(total)), currency))
+          .join(" / ")}`}
+      >
+        {Object.entries(row.totals)
+          .map(
+            ([currency, total]) =>
+              `${directionPresentation.sign} ${money(Math.abs(Number(total)), currency)}`,
+          )
+          .join(" / ")}
+      </strong>
       <div className="grid min-w-0 gap-3">
         <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
           <CategorySelect
@@ -312,8 +355,11 @@ export default function ClassificationPage({
                 </>
               ) : (
                 <>
-                  Pokaż kolejne {Math.min(CLASSIFICATION_PAGE_SIZE, remainingRowsCount)}
-                  <span className="text-muted">· zostało {remainingRowsCount}</span>
+                  Pokaż kolejne{" "}
+                  {Math.min(CLASSIFICATION_PAGE_SIZE, remainingRowsCount)}
+                  <span className="text-muted">
+                    · zostało {remainingRowsCount}
+                  </span>
                 </>
               )}
             </button>
