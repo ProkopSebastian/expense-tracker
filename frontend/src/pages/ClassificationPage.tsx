@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Sparkles, Link2, Check, LoaderCircle, Search } from "lucide-react";
 import type { Category, ClassificationRow } from "../domain";
 import { request, useResource, useAction } from "../hooks";
@@ -123,6 +123,7 @@ export default function ClassificationPage({
     [visibleRowsCount, setVisibleRowsCount] = useState(
       CLASSIFICATION_PAGE_SIZE,
     );
+  const [isLoadingMore, startLoadingMore] = useTransition();
   async function analyze(kind: "merchants" | "relations") {
     setNotice("");
     setActiveKind(kind);
@@ -291,14 +292,30 @@ export default function ClassificationPage({
           <div className="flex justify-center border-t border-line p-4">
             <button
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              disabled={isLoadingMore}
+              aria-busy={isLoadingMore}
               onClick={() =>
-                setVisibleRowsCount(
-                  (count) => count + CLASSIFICATION_PAGE_SIZE,
+                startLoadingMore(() =>
+                  setVisibleRowsCount(
+                    (count) => count + CLASSIFICATION_PAGE_SIZE,
+                  ),
                 )
               }
             >
-              Pokaż kolejne {Math.min(CLASSIFICATION_PAGE_SIZE, remainingRowsCount)}
-              <span className="text-muted">· zostało {remainingRowsCount}</span>
+              {isLoadingMore ? (
+                <>
+                  <LoaderCircle
+                    size={16}
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                  Wczytuję…
+                </>
+              ) : (
+                <>
+                  Pokaż kolejne {Math.min(CLASSIFICATION_PAGE_SIZE, remainingRowsCount)}
+                  <span className="text-muted">· zostało {remainingRowsCount}</span>
+                </>
+              )}
             </button>
           </div>
         )}
