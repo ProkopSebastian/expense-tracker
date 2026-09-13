@@ -94,7 +94,7 @@ export const pages: Record<Page, { title: string; description: string }> = {
     description: "Uporządkuj wydatki, po swojemu lub z pomocą AI.",
   },
   rules: {
-    title: "Reguły sprzedawców",
-    description: "Jedna decyzja teraz. Mniej pracy przy kolejnych wydatkach.",
+    title: "Automatyczne przypisania",
+    description: "Kategorie zapamiętane dla sprzedawców.",
   },
 };

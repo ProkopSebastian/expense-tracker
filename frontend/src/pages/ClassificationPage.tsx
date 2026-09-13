@@ -101,7 +101,7 @@ function ClassificationItem({
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
           />
-          Zapamiętaj regułę
+          Zapamiętaj dla sprzedawcy
         </label>
       </div>
       <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Trash2, Settings2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
@@ -18,18 +18,17 @@ function RuleRow({
   useEffect(() => setCategory(rule.category_key), [rule.category_key]);
   return (
     <>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-center gap-3 border-t border-line p-5 xl:grid-cols-[36px_minmax(150px,1fr)_minmax(220px,1fr)_auto_36px]">
-        <span className="hidden size-9 place-items-center rounded-xl bg-accent-soft text-accent xl:grid">
-          <Settings2 size={18} />
-        </span>
-        <div className="col-span-full xl:col-auto [&_strong]:text-sm [&_strong]:font-medium [&_strong]:wrap-anywhere">
-          <strong>{rule.name}</strong>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,300px)_auto_auto] lg:gap-5">
+        <div className="col-span-2 min-w-0 lg:col-span-1">
+          <strong className="text-sm font-medium wrap-anywhere">
+            {rule.name}
+          </strong>
           <div className="mt-1 text-xs leading-relaxed text-muted">
             Dodano {rule.created_at.slice(0, 10)}
           </div>
           <Notice error={action.error} />
         </div>
-        <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
+        <div className="col-span-2 flex min-w-0 items-center gap-2 lg:col-span-1 [&>span]:w-full">
           <CategorySelect
             categories={categories}
             value={category}
@@ -38,7 +37,7 @@ function RuleRow({
           />
         </div>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+          className="col-start-1 justify-self-start rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft lg:col-auto"
           disabled={action.busy || category === rule.category_key || !category}
           onClick={() =>
             action.run(() =>
@@ -49,8 +48,8 @@ function RuleRow({
           Zapisz
         </button>
         <button
-          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-          aria-label={`Usuń regułę ${rule.name}`}
+          className="col-start-2 inline-grid size-9 justify-self-end place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger lg:col-auto"
+          aria-label={`Usuń przypisanie dla ${rule.name}`}
           onClick={() => setRemove(true)}
         >
           <Trash2 size={16} />
@@ -58,15 +57,15 @@ function RuleRow({
       </div>
       {remove && (
         <Modal
-          title="Usunąć regułę?"
+          title="Usunąć przypisanie?"
           onClose={() => setRemove(false)}
           busy={action.busy}
         >
           <div className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3">
             <p>{rule.name}</p>
             <p className="text-sm leading-relaxed text-muted">
-              Przyszłe transakcje tego sprzedawcy nie będą już klasyfikowane
-              przez tę regułę. Dotychczasowe kategorie pozostaną.
+              Przyszłe transakcje tego sprzedawcy nie będą już przypisywane
+              automatycznie. Dotychczasowe kategorie pozostaną.
             </p>
             <Notice error={action.error} />
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
@@ -83,7 +82,7 @@ function RuleRow({
                   action.run(() => request(`/rules/${rule.id}`, "DELETE"))
                 }
               >
-                Usuń regułę
+                Usuń przypisanie
               </button>
             </footer>
           </div>
@@ -112,31 +111,25 @@ export default function RulesPage({
     ) ?? [];
   return (
     <>
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-        <div>
-          <h1>Reguły sprzedawców</h1>
-          <p>Jedna decyzja teraz. Mniej pracy przy kolejnych wydatkach.</p>
-        </div>
-        <span className="rounded-xl border border-accent/10 bg-accent-soft px-3 py-2 text-xs font-medium whitespace-nowrap text-accent">
-          {data?.rules.length ?? 0} reguł
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <h1>Automatyczne przypisania</h1>
+        <span className="text-sm font-medium text-muted" role="status">
+          {loading && !data
+            ? "Wczytuję…"
+            : `Sprzedawcy: ${data?.rules.length ?? 0}`}
         </span>
       </div>
-      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-accent/10 bg-accent-soft p-5 text-accent [&_svg]:mt-0.5 [&_svg]:shrink-0 [&_p]:max-w-4xl [&_p]:text-sm [&_p]:leading-relaxed">
-        <Settings2 size={20} />
-        <p>
-          Zmiana reguły poprawia również wcześniejsze transakcje sklasyfikowane
-          przez tę regułę. Zachowuje decyzje zatwierdzone osobno ręcznie lub
-          przez AI.
-        </p>
-      </div>
+      <p className="mb-6 max-w-3xl text-sm leading-relaxed text-muted">
+        Zmiana kategorii obejmie też wcześniejsze transakcje przypisane
+        automatycznie. Osobno zatwierdzone kategorie pozostaną bez zmian.
+      </p>
       <Notice error={error} />
-      <section className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 lg:p-5">
-          <h2>Zapamiętani sprzedawcy</h2>
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-muted max-sm:basis-full [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+      <section className="mb-6">
+        <div className="border-y border-line py-4">
+          <label className="flex max-w-md items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
             <Search size={16} />
             <input
-              aria-label="Szukaj reguł"
+              aria-label="Szukaj automatycznych przypisań"
               placeholder="Szukaj sprzedawcy"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -151,13 +144,18 @@ export default function RulesPage({
             onChanged={onChanged}
           />
         ))}
-        {!rules.length && (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
-            <Settings2 size={28} />
-            <h3>{loading ? "Wczytuję…" : "Brak reguł do pokazania"}</h3>
-            <p>
-              Reguły powstają po wybraniu „Zapamiętaj regułę” przy klasyfikacji.
-            </p>
+        {!rules.length && !error && (
+          <div className="flex min-h-48 flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
+            <h2>
+              {loading
+                ? "Wczytuję…"
+                : query
+                  ? "Brak wyników"
+                  : "Brak automatycznych przypisań"}
+            </h2>
+            {!loading && !query && (
+              <p>Możesz je zapisać podczas klasyfikacji transakcji.</p>
+            )}
           </div>
         )}
       </section>
