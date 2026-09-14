@@ -6,7 +6,58 @@
     <meta name="theme-color" content="#123e35" />
     <title>Wydatki · Podsumowanie</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function () {
+        // Kept in sync with the --app-canvas values in src/theme.css so the
+        // loading screen never flashes a mismatched color before hydration.
+        var CANVAS = {
+          light: "#f6f7fc",
+          dark: "#14151f",
+          ocean: "#f2f8f9",
+          forest: "#f6f8f2",
+          rose: "#fbf6f8",
+          sand: "#faf6ef",
+          midnight: "#101b24",
+          mocha: "#1c1917",
+          lavender: "#f6f5fc",
+          nord: "#2e3440",
+          dracula: "#282a36",
+          gruvbox: "#282828",
+          "one-dark": "#282c34",
+          "tokyo-night": "#1a1b26",
+          catppuccin: "#24273a",
+        };
+        var DARK_THEMES = [
+          "dark",
+          "midnight",
+          "mocha",
+          "nord",
+          "dracula",
+          "gruvbox",
+          "one-dark",
+          "tokyo-night",
+          "catppuccin",
+        ];
+        var stored = null;
+        try {
+          stored = localStorage.getItem("theme");
+        } catch (e) {}
+        var theme = stored && stored !== "system" ? stored : null;
+        if (theme) document.documentElement.setAttribute("data-theme", theme);
+        var systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var dark = theme ? DARK_THEMES.indexOf(theme) !== -1 : systemDark;
+        document.documentElement.style.backgroundColor =
+          CANVAS[theme] || CANVAS[systemDark ? "dark" : "light"];
+        if (dark) document.documentElement.setAttribute("data-scheme", "dark");
+      })();
+    </script>
     <style>
+      :root {
+        color-scheme: light dark;
+      }
+      html[data-scheme="dark"] #boot-screen:not([data-failed="true"]) {
+        color: #c9cbe0;
+      }
       #boot-screen {
         max-width: 520px;
         margin: 80px auto;
