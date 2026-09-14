@@ -3,6 +3,7 @@ import { FolderOpen, RefreshCw, Undo2, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
 import { Notice } from "../components/Forms";
 import AppSelect from "../components/AppSelect";
+import HelpPopover from "../components/HelpPopover";
 
 export default function DataPage({
   accounts,
@@ -51,7 +52,20 @@ export default function DataPage({
       <h1>Import danych</h1>
       <Notice error={action.error} notice={message || action.notice} />
       <section className="mt-8 border-t border-line pt-6">
-        <h2>Wyciąg z banku</h2>
+        <h2 className="flex items-center gap-1.5">
+          Wyciąg z banku
+          <HelpPopover label="Jak działa rozpoznawanie pliku i konta">
+            <p>
+              Bank jest rozpoznawany po zawartości pliku, nie po jego nazwie.
+              Ten sam plik można wgrać ponownie bez obawy o duplikaty —
+              aplikacja pamięta, co już zaimportowała.
+            </p>
+            <p className="mt-2">
+              Ręczny wybór rachunku ma znaczenie tylko przy kilku kontach w
+              tym samym banku — inaczej system sam dobiera domyślne konto.
+            </p>
+          </HelpPopover>
+        </h2>
         <p className="mt-1 text-sm text-muted">
           Nest, Revolut i Erste — CSV · ING i Velo — PDF · maks. 20 MB
         </p>
@@ -127,7 +141,23 @@ export default function DataPage({
         </details>
       </section>
       <section className="mt-8 border-t border-line pt-6">
-        <h2>Folder danych</h2>
+        <h2 className="flex items-center gap-1.5">
+          Folder danych
+          <HelpPopover label="Jak działa wczytywanie folderu danych">
+            <p>Są dwa sposoby na dodanie wyciągu.</p>
+            <p className="mt-2">
+              Pierwszy to przeciągnięcie pliku wyżej — trafia od razu do
+              importu. Drugi to samodzielne skopiowanie pobranych wyciągów do
+              folderu danych, a potem kliknięcie „Wczytaj nowe pliki” —
+              wczyta naraz wszystko, co tam nowego, pomijając już
+              zaimportowane pliki.
+            </p>
+            <p className="mt-2">
+              W obu przypadkach transakcje trafiają do bazy aplikacji — sam
+              plik wyciągu możesz potem bezpiecznie usunąć z komputera.
+            </p>
+          </HelpPopover>
+        </h2>
         <p className="mt-1 text-sm leading-relaxed text-muted">
           Wczytaj nowe eksporty zapisane w folderze data.
         </p>
@@ -160,7 +190,7 @@ export default function DataPage({
           </button>
         </div>
       </section>
-      <div className="mt-8 border-t border-line pt-4">
+      <div className="mt-8 flex items-center gap-1.5 border-t border-line pt-4">
         <button
           className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
           disabled={action.busy || !recovery?.can_undo}
@@ -174,6 +204,13 @@ export default function DataPage({
         >
           <Undo2 size={16} /> Cofnij ostatnią zmianę
         </button>
+        <HelpPopover label="Jak działa cofanie zmiany">
+          <p>
+            Cofa tylko jedną, ostatnią operację zapisującą dane — na
+            przykład import, synchronizację folderu albo zmianę kategorii.
+          </p>
+          <p className="mt-2">To nie jest pełna historia zmian.</p>
+        </HelpPopover>
       </div>
     </div>
   );
