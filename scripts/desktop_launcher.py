@@ -55,12 +55,13 @@ def _runtime_data_directory() -> Path:
     return application_paths().data_dir
 
 
-def _prepare_runtime() -> tuple[Path, TextIO]:
+def _prepare_runtime():
     from expense_tracker.paths import application_paths
 
     paths = application_paths()
     paths.data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     (paths.data_dir / "data").mkdir(mode=0o700, exist_ok=True)
+    paths.config_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     paths.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     log_path = paths.state_dir / "app.log"
 
@@ -74,7 +75,7 @@ def _prepare_runtime() -> tuple[Path, TextIO]:
     )
     faulthandler.enable(file=log, all_threads=True)
     logger.info("START Wydatki; frozen=%s; platform=%s", getattr(sys, "frozen", False), sys.platform)
-    return log_path, log
+    return paths, log_path, log
 
 
 def _native_message(title: str, message: str) -> None:
@@ -134,7 +135,7 @@ def _wait_until_ready(server, worker: threading.Thread, base_url: str) -> None:
     raise RuntimeError(f"Przekroczono czas oczekiwania na gotowość aplikacji.{detail}")
 
 
-def _run_desktop(webview, log_path: Path) -> None:
+def _run_desktop(webview, log_path: Path, paths) -> None:
     icon_path = _icon_path()
     _configure_linux_app_identity(icon_path)
     if sys.platform == "win32":
@@ -152,12 +153,22 @@ def _run_desktop(webview, log_path: Path) -> None:
     import uvicorn
 
     from expense_tracker.api import create_app
+    from expense_tracker.config import settings
+
+    # Route the app's storage to the OS-appropriate directory picked by
+    # application_paths(); otherwise Settings() falls back to paths relative
+    # to whatever the process's working directory happens to be at launch.
+    settings.data_dir = paths.data_dir / "data"
+    app = create_app(
+        database_path=paths.data_dir / "expense-tracker.sqlite3",
+        configuration_dir=paths.config_dir,
+    )
 
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     port = listener.getsockname()[1]
     base_url = f"http://127.0.0.1:{port}"
-    server = uvicorn.Server(uvicorn.Config(create_app(), log_config=None))
+    server = uvicorn.Server(uvicorn.Config(app, log_config=None))
 
     def serve() -> None:
         logger.info("BACKEND starting on %s", base_url)
@@ -217,12 +228,12 @@ def main() -> int:
     log_path: Path | None = None
     log = None
     try:
-        log_path, log = _prepare_runtime()
+        paths, log_path, log = _prepare_runtime()
         logger.info("WEBVIEW importing")
         import webview
 
         logger.info("WEBVIEW imported")
-        _run_desktop(webview, log_path)
+        _run_desktop(webview, log_path, paths)
         return 0
     except BaseException as error:
         if log is not None:
