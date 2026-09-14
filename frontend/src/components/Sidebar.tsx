@@ -7,9 +7,12 @@ import {
   FolderArchive,
   Settings2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { pages, type Page } from "../domain";
 import SettingsDialog from "./SettingsDialog";
+import OnboardingTour from "./OnboardingTour";
+
+const ONBOARDING_SEEN_KEY = "onboarding-seen";
 const icons = {
   data: FolderArchive,
   summary: ChartNoAxesCombined,
@@ -29,6 +32,22 @@ export default function Sidebar({
   onDataReset: (apiKeyPreserved: boolean) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) setTourOpen(true);
+    } catch {
+      // Private mode or blocked storage: skip the automatic tour, manual entry still works.
+    }
+  }, []);
+  function closeTour() {
+    setTourOpen(false);
+    try {
+      localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+    } catch {
+      // Ignore: nothing to persist, tour just reopens next visit.
+    }
+  }
   return (
     <>
       <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-surface/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-0">
@@ -81,8 +100,13 @@ export default function Sidebar({
           onChanged={onChanged}
           onClose={() => setSettingsOpen(false)}
           onDataReset={onDataReset}
+          onOpenTour={() => {
+            setSettingsOpen(false);
+            setTourOpen(true);
+          }}
         />
       )}
+      {tourOpen && <OnboardingTour onClose={closeTour} />}
     </>
   );
 }
