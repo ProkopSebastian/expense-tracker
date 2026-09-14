@@ -13,7 +13,6 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TextIO
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
