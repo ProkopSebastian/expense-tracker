@@ -9,10 +9,13 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { pages, type Page } from "../domain";
+import { changelog } from "../changelog";
 import SettingsDialog from "./SettingsDialog";
 import OnboardingTour from "./OnboardingTour";
+import WhatsNewModal from "./WhatsNewModal";
 
 const ONBOARDING_SEEN_KEY = "onboarding-seen";
+const CHANGELOG_SEEN_KEY = "changelog-seen-version";
 const icons = {
   data: FolderArchive,
   summary: ChartNoAxesCombined,
@@ -33,19 +36,37 @@ export default function Sidebar({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const latestVersion = changelog[0]?.version;
   useEffect(() => {
     try {
-      if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) setTourOpen(true);
+      if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) {
+        setTourOpen(true);
+        // A first-time visitor has no prior version to compare against.
+        if (latestVersion) localStorage.setItem(CHANGELOG_SEEN_KEY, latestVersion);
+        return;
+      }
+      if (latestVersion && localStorage.getItem(CHANGELOG_SEEN_KEY) !== latestVersion) {
+        setWhatsNewOpen(true);
+      }
     } catch {
-      // Private mode or blocked storage: skip the automatic tour, manual entry still works.
+      // Private mode or blocked storage: skip the automatic prompts, manual entry still works.
     }
-  }, []);
+  }, [latestVersion]);
   function closeTour() {
     setTourOpen(false);
     try {
       localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
     } catch {
       // Ignore: nothing to persist, tour just reopens next visit.
+    }
+  }
+  function closeWhatsNew() {
+    setWhatsNewOpen(false);
+    try {
+      if (latestVersion) localStorage.setItem(CHANGELOG_SEEN_KEY, latestVersion);
+    } catch {
+      // Ignore: nothing to persist, notice just reopens next visit.
     }
   }
   return (
@@ -107,6 +128,7 @@ export default function Sidebar({
         />
       )}
       {tourOpen && <OnboardingTour onClose={closeTour} />}
+      {whatsNewOpen && <WhatsNewModal onClose={closeWhatsNew} />}
     </>
   );
 }

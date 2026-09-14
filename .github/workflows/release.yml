@@ -30,6 +30,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path package/Wydatki-Windows | Out-Null
           Copy-Item dist/Wydatki.exe package/Wydatki-Windows/
           Copy-Item dist/START.txt package/Wydatki-Windows/
+          Copy-Item dist/CHANGES.txt package/Wydatki-Windows/
           Compress-Archive -Path package/Wydatki-Windows -DestinationPath Wydatki-Windows.zip
       - uses: actions/upload-artifact@v7
         with:

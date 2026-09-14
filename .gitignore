@@ -23,6 +23,9 @@ data/*.sta
 # AI
 HANDOFF.md
 
+# Release notes draft, folded into CHANGELOG.md at release time
+CHANGELOG.unreleased.md
+
 # Local React build and dependencies
 node_modules/
 *.tsbuildinfo

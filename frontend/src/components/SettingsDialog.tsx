@@ -14,7 +14,9 @@ import {
   useTheme,
   type ThemePreference,
 } from "../theme";
+import { changelog } from "../changelog";
 import { Modal, Notice } from "./Forms";
+import ChangelogList from "./ChangelogList";
 
 const CONFIRMATION = "USUŃ DANE";
 
@@ -354,6 +356,16 @@ export default function SettingsDialog({
                 <Compass size={17} className="text-accent" />
                 Uruchom przewodnik
               </button>
+
+              <section
+                aria-labelledby="changelog-heading"
+                className="space-y-3 border-t border-line pt-5"
+              >
+                <h2 id="changelog-heading" className="text-base!">
+                  Co nowego
+                </h2>
+                <ChangelogList releases={changelog.slice(0, 5)} />
+              </section>
             </div>
           )}
         </div>

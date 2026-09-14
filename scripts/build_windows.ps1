@@ -15,3 +15,4 @@ Check-Exit
 $smoke = Start-Process -FilePath dist/Wydatki.exe -ArgumentList '--smoke-test' -PassThru -Wait
 if ($smoke.ExitCode -ne 0) { throw "Packaged application smoke test failed: $($smoke.ExitCode)" }
 Copy-Item docs/WINDOWS.txt dist/START.txt -Force
+Copy-Item CHANGELOG.md dist/CHANGES.txt -Force
