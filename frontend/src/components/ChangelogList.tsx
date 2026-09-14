@@ -15,6 +15,9 @@ export default function ChangelogList({
 }: {
   releases: ChangelogRelease[];
 }) {
+  if (releases.length === 0) {
+    return <p className="text-sm text-muted">Brak informacji o zmianach.</p>;
+  }
   return (
     <div className="space-y-5">
       {releases.map((release) => (
