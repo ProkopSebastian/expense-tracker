@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { pages, type Page } from "../domain";
-import { changelog } from "../changelog";
+import { changelog, releasesSince } from "../changelog";
 import SettingsDialog from "./SettingsDialog";
 import OnboardingTour from "./OnboardingTour";
 import WhatsNewModal from "./WhatsNewModal";
@@ -37,6 +37,7 @@ export default function Sidebar({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [seenVersion, setSeenVersion] = useState<string | null>(null);
   const latestVersion = changelog[0]?.version;
   useEffect(() => {
     try {
@@ -46,7 +47,9 @@ export default function Sidebar({
         if (latestVersion) localStorage.setItem(CHANGELOG_SEEN_KEY, latestVersion);
         return;
       }
-      if (latestVersion && localStorage.getItem(CHANGELOG_SEEN_KEY) !== latestVersion) {
+      const stored = localStorage.getItem(CHANGELOG_SEEN_KEY);
+      if (latestVersion && stored !== latestVersion) {
+        setSeenVersion(stored);
         setWhatsNewOpen(true);
       }
     } catch {
@@ -128,7 +131,9 @@ export default function Sidebar({
         />
       )}
       {tourOpen && <OnboardingTour onClose={closeTour} />}
-      {whatsNewOpen && <WhatsNewModal onClose={closeWhatsNew} />}
+      {whatsNewOpen && (
+        <WhatsNewModal releases={releasesSince(seenVersion)} onClose={closeWhatsNew} />
+      )}
     </>
   );
 }

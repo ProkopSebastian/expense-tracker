@@ -35,3 +35,9 @@ export const changelog: ChangelogRelease[] = raw
         .map(parseLine),
     };
   });
+
+export function releasesSince(seenVersion: string | null): ChangelogRelease[] {
+  if (!seenVersion) return changelog.slice(0, 1);
+  const index = changelog.findIndex((release) => release.version === seenVersion);
+  return index <= 0 ? changelog.slice(0, 1) : changelog.slice(0, index);
+}
