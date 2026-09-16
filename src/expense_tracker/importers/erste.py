@@ -18,9 +18,8 @@ def _merchant_and_type(description: str, counterparty: str | None) -> tuple[str,
     card_match = _CARD_MERCHANT.search(description)
     if card_match:
         return card_match.group(1).strip(" ,"), "Card Payment"
-    if description.casefold().startswith("przelew"):
-        return (counterparty or description).strip(), "Transfer"
-    return description, "Other"
+    transaction_type = "Transfer" if description.casefold().startswith("przelew") else "Other"
+    return (counterparty or description).strip(), transaction_type
 
 
 def _erste_rows(path: Path) -> list[list[str]]:
