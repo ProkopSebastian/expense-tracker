@@ -1,7 +1,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { LoaderCircle, Search, Trash2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
-import { request, useResource, useAction } from "../hooks";
+import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
 
 const RULES_PAGE_SIZE = 25;
@@ -117,6 +117,12 @@ export default function RulesPage({
     ) ?? [];
   const visibleRules = rules.slice(0, visibleRulesCount);
   const remainingRulesCount = rules.length - visibleRules.length;
+  const loadMore = () =>
+    startLoadingMore(() => setVisibleRulesCount((count) => count + RULES_PAGE_SIZE));
+  const sentinelRef = useLoadMoreSentinel(
+    loadMore,
+    remainingRulesCount > 0 && !isLoadingMore,
+  );
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -170,16 +176,12 @@ export default function RulesPage({
           </div>
         )}
         {remainingRulesCount > 0 && (
-          <div className="flex justify-center pt-5">
+          <div className="flex justify-center pt-5" ref={sentinelRef}>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
               disabled={isLoadingMore}
               aria-busy={isLoadingMore}
-              onClick={() =>
-                startLoadingMore(() =>
-                  setVisibleRulesCount((count) => count + RULES_PAGE_SIZE),
-                )
-              }
+              onClick={loadMore}
             >
               {isLoadingMore ? (
                 <>

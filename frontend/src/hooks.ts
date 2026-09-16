@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 export async function request<T>(
   path: string,
   method = "GET",
@@ -68,6 +68,21 @@ export function useAction(onSuccess?: () => void) {
     }
   }
   return { busy, notice, error, run };
+}
+
+export function useLoadMoreSentinel(onReachEnd: () => void, enabled: boolean) {
+  return useCallback(
+    (node: Element | null) => {
+      if (!node || !enabled) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => entry.isIntersecting && onReachEnd(),
+        { rootMargin: "200px" },
+      );
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [onReachEnd, enabled],
+  );
 }
 
 /** Keep view filters while navigating, without persisting transaction data. */
