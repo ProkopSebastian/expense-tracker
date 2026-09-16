@@ -277,7 +277,15 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
 
     gui = "qt" if sys.platform.startswith("linux") else None
     logger.info("WINDOW starting with icon %s", icon_path)
-    webview.start(start_backend, icon=str(icon_path) if icon_path.exists() else None, gui=gui)
+    # pywebview defaults to private_mode=True, which discards localStorage (onboarding tour seen,
+    # changelog last seen) on every launch; give it a real, persistent profile directory instead.
+    webview.start(
+        start_backend,
+        icon=str(icon_path) if icon_path.exists() else None,
+        gui=gui,
+        private_mode=False,
+        storage_path=str(paths.state_dir / "webview"),
+    )
     logger.info("WINDOW closed")
 
     closing.set()
