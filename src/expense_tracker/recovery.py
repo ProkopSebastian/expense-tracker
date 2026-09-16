@@ -33,7 +33,24 @@ def backup_database(path: Path, label: str, *, daily: bool = False) -> Path:
     for old in sorted(directory.glob(f"{label}-*.sqlite3"))[:-30]:
         if old.name != protected:
             old.unlink()
+            _unlink_wal_sidecars(old)
+    _cleanup_orphaned_wal_sidecars(directory)
     return target
+
+
+def _unlink_wal_sidecars(backup: Path) -> None:
+    # sqlite3.Connection.backup() copies the WAL journal mode header, so opening a
+    # backup file for read/write (undo_last, digest) can leave -wal/-shm siblings
+    # behind that a plain "*.sqlite3" rotation glob never matches.
+    for suffix in ("-wal", "-shm"):
+        backup.with_name(backup.name + suffix).unlink(missing_ok=True)
+
+
+def _cleanup_orphaned_wal_sidecars(directory: Path) -> None:
+    for suffix in ("-wal", "-shm"):
+        for sidecar in directory.glob(f"*.sqlite3{suffix}"):
+            if not sidecar.with_name(sidecar.name[: -len(suffix)]).exists():
+                sidecar.unlink()
 
 
 def digest(connection: sqlite3.Connection) -> str:
