@@ -86,13 +86,26 @@ def _native_message(title: str, message: str) -> None:
         print(f"{title}: {message}", file=sys.stderr)
 
 
-def _show_message(webview, title: str, message: str, icon_path: Path) -> None:
+def _message_page(message: str) -> str:
     body = html.escape(message).replace("\n", "<br>")
-    page = f"""<body style="margin:0;height:100vh;display:flex;align-items:center;
+    return f"""<body style="margin:0;height:100vh;display:flex;align-items:center;
     justify-content:center;background:#f4f8f5;font-family:'Segoe UI',sans-serif">
     <p style="max-width:320px;text-align:center;font-size:14px;line-height:1.6">{body}</p>
     </body>"""
-    webview.create_window(title, html=page, width=400, height=240, resizable=False)
+
+
+def _loading_page() -> str:
+    return """<body style="margin:0;height:100vh;display:flex;flex-direction:column;gap:16px;
+    align-items:center;justify-content:center;background:#f4f8f5;font-family:'Segoe UI',sans-serif">
+    <div style="width:32px;height:32px;border-radius:50%;border:3px solid #d5e3d8;
+    border-top-color:#3f8452;animation:spin 0.8s linear infinite"></div>
+    <p style="font-size:14px;color:#3c4a3f">Ładowanie…</p>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </body>"""
+
+
+def _show_message(webview, title: str, message: str, icon_path: Path) -> None:
+    webview.create_window(title, html=_message_page(message), width=400, height=240, resizable=False)
     webview.start(icon=str(icon_path) if icon_path.exists() else None)
 
 
@@ -134,65 +147,107 @@ def _wait_until_ready(server, worker: threading.Thread, base_url: str) -> None:
     raise RuntimeError(f"Przekroczono czas oczekiwania na gotowość aplikacji.{detail}")
 
 
+def _acquire_single_instance_mutex() -> bool:
+    import ctypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
+    kernel.CreateMutexW.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+
+    # A previous instance can take up to the 10s join timeout below to fully exit,
+    # during which the mutex is still held; retry briefly before reporting "already running".
+    deadline = time.monotonic() + 4
+    while True:
+        mutex = kernel.CreateMutexW(None, False, "Local\\WydatkiDesktop")
+        already_running = not mutex or ctypes.get_last_error() == 183
+        if not already_running:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        kernel.CloseHandle(mutex)
+        time.sleep(0.25)
+
+
 def _run_desktop(webview, log_path: Path, paths) -> None:
     icon_path = _icon_path()
     _configure_linux_app_identity(icon_path)
-    if sys.platform == "win32":
-        import ctypes
+    if sys.platform == "win32" and not _acquire_single_instance_mutex():
+        logger.info("A second application instance was rejected")
+        _show_message(webview, "Wydatki", "Aplikacja jest już uruchomiona.", icon_path)
+        return
 
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
-        kernel.CreateMutexW.restype = ctypes.c_void_p
-        mutex = kernel.CreateMutexW(None, False, "Local\\WydatkiDesktop")
-        if not mutex or ctypes.get_last_error() == 183:
-            logger.info("A second application instance was rejected")
-            _show_message(webview, "Wydatki", "Aplikacja jest już uruchomiona.", icon_path)
-            return
-
-    import uvicorn
-
-    from expense_tracker.api import create_app
-    from expense_tracker.config import settings
-
-    # Route the app's storage to the OS-appropriate directory picked by
-    # application_paths(); otherwise Settings() falls back to paths relative
-    # to whatever the process's working directory happens to be at launch.
-    settings.data_dir = paths.data_dir / "data"
-    app = create_app(
-        database_path=paths.data_dir / "expense-tracker.sqlite3",
-        configuration_dir=paths.config_dir,
-    )
-
-    listener = socket.socket()
-    listener.bind(("127.0.0.1", 0))
-    port = listener.getsockname()[1]
-    base_url = f"http://127.0.0.1:{port}"
-    server = uvicorn.Server(uvicorn.Config(app, log_config=None))
-
-    def serve() -> None:
-        logger.info("BACKEND starting on %s", base_url)
-        try:
-            server.run(sockets=[listener])
-        except BaseException:
-            logger.exception("BACKEND crashed")
-            raise
-        finally:
-            logger.info("BACKEND stopped; requested=%s", server.should_exit)
-
-    worker = threading.Thread(target=serve, name="expense-tracker-backend", daemon=True)
-    worker.start()
     closing = threading.Event()
-    try:
-        _wait_until_ready(server, worker, base_url)
-        window = webview.create_window(
-            "Wydatki", base_url, width=1200, height=820, min_size=(380, 500), text_select=True
-        )
+    state: dict[str, object] = {}
 
-        def close_server() -> None:
-            closing.set()
+    def close_server() -> None:
+        closing.set()
+        server = state.get("server")
+        if server is not None:
             server.should_exit = True
 
-        window.events.closed += close_server
+    window = webview.create_window(
+        "Wydatki", html=_loading_page(), width=1200, height=820, min_size=(380, 500), text_select=True
+    )
+    window.events.closed += close_server
+
+    def start_backend() -> None:
+        import uvicorn
+
+        from expense_tracker.api import create_app
+        from expense_tracker.config import settings
+
+        # Route the app's storage to the OS-appropriate directory picked by
+        # application_paths(); otherwise Settings() falls back to paths relative
+        # to whatever the process's working directory happens to be at launch.
+        settings.data_dir = paths.data_dir / "data"
+        app = create_app(
+            database_path=paths.data_dir / "expense-tracker.sqlite3",
+            configuration_dir=paths.config_dir,
+        )
+
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+        base_url = f"http://127.0.0.1:{port}"
+        server = uvicorn.Server(uvicorn.Config(app, log_config=None))
+        state["server"] = server
+        if closing.is_set():
+            listener.close()
+            return
+
+        def serve() -> None:
+            logger.info("BACKEND starting on %s", base_url)
+            try:
+                server.run(sockets=[listener])
+            except BaseException:
+                logger.exception("BACKEND crashed")
+                raise
+            finally:
+                logger.info("BACKEND stopped; requested=%s", server.should_exit)
+
+        worker = threading.Thread(target=serve, name="expense-tracker-backend", daemon=True)
+        worker.start()
+        state["worker"] = worker
+
+        try:
+            _wait_until_ready(server, worker, base_url)
+        except Exception as error:
+            logger.exception("STARTUP failed")
+            closing.set()
+            server.should_exit = True
+            worker.join(timeout=10)
+            listener.close()
+            window.load_html(_message_page(f"Nie udało się uruchomić Wydatków.\n{error}"))
+            return
+
+        if closing.is_set():
+            server.should_exit = True
+            worker.join(timeout=10)
+            listener.close()
+            return
+
+        window.load_url(base_url)
 
         def monitor_server() -> None:
             worker.join()
@@ -204,15 +259,19 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
                 )
 
         threading.Thread(target=monitor_server, name="expense-tracker-monitor", daemon=True).start()
-        gui = "qt" if sys.platform.startswith("linux") else None
-        logger.info("WINDOW starting with icon %s", icon_path)
-        webview.start(icon=str(icon_path) if icon_path.exists() else None, gui=gui)
-        logger.info("WINDOW closed")
-    finally:
-        closing.set()
+
+    gui = "qt" if sys.platform.startswith("linux") else None
+    logger.info("WINDOW starting with icon %s", icon_path)
+    webview.start(start_backend, icon=str(icon_path) if icon_path.exists() else None, gui=gui)
+    logger.info("WINDOW closed")
+
+    closing.set()
+    server = state.get("server")
+    worker = state.get("worker")
+    if server is not None:
         server.should_exit = True
+    if worker is not None:
         worker.join(timeout=10)
-        listener.close()
         if worker.is_alive():
             logger.error("BACKEND did not stop within 10 seconds")
 
