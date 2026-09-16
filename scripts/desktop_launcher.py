@@ -18,6 +18,22 @@ from urllib.request import urlopen
 
 logger = logging.getLogger("expense_tracker.desktop")
 _linux_app = None
+# A fixed port keeps the frontend on the same origin across restarts, so the browser's
+# localStorage (onboarding tour seen, changelog last seen) actually persists between launches.
+_PREFERRED_PORT = 51837
+
+
+def _bind_backend_listener() -> socket.socket:
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        listener.bind(("127.0.0.1", _PREFERRED_PORT))
+    except OSError:
+        logger.info("PORT %d unavailable; falling back to a random port", _PREFERRED_PORT)
+        listener.close()
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+    return listener
 
 
 def _asset_root() -> Path:
@@ -206,8 +222,7 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
             configuration_dir=paths.config_dir,
         )
 
-        listener = socket.socket()
-        listener.bind(("127.0.0.1", 0))
+        listener = _bind_backend_listener()
         port = listener.getsockname()[1]
         base_url = f"http://127.0.0.1:{port}"
         server = uvicorn.Server(uvicorn.Config(app, log_config=None))
