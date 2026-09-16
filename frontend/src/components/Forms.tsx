@@ -1,9 +1,10 @@
 import CategoryIcon from "./CategoryIcon";
 import * as Dialog from "@radix-ui/react-dialog";
-import { useRef, type ReactNode } from "react";
-import { X, CheckCircle2, AlertCircle } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { X, CheckCircle2, AlertCircle, Search, ChevronDown, Check } from "lucide-react";
 import type { Category } from "../domain";
-import AppSelect from "./AppSelect";
+import type { SelectOption } from "./AppSelect";
 
 export interface CategoryGroup {
   parent: Category;
@@ -33,21 +34,23 @@ export function groupCategories(categories: Category[]): CategoryGroup[] {
   }));
 }
 
+function normalizePolish(text: string) {
+  return text.toLocaleLowerCase("pl");
+}
+
 export function CategorySelect({
   categories,
   value,
   onChange,
-  required = true,
   label = "Kategoria",
 }: {
   categories: Category[];
   value: string;
   onChange: (value: string) => void;
-  required?: boolean;
   label?: string;
 }) {
   const groups = groupCategories(categories);
-  const options = [
+  const options: SelectOption[] = [
     { value: "", label: "Do przypisania" },
     ...groups.flatMap(({ parent, children }) => [
       {
@@ -62,18 +65,111 @@ export function CategorySelect({
       })),
     ]),
   ];
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [highlighted, setHighlighted] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = search
+    ? options.filter(
+        (option) =>
+          normalizePolish(option.label).includes(normalizePolish(search)) ||
+          (option.group && normalizePolish(option.group).includes(normalizePolish(search))),
+      )
+    : options;
+  const selected = options.find((option) => option.value === value);
+
+  function select(optionValue: string) {
+    onChange(optionValue);
+    setOpen(false);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlighted((index) => Math.min(index + 1, filtered.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlighted((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const option = filtered[highlighted];
+      if (option) select(option.value);
+    }
+  }
+
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <CategoryIcon categoryKey={value} />
-      <AppSelect
-        className="min-w-0 flex-1"
-        ariaLabel={label}
-        value={value}
-        onValueChange={onChange}
-        required={required}
-        options={options}
-      />
-    </span>
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setSearch("");
+        setHighlighted(0);
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left text-sm text-ink transition hover:border-accent/40 data-[state=open]:border-accent"
+        >
+          <CategoryIcon categoryKey={value} />
+          <span className="min-w-0 flex-1 truncate">{selected?.label ?? "Do przypisania"}</span>
+          <ChevronDown size={16} className="shrink-0 text-muted" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          sideOffset={6}
+          collisionPadding={8}
+          className="z-60 w-[min(20rem,90vw)] overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-xl"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
+          <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+            <Search size={15} className="shrink-0 text-muted" />
+            <input
+              ref={inputRef}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setHighlighted(0);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Szukaj kategorii…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+            />
+          </div>
+          <div className="max-h-[min(20rem,60dvh)] overflow-y-auto p-1.5">
+            {filtered.map((option, index) => (
+              <div key={option.value || "__unassigned__"}>
+                {option.group && option.group !== filtered[index - 1]?.group && (
+                  <span className="block px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    {option.group}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => select(option.value)}
+                  onMouseEnter={() => setHighlighted(index)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg py-2 pl-3 pr-3 text-left text-sm outline-none ${
+                    index === highlighted ? "bg-accent-soft text-accent" : ""
+                  } ${option.value === value ? "font-semibold" : ""}`}
+                >
+                  {option.label}
+                  {option.value === value && <Check size={15} className="text-accent" />}
+                </button>
+              </div>
+            ))}
+            {!filtered.length && (
+              <p className="px-3 py-4 text-center text-sm text-muted">Brak wyników.</p>
+            )}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 export function Notice({ error, notice }: { error?: string; notice?: string }) {
