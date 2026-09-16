@@ -1,3 +1,9 @@
+## v0.3.2 — 16.09.2026
+
+- feat: dodano obsługę wyciągów PDF z PKO BP
+- fix: import wyciągów Nest nie gubi już cicho transakcji o tej samej kwocie i opisie tego samego dnia
+- fix: ekran „Co nowego” i samouczek nie pokazują się już przy każdym uruchomieniu aplikacji desktopowej
+
 ## v0.3.1 — 16.09.2026
 
 - fix: ten sam kontrahent w wyciągu Erste nie rozjeżdża się już na kilka wpisów w kolejce klasyfikacji
