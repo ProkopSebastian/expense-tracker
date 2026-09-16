@@ -2,11 +2,16 @@ import { useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, LoaderCircle, Search } from "lucide-react";
 import type { Category, ClassificationRow } from "../domain";
-import { request, useResource, useAction } from "../hooks";
+import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
 
 const CLASSIFICATION_PAGE_SIZE = 25;
+
+function formatSignedAmount(value: number, currency: string) {
+  const sign = value < 0 ? "−" : value > 0 ? "+" : "";
+  return `${sign} ${money(Math.abs(value), currency)}`.trim();
+}
 
 function transactionDirection(totals: Record<string, string>) {
   const values = Object.values(totals).map(Number);
@@ -23,6 +28,15 @@ function transactionDirection(totals: Record<string, string>) {
     return "income";
   }
   return "mixed";
+}
+
+function StatBadge({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm text-muted">
+      <strong className="font-semibold text-accent">{value}</strong>
+      {label}
+    </span>
+  );
 }
 
 function ClassificationItem({
@@ -43,11 +57,7 @@ function ClassificationItem({
     mixed: "text-info",
   }[transactionDirection(row.totals)];
   const amount = Object.entries(row.totals)
-    .map(([currency, total]) => {
-      const value = Number(total);
-      const sign = value < 0 ? "−" : value > 0 ? "+" : "";
-      return `${sign} ${money(Math.abs(value), currency)}`.trim();
-    })
+    .map(([currency, total]) => formatSignedAmount(Number(total), currency))
     .join(" / ");
   return (
     <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(130px,160px)_minmax(180px,220px)_auto] lg:items-center lg:gap-5">
@@ -80,12 +90,31 @@ function ClassificationItem({
         )}
         <Notice error={action.error} />
       </div>
-      <strong
-        className={`max-w-40 text-right text-base font-semibold tracking-tight tabular-nums wrap-anywhere lg:justify-self-end ${amountClassName}`}
-        aria-label={`Kwota transakcji: ${amount}`}
-      >
-        {amount}
-      </strong>
+      <div className="max-w-40 text-right lg:justify-self-end">
+        <strong
+          className={`text-base font-semibold tracking-tight tabular-nums wrap-anywhere ${amountClassName}`}
+          aria-label={`Kwota transakcji: ${amount}`}
+        >
+          {amount}
+        </strong>
+        {row.count > 1 && row.members && (
+          <details className="mt-1 text-xs text-muted">
+            <summary className="cursor-pointer hover:text-accent">
+              Suma {row.count} transakcji
+            </summary>
+            <ul className="mt-2 space-y-1 text-left">
+              {row.members.map((member, index) => (
+                <li key={index} className="flex justify-between gap-3">
+                  <span>{member.date}</span>
+                  <span className="tabular-nums">
+                    {formatSignedAmount(Number(member.amount), member.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
       <div className="col-span-2 grid min-w-0 gap-2 lg:col-span-1">
         <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
           <CategorySelect
@@ -158,6 +187,12 @@ export default function ClassificationPage({
   );
   const action = useAction(onChanged);
   const [notice, setNotice] = useState(""),
+    [merchantStats, setMerchantStats] = useState<{
+      processed: number;
+      saved: number;
+      remaining: number;
+      searches: number;
+    } | null>(null),
     [activeKind, setActiveKind] = useState<"merchants" | "relations" | null>(
       null,
     ),
@@ -168,6 +203,7 @@ export default function ClassificationPage({
   const [isLoadingMore, startLoadingMore] = useTransition();
   async function analyze(kind: "merchants" | "relations") {
     setNotice("");
+    setMerchantStats(null);
     setActiveKind(kind);
     await action.run(async () => {
       const result = await request<{
@@ -176,11 +212,18 @@ export default function ClassificationPage({
         groups_remaining?: number;
         web_searches?: number;
       }>(`/ai/${kind}`, "POST");
-      setNotice(
-        kind === "merchants"
-          ? `Sprawdzono ${result.groups_processed} sprzedawców. Nowe sugestie: ${result.saved}. Pozostało: ${result.groups_remaining}. Wyszukiwania w internecie: ${result.web_searches}.`
-          : `Nowe sugestie powiązań: ${result.saved}. Znajdziesz je w Historii transakcji.`,
-      );
+      if (kind === "merchants") {
+        setMerchantStats({
+          processed: result.groups_processed ?? 0,
+          saved: result.saved,
+          remaining: result.groups_remaining ?? 0,
+          searches: result.web_searches ?? 0,
+        });
+      } else {
+        setNotice(
+          `Nowe sugestie powiązań: ${result.saved}. Znajdziesz je w Historii transakcji.`,
+        );
+      }
     }, "Analiza zakończona.");
   }
   const rows =
@@ -196,6 +239,14 @@ export default function ClassificationPage({
     visibleRowsCount,
   );
   const remainingRowsCount = rows.length - visibleRows.length;
+  const loadMore = () =>
+    startLoadingMore(() =>
+      setVisibleRowsCount((count) => count + CLASSIFICATION_PAGE_SIZE),
+    );
+  const sentinelRef = useLoadMoreSentinel(
+    loadMore,
+    remainingRowsCount > 0 && !isLoadingMore,
+  );
   const groups = [
     {
       title: "Sugestie do zatwierdzenia",
@@ -293,8 +344,14 @@ export default function ClassificationPage({
           ? "AI analizuje dane dopiero po kliknięciu. Rozpoznawanie może korzystać z internetu."
           : "Aby korzystać z AI, dodaj klucz API w Ustawieniach."}
       </p>
-      {activeKind && (
-        <Notice error={action.error} notice={notice || action.notice} />
+      {activeKind && <Notice error={action.error} notice={notice} />}
+      {merchantStats && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <StatBadge label="Sprawdzono sprzedawców" value={merchantStats.processed} />
+          <StatBadge label="Nowe sugestie" value={merchantStats.saved} />
+          <StatBadge label="Pozostało" value={merchantStats.remaining} />
+          <StatBadge label="Wyszukiwania w internecie" value={merchantStats.searches} />
+        </div>
       )}
       <div className="mb-6">
         {groups.map(
@@ -339,18 +396,12 @@ export default function ClassificationPage({
           </div>
         )}
         {remainingRowsCount > 0 && (
-          <div className="flex justify-center">
+          <div className="flex justify-center" ref={sentinelRef}>
             <button
               className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
               disabled={isLoadingMore}
               aria-busy={isLoadingMore}
-              onClick={() =>
-                startLoadingMore(() =>
-                  setVisibleRowsCount(
-                    (count) => count + CLASSIFICATION_PAGE_SIZE,
-                  ),
-                )
-              }
+              onClick={loadMore}
             >
               {isLoadingMore ? (
                 <>

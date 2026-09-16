@@ -63,6 +63,7 @@ export interface ClassificationRow {
   counterparty: string;
   count: number;
   totals: Record<string, string>;
+  members?: { date: string; amount: string; currency: string }[];
   category_key: string | null;
   rationale: string;
   confidence: number | null;

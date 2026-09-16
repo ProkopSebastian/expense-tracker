@@ -172,6 +172,9 @@ def classification_rows(db: sqlite3.Connection) -> list[dict]:
                 "counterparty": visible_counterparty(sample),
                 "count": len(members),
                 "totals": {key: str(value) for key, value in totals.items()},
+                "members": [
+                    {"date": m["booking_date"], "amount": m["amount"], "currency": m["currency"]} for m in members
+                ],
                 "category_key": None if payload["category_key"] == "uncategorized_expense" else payload["category_key"],
                 "rationale": payload.get("rationale", ""),
                 "confidence": payload.get("confidence"),
