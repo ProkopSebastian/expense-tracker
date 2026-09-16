@@ -9,10 +9,11 @@ from .erste import _looks_like_erste_csv, import_erste_csv
 from .ing_pdf import _parse_ing_pdf_text, import_ing_pdf
 from .nest import derive_external_id, import_nest_csv, parse_balance
 from .pdf_common import _extract_pdf_text
+from .pko import _parse_pko_pdf_text, import_pko_pdf
 from .revolut import import_revolut_csv
 from .velo_pdf import _parse_velo_pdf_text, import_velo_pdf
 
-BankFormat = Literal["nest", "revolut", "erste", "ing_pdf", "velo_pdf"]
+BankFormat = Literal["nest", "revolut", "erste", "ing_pdf", "velo_pdf", "pko_pdf"]
 
 
 def detect_format(headers: list[str]) -> Literal["nest", "revolut"] | None:
@@ -43,6 +44,8 @@ def detect_file_format(path: Path) -> BankFormat | None:
             return "velo_pdf"
         if "ing bank slaski" in normalized and "nr transakcji" in normalized:
             return "ing_pdf"
+        if "pkobp.pl" in normalized and "identyfikator operacji" in normalized:
+            return "pko_pdf"
     return None
 
 
@@ -51,6 +54,7 @@ __all__ = [
     "_parse_amount",
     "_parse_date",
     "_parse_ing_pdf_text",
+    "_parse_pko_pdf_text",
     "_parse_velo_pdf_text",
     "derive_external_id",
     "detect_file_format",
@@ -58,6 +62,7 @@ __all__ = [
     "import_erste_csv",
     "import_ing_pdf",
     "import_nest_csv",
+    "import_pko_pdf",
     "import_revolut_csv",
     "import_velo_pdf",
     "parse_balance",

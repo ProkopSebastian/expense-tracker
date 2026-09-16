@@ -12,6 +12,7 @@ from .importers import (
     import_erste_csv,
     import_ing_pdf,
     import_nest_csv,
+    import_pko_pdf,
     import_revolut_csv,
     import_velo_pdf,
 )
@@ -23,6 +24,7 @@ IMPORTERS = {
     "erste": import_erste_csv,
     "ing_pdf": import_ing_pdf,
     "velo_pdf": import_velo_pdf,
+    "pko_pdf": import_pko_pdf,
 }
 SUPPORTED_SUFFIXES = {".csv", ".pdf"}
 DEFAULT_ACCOUNTS = {
@@ -31,6 +33,7 @@ DEFAULT_ACCOUNTS = {
     "erste": "erste",
     "ing_pdf": "ing",
     "velo_pdf": "velo",
+    "pko_pdf": "pko",
 }
 PARSER_VERSION = 3
 
