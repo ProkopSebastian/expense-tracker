@@ -1,3 +1,8 @@
+## v0.3.1 — 16.09.2026
+
+- fix: ten sam kontrahent w wyciągu Erste nie rozjeżdża się już na kilka wpisów w kolejce klasyfikacji
+- fix: ekran „Co nowego” pokazuje teraz wszystkie wersje od ostatnio widzianej, nie tylko najnowszą
+
 ## v0.3.0 — 16.09.2026
 
 - feat: dodano wyszukiwanie w wyborze kategorii
