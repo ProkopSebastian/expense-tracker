@@ -150,11 +150,46 @@ def _migrate_merchant_and_parser_version(connection: sqlite3.Connection) -> None
         connection.execute("ALTER TABLE import_batches ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 1")
 
 
+def _migrate_nest_external_id(connection: sqlite3.Connection) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from .importers import _column, derive_external_id, parse_balance
+
+    for row in connection.execute("SELECT * FROM transactions WHERE external_id IS NULL").fetchall():
+        raw = json.loads(row["raw_json"])
+        # Identify Nest exports by their columns, same as the date migration above. A Polish-locale
+        # Revolut export also has a "Kwota" column, so exclude it by its "Started Date" marker.
+        if _column(raw, "kwota", required=False) is None or raw.get("Started Date"):
+            continue
+        transaction = Transaction(
+            account=row["account"],
+            booking_date=date.fromisoformat(row["booking_date"]),
+            amount=Decimal(row["amount"]),
+            currency=row["currency"],
+            description=row["description"],
+            external_id=derive_external_id(raw),
+            balance=parse_balance(raw),
+            raw=raw,
+        )
+        connection.execute(
+            "UPDATE transactions SET external_id=?,balance=?,fingerprint=?,source_key=? WHERE id=?",
+            (
+                transaction.external_id,
+                str(transaction.balance) if transaction.balance is not None else None,
+                fingerprint(transaction),
+                source_key(transaction),
+                row["id"],
+            ),
+        )
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
     _migrate_bank_dates,
     _migrate_merchant_and_parser_version,
+    _migrate_nest_external_id,
 )
 
 

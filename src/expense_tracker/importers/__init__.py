@@ -7,7 +7,7 @@ from ..csv_utils import read_csv
 from .common import _column, _key, _parse_amount, _parse_date
 from .erste import _looks_like_erste_csv, import_erste_csv
 from .ing_pdf import _parse_ing_pdf_text, import_ing_pdf
-from .nest import import_nest_csv
+from .nest import derive_external_id, import_nest_csv, parse_balance
 from .pdf_common import _extract_pdf_text
 from .revolut import import_revolut_csv
 from .velo_pdf import _parse_velo_pdf_text, import_velo_pdf
@@ -52,6 +52,7 @@ __all__ = [
     "_parse_date",
     "_parse_ing_pdf_text",
     "_parse_velo_pdf_text",
+    "derive_external_id",
     "detect_file_format",
     "detect_format",
     "import_erste_csv",
@@ -59,4 +60,5 @@ __all__ = [
     "import_nest_csv",
     "import_revolut_csv",
     "import_velo_pdf",
+    "parse_balance",
 ]
