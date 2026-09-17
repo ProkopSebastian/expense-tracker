@@ -4,17 +4,17 @@ import csv
 from pathlib import Path
 
 
-def read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
-    content: str | None = None
-    for encoding in ("utf-8-sig", "utf-8", "cp1250"):
+def read_text_with_fallback_encoding(path: Path, encodings: tuple[str, ...] = ("utf-8-sig", "utf-8", "cp1250")) -> str:
+    for encoding in encodings:
         try:
-            content = path.read_text(encoding=encoding)
-            break
+            return path.read_text(encoding=encoding)
         except UnicodeDecodeError:
             continue
-    if content is None:
-        raise ValueError(f"Nie udało się odczytać pliku {path} (kodowanie).")
+    raise ValueError(f"Nie udało się odczytać pliku {path} (kodowanie).")
 
+
+def read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    content = read_text_with_fallback_encoding(path)
     lines = content.splitlines()
     try:
         dialect = csv.Sniffer().sniff(content[:8192], delimiters=";,\t")
@@ -24,9 +24,17 @@ def read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
 
     # Nest precedes the actual table with human-readable account metadata.
     # Find the first row that looks like a transaction header, retaining support
-    # for exports that begin directly with the table.
+    # for exports that begin directly with the table. Header columns are matched
+    # per delimited field (not anywhere in the line) so a summary sentence that
+    # merely mentions "data"/"kwota" isn't mistaken for the header row.
+    def _looks_like_header(line: str) -> bool:
+        fields = [field.strip().casefold() for field in line.split(dialect.delimiter)]
+        return any(field.startswith("data") for field in fields) and any(
+            field.startswith("kwota") for field in fields
+        )
+
     header_index = next(
-        (index for index, line in enumerate(lines) if "data" in line.casefold() and "kwota" in line.casefold()),
+        (index for index, line in enumerate(lines) if _looks_like_header(line)),
         0,
     )
     reader = csv.DictReader(lines[header_index:], dialect=dialect)

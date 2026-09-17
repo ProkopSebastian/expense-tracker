@@ -5,7 +5,8 @@ import re
 import unicodedata
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
+
+from ..csv_utils import read_text_with_fallback_encoding
 
 
 def _key(value: str) -> str:
@@ -57,10 +58,4 @@ def _parse_amount(value: str) -> Decimal:
         raise ValueError(f"Nieobsługiwana kwota: {value!r}") from exc
 
 
-def _read_text(path: Path, encodings: tuple[str, ...] = ("utf-8-sig", "utf-8", "cp1250")) -> str:
-    for encoding in encodings:
-        try:
-            return path.read_text(encoding=encoding)
-        except UnicodeDecodeError:
-            pass
-    raise ValueError(f"Nie udało się odczytać pliku {path} (kodowanie).")
+_read_text = read_text_with_fallback_encoding
