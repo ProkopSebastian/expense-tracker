@@ -48,6 +48,7 @@ export interface LedgerData {
   blocks: Block[];
   page: number;
   pages: number;
+  page_size: number;
   total: number;
   cases: {
     id: number;

@@ -182,6 +182,7 @@ def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: 
         "blocks": filtered[(page - 1) * page_size : page * page_size],
         "page": page,
         "pages": pages,
+        "page_size": page_size,
         "total": len(filtered),
         "cases": cases,
         "relations": [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"],

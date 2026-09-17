@@ -649,7 +649,7 @@ export default function LedgerPage({
         <footer className="flex items-center justify-between gap-3 border-t border-line py-4 text-xs text-muted [&>div]:flex [&>div]:items-center [&>div]:gap-3">
           <span>
             {data && data.total
-              ? `${(data.page - 1) * 50 + 1}–${(data.page - 1) * 50 + data.blocks.length} z ${data.total}`
+              ? `${(data.page - 1) * data.page_size + 1}–${(data.page - 1) * data.page_size + data.blocks.length} z ${data.total}`
               : "0"}{" "}
             pozycji
           </span>
