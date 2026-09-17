@@ -95,12 +95,19 @@ def get_summary(
             start = max(first, date(index // 12, index % 12 + 1, 1))
         else:
             start = max(first, date(last.year, 1, 1))
-    filtered = [item for item in items if start <= date.fromisoformat(str(item["date"])) <= end] if dates else []
+    today = date.today()
+    # Capped at today so a future-dated transaction (typo or planning ahead) doesn't
+    # inflate the header totals for a period the daily chart below hasn't reached yet.
+    filtered = (
+        [item for item in items if start <= date.fromisoformat(str(item["date"])) <= min(end, today)]
+        if dates
+        else []
+    )
     daily = []
     if start is not None and end is not None:
         if (end - start).days > 36600:
             raise ValueError("Wybierz okres nie dłuższy niż 100 lat.")
-        chart_end = min(end, date.today())
+        chart_end = min(end, today)
         totals: dict[date, Decimal] = {}
         for item in filtered:
             day = date.fromisoformat(str(item["date"]))
