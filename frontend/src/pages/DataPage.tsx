@@ -23,6 +23,7 @@ export default function DataPage({
   const [newAccount, setNewAccount] = useState("");
   const [accountOptionsOpen, setAccountOptionsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [syncError, setSyncError] = useState("");
   const accountReady = account !== "__new__" || Boolean(newAccount.trim());
   async function upload(file?: File) {
     if (!file || !accountReady) return;
@@ -50,7 +51,7 @@ export default function DataPage({
   return (
     <div className="mx-auto max-w-3xl">
       <h1>Import danych</h1>
-      <Notice error={action.error} notice={message || action.notice} />
+      <Notice error={action.error || syncError} notice={message || action.notice} />
       <section className="mt-8 border-t border-line pt-6">
         <h2 className="flex items-center gap-1.5">
           Wyciąg z banku
@@ -165,18 +166,24 @@ export default function DataPage({
           <button
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
             disabled={action.busy}
-            onClick={() =>
+            onClick={() => {
+              setSyncError("");
               action.run(async () => {
                 const result = await request<{
                   transactions_inserted: number;
                   error_files: [string, string][];
                   unsupported_files: string[];
                 }>("/sync", "POST");
-                setMessage(
-                  `Nowe transakcje: ${result.transactions_inserted}. ${result.error_files.map(([f, e]) => `${f}: ${e}`).join(" ")} ${result.unsupported_files.map((f) => `Nieobsługiwany format: ${f}`).join(" ")}`,
-                );
-              })
-            }
+                setMessage(`Nowe transakcje: ${result.transactions_inserted}.`);
+                const failures = [
+                  ...result.error_files.map(([f, e]) => `${f}: ${e}`),
+                  ...result.unsupported_files.map(
+                    (f) => `Nieobsługiwany format: ${f}`,
+                  ),
+                ];
+                if (failures.length) setSyncError(failures.join(" "));
+              });
+            }}
           >
             <RefreshCw size={16} /> Wczytaj nowe pliki
           </button>
