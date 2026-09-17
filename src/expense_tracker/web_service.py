@@ -2,18 +2,60 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
+import unicodedata
 from decimal import Decimal
 
 from . import ledger
 from .ledger_view import visible_counterparty
 from .text_utils import clean_description
-from .web_models import Decision, GroupEntry, ManualEntry
+from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
+
+_POLISH_TRANSLITERATION = str.maketrans({"ł": "l", "Ł": "L"})
 
 
 def category_exists(db: sqlite3.Connection, key: str) -> None:
     if not db.execute("SELECT 1 FROM categories WHERE key=?", (key,)).fetchone():
         raise ValueError("Nieznana kategoria.")
+
+
+def _slugify_unique(db: sqlite3.Connection, label: str) -> str:
+    # NFKD strips most Polish diacritics (ą, ć, ę, ń, ó, ś, ź, ż); ł needs an explicit map first.
+    normalized = unicodedata.normalize("NFKD", label.translate(_POLISH_TRANSLITERATION))
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii").lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", ascii_text).strip("_") or "kategoria"
+    key = f"custom_{slug}"
+    candidate = key
+    suffix = 2
+    while db.execute("SELECT 1 FROM categories WHERE key=?", (candidate,)).fetchone():
+        candidate = f"{key}_{suffix}"
+        suffix += 1
+    return candidate
+
+
+def add_category(db: sqlite3.Connection, entry: CategoryEntry) -> dict[str, object]:
+    kind = "expense"
+    if entry.parent_key:
+        parent = db.execute("SELECT kind FROM categories WHERE key=?", (entry.parent_key,)).fetchone()
+        if not parent:
+            raise ValueError("Nieznana kategoria nadrzędna.")
+        kind = parent["kind"]
+    key = _slugify_unique(db, entry.label)
+    db.execute(
+        "INSERT INTO categories(key, label, parent_key, kind, icon, color, is_custom) VALUES (?, ?, ?, ?, ?, ?, 1)",
+        (key, entry.label, entry.parent_key, kind, entry.icon, entry.color),
+    )
+    db.commit()
+    return {
+        "key": key,
+        "label": entry.label,
+        "parent_key": entry.parent_key,
+        "kind": kind,
+        "icon": entry.icon,
+        "color": entry.color,
+        "is_custom": True,
+    }
 
 
 def transaction_exists(db: sqlite3.Connection, tid: int) -> None:

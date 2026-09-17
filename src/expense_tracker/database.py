@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(booking_date);
 CREATE TABLE IF NOT EXISTS categories (
     key TEXT PRIMARY KEY, label TEXT NOT NULL, parent_key TEXT REFERENCES categories(key),
-    kind TEXT NOT NULL CHECK(kind IN ('expense', 'income', 'transfer', 'adjustment'))
+    kind TEXT NOT NULL CHECK(kind IN ('expense', 'income', 'transfer', 'adjustment')),
+    icon TEXT, color TEXT, is_custom INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS transaction_decisions (
     transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id),
@@ -70,23 +71,52 @@ CATEGORIES = (
     ("food", "Jedzenie", None, "expense"),
     ("food_restaurants", "Restauracje i dostawy", "food", "expense"),
     ("groceries", "Zakupy spożywcze", "food", "expense"),
+    ("food_delivery", "Dowóz jedzenia", "food", "expense"),
+    ("food_coffee", "Kawa i przekąski", "food", "expense"),
+    ("food_alcohol", "Alkohol", "food", "expense"),
     ("travel", "Podróże", None, "expense"),
     ("travel_flights", "Loty", "travel", "expense"),
+    ("travel_accommodation", "Noclegi", "travel", "expense"),
+    ("travel_transport", "Transport w podróży", "travel", "expense"),
     ("transport", "Transport", None, "expense"),
+    ("transport_fuel", "Paliwo", "transport", "expense"),
+    ("transport_public", "Transport publiczny", "transport", "expense"),
+    ("transport_taxi", "Taxi i przejazdy", "transport", "expense"),
+    ("transport_parking", "Parkingi i opłaty drogowe", "transport", "expense"),
+    ("transport_service", "Serwis i naprawy", "transport", "expense"),
     ("health", "Zdrowie", None, "expense"),
+    ("health_pharmacy", "Apteka", "health", "expense"),
+    ("health_doctor", "Lekarz i wizyty", "health", "expense"),
+    ("health_fitness", "Siłownia i sport", "health", "expense"),
     ("entertainment", "Rozrywka", None, "expense"),
+    ("entertainment_cinema", "Kino i teatr", "entertainment", "expense"),
+    ("entertainment_events", "Wydarzenia i koncerty", "entertainment", "expense"),
+    ("entertainment_hobby", "Hobby", "entertainment", "expense"),
     ("shopping", "Zakupy", None, "expense"),
+    ("shopping_electronics", "Elektronika", "shopping", "expense"),
+    ("shopping_electronics_accessories", "Akcesoria", "shopping_electronics", "expense"),
+    ("shopping_electronics_gadgets", "Sprzęt i gadżety", "shopping_electronics", "expense"),
+    ("shopping_clothes", "Odzież i obuwie", "shopping", "expense"),
+    ("shopping_home", "Dom i wnętrze", "shopping", "expense"),
+    ("shopping_beauty", "Zdrowie i uroda", "shopping", "expense"),
+    ("shopping_books", "Książki i media", "shopping", "expense"),
     ("housing", "Mieszkanie i rachunki", None, "expense"),
     ("housing_rent", "Czynsz i kredyt", "housing", "expense"),
     ("housing_bills", "Media i rachunki", "housing", "expense"),
+    ("housing_internet", "Internet i telefon", "housing", "expense"),
+    ("housing_maintenance", "Naprawy i wyposażenie", "housing", "expense"),
     ("subscriptions", "Subskrypcje", None, "expense"),
     ("education", "Edukacja", None, "expense"),
     ("gifts", "Prezenty i darowizny", None, "expense"),
     ("savings", "Oszczędności i inwestycje", None, "expense"),
     ("pets", "Zwierzęta", None, "expense"),
+    ("pets_food", "Jedzenie dla zwierząt", "pets", "expense"),
+    ("pets_vet", "Weterynarz", "pets", "expense"),
     ("cash_withdrawal", "Wypłata gotówki", None, "expense"),
     ("income", "Przychody", None, "income"),
     ("income_salary", "Wynagrodzenie", "income", "income"),
+    ("income_other", "Inne przychody", "income", "income"),
+    ("income_investments", "Inwestycje i dywidendy", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
 )
 
@@ -184,12 +214,21 @@ def _migrate_nest_external_id(connection: sqlite3.Connection) -> None:
         )
 
 
+def _migrate_category_presentation(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(categories)")}
+    if "icon" not in columns:
+        connection.execute("ALTER TABLE categories ADD COLUMN icon TEXT")
+        connection.execute("ALTER TABLE categories ADD COLUMN color TEXT")
+        connection.execute("ALTER TABLE categories ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
     _migrate_bank_dates,
     _migrate_merchant_and_parser_version,
     _migrate_nest_external_id,
+    _migrate_category_presentation,
 )
 
 

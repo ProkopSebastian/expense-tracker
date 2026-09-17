@@ -92,7 +92,16 @@ def pending_relation_suggestion_transaction_ids(connection: sqlite3.Connection) 
 
 
 def categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
-    rows = connection.execute("SELECT key, label, parent_key, kind FROM categories ORDER BY label").fetchall()
+    rows = connection.execute(
+        "SELECT key, label, parent_key, kind, icon, color, is_custom FROM categories ORDER BY label"
+    ).fetchall()
+    return [{**dict(row), "is_custom": bool(row["is_custom"])} for row in rows]
+
+
+def builtin_categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
+    rows = connection.execute(
+        "SELECT key, label, parent_key, kind FROM categories WHERE is_custom = 0 ORDER BY label"
+    ).fetchall()
     return [dict(row) for row in rows]
 
 

@@ -19,11 +19,54 @@ import { request, useResource, useAction, useSessionState } from "../hooks";
 import { money, monthLabel } from "../api";
 import {
   CategorySelect,
-  groupCategories,
+  buildCategoryTree,
+  type CategoryNode,
   Modal,
   Notice,
 } from "../components/Forms";
 import { ManualForm, GroupForm } from "../components/TransactionForms";
+
+function CategoryFilterNode({
+  node,
+  depth,
+  selected,
+  onToggle,
+}: {
+  node: CategoryNode;
+  depth: number;
+  selected: string[];
+  onToggle: (key: string, checked: boolean) => void;
+}) {
+  return (
+    <div className={depth === 0 ? "border-b border-line py-1 last:border-0" : undefined}>
+      <label
+        className={`flex items-center gap-2 rounded-lg p-2 text-sm ${depth === 0 ? "font-medium" : "text-muted"}`}
+        style={depth ? { paddingLeft: `${depth * 1.5 + 0.5}rem` } : undefined}
+      >
+        <input
+          type="checkbox"
+          checked={selected.includes(node.category.key)}
+          onChange={(e) => onToggle(node.category.key, e.target.checked)}
+        />
+        <CategoryIcon
+          categoryKey={node.category.key}
+          customIcon={node.category.icon}
+          customColor={node.category.color}
+        />
+        {node.category.label}
+      </label>
+      {node.children.map((child) => (
+        <CategoryFilterNode
+          key={child.category.key}
+          node={child}
+          depth={depth + 1}
+          selected={selected}
+          onToggle={onToggle}
+        />
+      ))}
+    </div>
+  );
+}
 
 function PageNavigation({
   page,
@@ -109,7 +152,7 @@ export default function LedgerPage({
   const canGroup =
     selectedRows.length >= 2 &&
     new Set(selectedRows.map((row) => row.currency)).size === 1;
-  const categoryGroups = groupCategories(categories);
+  const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {
     const month = row.date.slice(0, 7);
@@ -293,49 +336,21 @@ export default function LedgerPage({
                 sideOffset={8}
                 className="z-40 max-h-[min(360px,70dvh)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-xl [&>label]:flex [&>label]:items-center [&>label]:gap-2 [&>label]:p-2"
               >
-                {categoryGroups.map(({ parent, children }) => (
-                  <div
-                    className="border-b border-line py-1 last:border-0"
-                    key={parent.key}
-                  >
-                    <label className="flex items-center gap-2 rounded-lg p-2 text-sm font-medium">
-                      <input
-                        type="checkbox"
-                        checked={category.includes(parent.key)}
-                        onChange={(e) => {
-                          setCategory(
-                            e.target.checked
-                              ? [...category, parent.key]
-                              : category.filter((key) => key !== parent.key),
-                          );
-                          filtersChanged();
-                        }}
-                      />
-                      <CategoryIcon categoryKey={parent.key} />
-                      {parent.label}
-                    </label>
-                    {children.map((child) => (
-                      <label
-                        className="flex items-center gap-2 rounded-lg py-2 pl-8 pr-2 text-sm text-muted"
-                        key={child.key}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={category.includes(child.key)}
-                          onChange={(e) => {
-                            setCategory(
-                              e.target.checked
-                                ? [...category, child.key]
-                                : category.filter((key) => key !== child.key),
-                            );
-                            filtersChanged();
-                          }}
-                        />
-                        <CategoryIcon categoryKey={child.key} />
-                        {child.label}
-                      </label>
-                    ))}
-                  </div>
+                {categoryTree.map((node) => (
+                  <CategoryFilterNode
+                    key={node.category.key}
+                    node={node}
+                    depth={0}
+                    selected={category}
+                    onToggle={(key, checked) => {
+                      setCategory(
+                        checked
+                          ? [...category, key]
+                          : category.filter((existing) => existing !== key),
+                      );
+                      filtersChanged();
+                    }}
+                  />
                 ))}
                 <label>
                   <input

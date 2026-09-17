@@ -19,7 +19,7 @@ from .data_sync import sync_data_directory
 from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
-from .web_models import Decision, GroupEntry, ManualEntry
+from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
@@ -108,6 +108,11 @@ def history(
 @router.post("/transactions", status_code=201)
 def manual(entry: ManualEntry, db: DB):
     return {"id": service.add_manual(db, entry)}
+
+
+@router.post("/categories", status_code=201)
+def create_category(entry: CategoryEntry, db: DB):
+    return service.add_category(db, entry)
 
 
 @router.put("/transactions/{tid}/category")

@@ -1,4 +1,4 @@
-const palette = [
+export const palette = [
   "#24846c",
   "#728ddd",
   "#df9d51",
@@ -19,7 +19,8 @@ const categoryColors: Record<string, string> = {
   subscriptions: palette[7],
   uncategorized_expense: "#a0a8ae",
 };
-export function nodeColor(key: string): string {
+export function nodeColor(key: string, customColor?: string | null): string {
+  if (customColor) return customColor;
   let hash = 0;
   for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   const family = key === "groceries" ? "food" : key.split("_")[0];

@@ -3,6 +3,9 @@ export interface Category {
   label: string;
   parent_key: string | null;
   kind: string;
+  icon?: string | null;
+  color?: string | null;
+  is_custom?: boolean;
 }
 export interface Meta {
   categories: Category[];

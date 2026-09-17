@@ -13,6 +13,13 @@ Kind = Literal["shared_purchase", "reimbursement", "refund", "own_transfer", "pa
 Role = Literal["purchase", "received_reimbursement", "paid_settlement", "received_refund", "account_transfer"]
 
 
+class CategoryEntry(BaseModel):
+    label: Text
+    parent_key: str | None = None
+    icon: Annotated[str, StringConstraints(min_length=1, max_length=40)]
+    color: Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
 class Decision(BaseModel):
     category_key: Text
     remember: bool = False
