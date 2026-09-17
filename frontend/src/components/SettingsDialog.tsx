@@ -364,7 +364,7 @@ export default function SettingsDialog({
                 <h2 id="changelog-heading" className="text-base!">
                   Co nowego
                 </h2>
-                <ChangelogList releases={changelog.slice(0, 5)} />
+                <ChangelogList releases={changelog.slice(0, 1)} />
               </section>
             </div>
           )}
