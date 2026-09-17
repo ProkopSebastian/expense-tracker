@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition } from "react";
+import { useCallback, useState, useEffect, useTransition } from "react";
 import { LoaderCircle, Search, Trash2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
 import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
@@ -117,8 +117,11 @@ export default function RulesPage({
     ) ?? [];
   const visibleRules = rules.slice(0, visibleRulesCount);
   const remainingRulesCount = rules.length - visibleRules.length;
-  const loadMore = () =>
-    startLoadingMore(() => setVisibleRulesCount((count) => count + RULES_PAGE_SIZE));
+  const loadMore = useCallback(
+    () =>
+      startLoadingMore(() => setVisibleRulesCount((count) => count + RULES_PAGE_SIZE)),
+    [startLoadingMore],
+  );
   const sentinelRef = useLoadMoreSentinel(
     loadMore,
     remainingRulesCount > 0 && !isLoadingMore,

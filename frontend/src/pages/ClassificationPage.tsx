@@ -1,4 +1,4 @@
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, LoaderCircle, Search } from "lucide-react";
 import type { Category, ClassificationRow } from "../domain";
@@ -239,10 +239,13 @@ export default function ClassificationPage({
     visibleRowsCount,
   );
   const remainingRowsCount = rows.length - visibleRows.length;
-  const loadMore = () =>
-    startLoadingMore(() =>
-      setVisibleRowsCount((count) => count + CLASSIFICATION_PAGE_SIZE),
-    );
+  const loadMore = useCallback(
+    () =>
+      startLoadingMore(() =>
+        setVisibleRowsCount((count) => count + CLASSIFICATION_PAGE_SIZE),
+      ),
+    [startLoadingMore],
+  );
   const sentinelRef = useLoadMoreSentinel(
     loadMore,
     remainingRowsCount > 0 && !isLoadingMore,
