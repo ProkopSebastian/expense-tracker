@@ -18,6 +18,7 @@ from ..ledger import (
     merchant_text,
     pending_merchant_suggestion_transaction_ids,
     pending_relation_suggestion_transaction_ids,
+    rejected_merchant_suggestion_transaction_ids,
     transactions,
 )
 from .contracts import (
@@ -50,14 +51,17 @@ class MerchantAnalysisResult:
 def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     # Both expenses (negative) and income (positive) are sent — the LLM is told to pick an
     # income-kind category for positive amounts instead of skipping them entirely. Transactions
-    # already covered by a pending (not yet approved/rejected) suggestion are excluded, or a
-    # repeat click would re-ask the LLM about them and could save a near-duplicate suggestion
-    # if its wording/confidence differs slightly on the second answer.
-    already_suggested = pending_merchant_suggestion_transaction_ids(connection)
+    # with a pending suggestion are excluded, or a repeat click would re-ask the LLM about them
+    # and could save a near-duplicate suggestion. Rejected ones are excluded too, since a human
+    # already said the model's answer was wrong and re-asking without new information just
+    # spends another paid call for the same likely answer.
+    excluded = pending_merchant_suggestion_transaction_ids(
+        connection
+    ) | rejected_merchant_suggestion_transaction_ids(connection)
     rows = [
         row
         for row in transactions(connection)
-        if not row["category_key"] and not row["case_id"] and int(row["id"]) not in already_suggested
+        if not row["category_key"] and not row["case_id"] and int(row["id"]) not in excluded
     ]
     groups: defaultdict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
@@ -86,8 +90,11 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     )
     category_keys = set(category_keys_tuple)
     is_income_by_id = {int(row["id"]): Decimal(str(row["amount"])) > 0 for group in merchant_groups for row in group}
+    sent_ids = set(is_income_by_id)
     saved = 0
     for item in response.classifications:
+        if not item.transaction_ids or not set(item.transaction_ids).issubset(sent_ids):
+            continue
         if item.category_key in category_keys:
             category_key = item.category_key
         else:

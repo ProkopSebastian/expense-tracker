@@ -80,6 +80,17 @@ def pending_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) 
     return ids
 
 
+def rejected_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
+    rows = connection.execute(
+        "SELECT payload_json FROM suggestions WHERE kind = 'merchant_classification' AND status = 'rejected'"
+    ).fetchall()
+    ids: set[int] = set()
+    for row in rows:
+        payload = json.loads(row["payload_json"])
+        ids.update(int(transaction_id) for transaction_id in payload["transaction_ids"])
+    return ids
+
+
 def pending_relation_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
     rows = connection.execute(
         "SELECT payload_json FROM suggestions WHERE kind = 'relation' AND status = 'suggested'"
