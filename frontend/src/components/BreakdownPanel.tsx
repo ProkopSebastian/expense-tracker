@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PieChart, BarChart3, ChevronRight, Wallet } from "lucide-react";
 import { money, type BreakdownNode, type Summary } from "../api";
 import CategoryChart from "./CategoryChart";
-import { nodeColor } from "../categoryPresentation";
+import CategoryBarChart from "./CategoryBarChart";
 export default function BreakdownPanel({ data }: { data: Summary }) {
   const [path, setPath] = useState<BreakdownNode[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -81,40 +81,40 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
             </p>
           </div>
         ) : (
-          <div
-            className={`grid items-center gap-6 py-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10 ${view === "bars" ? "lg:grid-cols-1!" : ""}`}
-          >
-            <div
-              className={
-                view === "donut"
-                  ? "min-w-0"
-                  : "invisible pointer-events-none [grid-area:1/1]"
-              }
-            >
-              {view === "donut" && (
-                <CategoryChart
+          <div className="grid items-center gap-6 py-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
+            <div className="min-w-0">
+              {view === "donut" ? (
+                <>
+                  <CategoryChart
+                    nodes={nodes}
+                    currency={data.currency}
+                    title={path.at(-1)?.label ?? "Łącznie"}
+                    canGoBack={path.length > 0}
+                    onSelect={selectNode}
+                    onBack={() => {
+                      setPath(path.slice(0, -1));
+                      setHovered(null);
+                    }}
+                    hovered={hovered}
+                    onHover={setHovered}
+                  />
+                  <p className="text-center text-xs text-muted">
+                    {path.length
+                      ? "Wybierz środek wykresu, aby wrócić"
+                      : "Wybierz kategorię, aby zobaczyć szczegóły"}
+                  </p>
+                </>
+              ) : (
+                <CategoryBarChart
                   nodes={nodes}
                   currency={data.currency}
-                  title={path.at(-1)?.label ?? "Łącznie"}
-                  canGoBack={path.length > 0}
                   onSelect={selectNode}
-                  onBack={() => {
-                    setPath(path.slice(0, -1));
-                    setHovered(null);
-                  }}
                   hovered={hovered}
                   onHover={setHovered}
                 />
               )}
-              <p className="text-center text-xs text-muted">
-                {path.length
-                  ? "Wybierz środek wykresu, aby wrócić"
-                  : "Wybierz kategorię, aby zobaczyć szczegóły"}
-              </p>
             </div>
-            <div
-              className={`flex min-w-0 flex-col justify-center self-stretch ${view === "bars" ? "[grid-area:1/1]" : ""}`}
-            >
+            <div className="flex min-w-0 flex-col justify-center self-stretch">
               <div className="flex items-center justify-between gap-2 border-b border-line pb-3 text-[10px] font-medium tracking-wider text-muted">
                 <span>
                   {path.length > 1 ? "SPRZEDAWCA" : "KATEGORIA"}{" "}
@@ -154,17 +154,6 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
                       </span>
                     </span>
                     <ChevronRight className="text-muted" size={16} />
-                    {view === "bars" && (
-                      <span className="col-span-full h-1.5 overflow-hidden rounded-full bg-surface-muted [&>span]:block [&>span]:h-full [&>span]:rounded-full">
-                        <span
-                          className="chart-bar-fill"
-                          style={{
-                            width: `${currentTotal ? (Number(node.total) / currentTotal) * 100 : 0}%`,
-                            background: nodeColor(node.key),
-                          }}
-                        />
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
