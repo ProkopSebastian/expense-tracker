@@ -48,20 +48,31 @@ export default function CategoryBarChart({
       renderer: "svg",
     });
     chart.current = instance;
-    instance.on("click", (params) => {
-      const node = handlers.current.bars[params.dataIndex];
-      if (node && node.key !== OTHER_KEY) handlers.current.onSelect(node);
-    });
-    instance.on("mouseover", (params) => {
-      const node = handlers.current.bars[params.dataIndex];
+    // A short bar is a tiny click/hover target if we only react to the drawn shape, so
+    // treat the whole category column (full chart height, via axis position) as the target
+    // instead of the bar's own pixel footprint.
+    instance.on("updateAxisPointer", (event) => {
+      const info = (event as { axesInfo?: { value?: number }[] }).axesInfo?.[0];
+      const node = typeof info?.value === "number" ? handlers.current.bars[info.value] : undefined;
       handlers.current.onHover(node && node.key !== OTHER_KEY ? node.key : null);
     });
     instance.on("globalout", () => handlers.current.onHover(null));
+    const handleClick = (event: MouseEvent) => {
+      if (!container.current) return;
+      const rect = container.current.getBoundingClientRect();
+      const point: [number, number] = [event.clientX - rect.left, event.clientY - rect.top];
+      if (!instance.containPixel("grid", point)) return;
+      const index = Math.round(Number(instance.convertFromPixel({ xAxisIndex: 0 }, point[0])));
+      const node = handlers.current.bars[index];
+      if (node && node.key !== OTHER_KEY) handlers.current.onSelect(node);
+    };
+    container.current.addEventListener("click", handleClick);
     const observer = new ResizeObserver(() => instance.resize());
     const observeResizes = () => observer.observe(container.current!);
     instance.on("finished", observeResizes);
     return () => {
       instance.off("finished", observeResizes);
+      container.current?.removeEventListener("click", handleClick);
       observer.disconnect();
       instance.dispose();
       chart.current = null;
@@ -82,7 +93,8 @@ export default function CategoryBarChart({
       animationEasing: "cubicOut",
       grid: { left: 8, right: 8, top: 20, bottom: 4, containLabel: true },
       tooltip: {
-        trigger: "item",
+        trigger: "axis",
+        axisPointer: { type: "shadow", shadowStyle: { color: ink, opacity: 0.06 } },
         confine: true,
         renderMode: "html",
         transitionDuration: reduced ? 0 : 0.12,
@@ -92,10 +104,16 @@ export default function CategoryBarChart({
         padding: 10,
         textStyle: { color: ink },
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
-        formatter: (params: { dataIndex: number }) => {
-          const node = bars[params.dataIndex];
+        formatter: (params: { dataIndex: number }[]) => {
+          const node = bars[params[0]?.dataIndex];
           if (!node) return "";
-          return `${node.label}\n${money(node.total, currency)}`;
+          const content = document.createElement("div");
+          const name = document.createElement("div");
+          const amount = document.createElement("div");
+          name.textContent = node.label;
+          amount.textContent = money(node.total, currency);
+          content.append(name, amount);
+          return content;
         },
       },
       xAxis: {
