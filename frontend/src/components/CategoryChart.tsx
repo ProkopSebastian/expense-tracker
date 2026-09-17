@@ -7,6 +7,7 @@ import { SVGRenderer } from "echarts/renderers";
 import type { BreakdownNode } from "../api";
 import { money } from "../api";
 import { ArrowLeft } from "lucide-react";
+import { themeVar, useThemeSignal } from "../theme";
 
 echarts.use([PieChart, TooltipComponent, SVGRenderer]);
 
@@ -33,6 +34,7 @@ export default function CategoryChart({
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.EChartsType | null>(null);
+  const themeSignal = useThemeSignal();
   const handlers = useRef({ onSelect, onHover, nodes });
   handlers.current = { onSelect, onHover, nodes };
   const total = nodes.reduce((sum, node) => sum + Number(node.total), 0);
@@ -83,11 +85,11 @@ export default function CategoryChart({
         confine: true,
         renderMode: "html",
         transitionDuration: reduced ? 0 : 0.12,
-        backgroundColor: "#ffffff",
-        borderColor: "#e7ece9",
+        backgroundColor: themeVar("--app-surface"),
+        borderColor: themeVar("--app-line"),
         borderWidth: 1,
         padding: 10,
-        textStyle: { color: "#123e35" },
+        textStyle: { color: themeVar("--app-ink") },
         extraCssText: "box-shadow: 0 4px 16px rgba(18, 62, 53, 0.12);",
         formatter: (params: {
           name: string;
@@ -128,7 +130,7 @@ export default function CategoryChart({
     const instance = chart.current;
     if (!instance) return;
     instance.setOption(option);
-  }, [nodes, currency]);
+  }, [nodes, currency, themeSignal]);
 
   useEffect(() => {
     chart.current?.dispatchAction({ type: "downplay", seriesIndex: 0 });
