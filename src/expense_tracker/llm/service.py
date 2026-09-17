@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..config import settings
 from ..ledger import (
-    builtin_categories,
+    categories,
     merchant_key,
     merchant_text,
     pending_merchant_suggestion_transaction_ids,
@@ -77,12 +77,11 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
         )
         for group in merchant_groups
     ]
-    # Custom categories are manual-only; never expose them to the LLM contract.
-    category_keys_tuple = tuple(str(category["key"]) for category in builtin_categories(connection))
+    category_keys_tuple = tuple(str(category["key"]) for category in categories(connection))
     response, web_searches = _request(
         build_merchant_analysis_model(category_keys_tuple),
         MERCHANT_INSTRUCTIONS,
-        merchant_input(builtin_categories(connection), payload),
+        merchant_input(categories(connection), payload),
         4,
     )
     category_keys = set(category_keys_tuple)
@@ -135,12 +134,11 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
         )
         for row in rows
     ]
-    # Custom categories are manual-only; never expose them to the LLM contract.
-    category_keys_tuple = tuple(str(category["key"]) for category in builtin_categories(connection))
+    category_keys_tuple = tuple(str(category["key"]) for category in categories(connection))
     response, _ = _request(
         build_relation_analysis_model(category_keys_tuple),
         RELATION_INSTRUCTIONS,
-        relation_input(builtin_categories(connection), payload),
+        relation_input(categories(connection), payload),
         0,
     )
     transaction_ids = {int(row["id"]) for row in rows}

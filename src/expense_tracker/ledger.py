@@ -98,13 +98,6 @@ def categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
     return [{**dict(row), "is_custom": bool(row["is_custom"])} for row in rows]
 
 
-def builtin_categories(connection: sqlite3.Connection) -> list[dict[str, object]]:
-    rows = connection.execute(
-        "SELECT key, label, parent_key, kind FROM categories WHERE is_custom = 0 ORDER BY label"
-    ).fetchall()
-    return [dict(row) for row in rows]
-
-
 def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
         """SELECT t.id, t.account, t.booking_date, t.amount, t.currency, t.description, t.merchant, t.counterparty,
