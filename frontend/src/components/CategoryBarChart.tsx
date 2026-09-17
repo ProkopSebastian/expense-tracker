@@ -21,10 +21,6 @@ interface Props {
   onSelect: (node: BreakdownNode) => void;
 }
 
-function truncate(label: string) {
-  return label.length > 12 ? `${label.slice(0, 11)}…` : label;
-}
-
 export default function CategoryBarChart({
   nodes,
   currency,
@@ -84,7 +80,7 @@ export default function CategoryBarChart({
       animation: !reduced,
       animationDuration: 400,
       animationEasing: "cubicOut",
-      grid: { left: 8, right: 8, top: 20, bottom: 8, containLabel: true },
+      grid: { left: 8, right: 8, top: 20, bottom: 4, containLabel: true },
       tooltip: {
         trigger: "item",
         confine: true,
@@ -107,7 +103,7 @@ export default function CategoryBarChart({
         data: bars.map((node) => node.label),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: muted, interval: 0, formatter: truncate },
+        axisLabel: { show: false },
       },
       yAxis: {
         type: "value",
