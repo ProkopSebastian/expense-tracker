@@ -11,6 +11,7 @@ _FINANCIAL_TABLES = (
     "transaction_decisions",
     "merchant_rules",
     "cases",
+    "wallets",
     "import_batches",
     "transactions",
 )

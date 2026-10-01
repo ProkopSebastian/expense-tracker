@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
-from . import ledger
+from . import ledger, wallet_service
 from . import web_service as service
 from .api_dependencies import get_connection
 from .config import settings
@@ -19,7 +19,7 @@ from .data_sync import sync_data_directory
 from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
-from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
+from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry, WalletCreate
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
@@ -132,6 +132,16 @@ def dissolve(case_id: int, db: DB):
         raise ValueError("Grupa nie istnieje lub została już rozwiązana.")
     ledger.dissolve_case(db, case_id)
     return {"message": "Grupa rozwiązana. Transakcje wróciły do rejestru."}
+
+
+@router.get("/wallets")
+def wallets(db: DB):
+    return {"wallets": wallet_service.list_wallets(db)}
+
+
+@router.post("/wallets", status_code=201)
+def create_wallet(entry: WalletCreate, db: DB):
+    return {"id": wallet_service.create_wallet(db, entry.account, entry.currency)}
 
 
 @router.get("/classification")

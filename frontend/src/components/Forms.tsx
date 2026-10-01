@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -533,6 +534,52 @@ export function CategorySelect({
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+// ISO 4217 codes ship with the platform; keeping a hand-written list here would only go stale.
+const CURRENCY_CODES = Intl.supportedValuesOf("currency");
+
+export function CurrencyInput({
+  name,
+  ariaLabel,
+  value,
+  defaultValue,
+  onChange,
+}: {
+  name?: string;
+  ariaLabel: string;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+}) {
+  const listId = useId();
+  return (
+    <>
+      <input
+        name={name}
+        aria-label={ariaLabel}
+        list={listId}
+        required
+        minLength={3}
+        maxLength={3}
+        pattern="[A-Za-z]{3}"
+        title="Trzyliterowy kod waluty, na przykład EUR albo MAD"
+        placeholder="EUR"
+        className="uppercase"
+        value={value}
+        defaultValue={defaultValue}
+        onChange={(event) => {
+          // The API accepts uppercase codes only, and CSS uppercase is cosmetic.
+          event.currentTarget.value = event.currentTarget.value.toUpperCase();
+          onChange?.(event.currentTarget.value);
+        }}
+      />
+      <datalist id={listId}>
+        {CURRENCY_CODES.map((code) => (
+          <option key={code} value={code} />
+        ))}
+      </datalist>
+    </>
   );
 }
 export function Notice({ error, notice }: { error?: string; notice?: string }) {

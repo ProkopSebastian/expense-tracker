@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { Category, Block } from "../domain";
 import { request, useAction } from "../hooks";
 import { money } from "../api";
-import { Modal, CategorySelect, Notice } from "./Forms";
+import { Modal, CategorySelect, CurrencyInput, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
 export function ManualForm({
   categories,
@@ -82,15 +82,7 @@ export function ManualForm({
           </label>
           <label>
             Waluta
-            <AppSelect
-              ariaLabel="Waluta"
-              name="currency"
-              defaultValue="PLN"
-              options={["PLN", "EUR", "USD", "GBP"].map((currency) => ({
-                value: currency,
-                label: currency,
-              }))}
-            />
+            <CurrencyInput name="currency" ariaLabel="Waluta" defaultValue="PLN" />
           </label>
           <label>
             Kategoria

@@ -35,6 +35,11 @@ class ManualEntry(BaseModel):
     category_key: Text
 
 
+class WalletCreate(BaseModel):
+    account: Text
+    currency: Currency
+
+
 class Member(BaseModel):
     transaction_id: int
     role: Role

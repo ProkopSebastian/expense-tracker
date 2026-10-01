@@ -8,6 +8,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
 import LedgerPage from "./pages/LedgerPage";
+import WalletsPage from "./pages/WalletsPage";
 import ClassificationPage from "./pages/ClassificationPage";
 import RulesPage from "./pages/RulesPage";
 function currentPage(): Page {
@@ -91,6 +92,12 @@ export default function App() {
             ) : page === "ledger" ? (
               <LedgerPage
                 categories={meta.categories}
+                revision={revision}
+                onChanged={changed}
+              />
+            ) : page === "wallets" ? (
+              <WalletsPage
+                accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
                 revision={revision}
                 onChanged={changed}
               />

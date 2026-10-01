@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS import_batches (
     parser_version INTEGER NOT NULL DEFAULT 1,
     imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS wallets (
+    id INTEGER PRIMARY KEY, account TEXT NOT NULL, currency TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(account, currency)
+);
 """
 
 CATEGORIES = (

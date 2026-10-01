@@ -73,6 +73,14 @@ export interface ClassificationRow {
   confidence: number | null;
   remember: boolean;
 }
+export interface Wallet {
+  id: number;
+  account: string;
+  currency: string;
+  balance: string;
+  average_cost: string | null;
+  pln_value: string;
+}
 export interface Rule {
   created_at: string;
   id: number;
@@ -80,7 +88,13 @@ export interface Rule {
   category_key: string;
   category_label: string;
 }
-export type Page = "data" | "summary" | "ledger" | "classification" | "rules";
+export type Page =
+  | "data"
+  | "summary"
+  | "ledger"
+  | "wallets"
+  | "classification"
+  | "rules";
 export const pages: Record<Page, { title: string; description: string }> = {
   data: {
     title: "Import danych",
@@ -93,6 +107,10 @@ export const pages: Record<Page, { title: string; description: string }> = {
   ledger: {
     title: "Historia transakcji",
     description: "Każda transakcja. Każda grupa. Pełny obraz.",
+  },
+  wallets: {
+    title: "Portfele",
+    description: "Waluty obce, ile masz i ile Cię kosztowały.",
   },
   classification: {
     title: "Do klasyfikacji",
