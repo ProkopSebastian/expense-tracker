@@ -89,6 +89,17 @@ export default function SummaryPage({
           }
           aria-busy={loading}
         >
+          {data.untranslated.length > 0 && (
+            <p
+              role="status"
+              className="mb-5 flex items-center gap-3 rounded-xl bg-danger/10 px-4 py-3 text-sm leading-relaxed text-danger"
+            >
+              <CircleHelp size={17} className="shrink-0" />
+              Wydatki w {data.untranslated.join(", ")} nie wchodzą do tej sumy —
+              nie ma zapisanej wymiany, z której dałoby się wziąć kurs. Zasil ich
+              portfel albo podaj saldo otwarcia.
+            </p>
+          )}
           <div className="mb-8 grid gap-8 border-y border-line py-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-0">
             <SummaryCards data={data} />
             <BalanceTimeline data={data} />

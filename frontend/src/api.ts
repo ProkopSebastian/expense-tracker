@@ -31,9 +31,12 @@ export async function fetchSummary(
 }
 
 export function money(value: string | number, currency: string): string {
-  return new Intl.NumberFormat("pl-PL", { style: "currency", currency }).format(
-    Number(value),
-  );
+  // "ALL" is the aggregate view's pseudo-code and its totals are already in złoty.
+  const code = /^[A-Z]{3}$/.test(currency) && currency !== "ALL" ? currency : "PLN";
+  return new Intl.NumberFormat("pl-PL", {
+    style: "currency",
+    currency: code,
+  }).format(Number(value));
 }
 
 export function monthLabel(month: string): string {

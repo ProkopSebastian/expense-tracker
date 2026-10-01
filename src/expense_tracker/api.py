@@ -86,7 +86,7 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
     def read_summary(
         db: Annotated[sqlite3.Connection, Depends(get_connection)],
         mode: PeriodMode = "month",
-        currency: Annotated[str | None, Query(pattern=r"^[A-Z]{3}$")] = None,
+        currency: Annotated[str | None, Query(pattern=r"^[A-Z]{3}$|^ALL$")] = None,
         month: Annotated[str | None, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")] = None,
         start: date | None = None,
         end: date | None = None,

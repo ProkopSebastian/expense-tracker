@@ -252,6 +252,20 @@ def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
     return values
 
 
+def currency_rates(connection: sqlite3.Connection) -> dict[str, Decimal]:
+    """Average złoty cost per unit, for currencies where one rate can be named without doubt.
+
+    A currency held in several pots at different costs has no single rate, so it is left out
+    rather than averaged into something that matches none of them.
+    """
+    by_currency: dict[str, list[Decimal]] = {}
+    rows = {int(row["id"]): row["currency"] for row in _wallets(connection)}
+    for wallet_id, state in wallet_states(connection).items():
+        if state["average_cost"] > 0:
+            by_currency.setdefault(rows[wallet_id], []).append(state["average_cost"])
+    return {currency: rates[0] for currency, rates in by_currency.items() if len(rates) == 1}
+
+
 def wallet_history(connection: sqlite3.Connection, wallet_id: int) -> list[dict[str, Any]]:
     state = wallet_states(connection)
     if wallet_id not in state:

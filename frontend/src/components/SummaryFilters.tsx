@@ -75,7 +75,7 @@ export default function SummaryFilters({
           <span>Waluta</span>
           <AppSelect
             ariaLabel="Waluta"
-            value={data?.currency ?? "PLN"}
+            value={data?.currency ?? "ALL"}
             onValueChange={(currency) =>
               setFilters((previous) => ({
                 mode: previous.mode,
@@ -85,9 +85,16 @@ export default function SummaryFilters({
                   : {}),
               }))
             }
-            options={(data?.currencies.length ? data.currencies : ["PLN"]).map(
-              (currency) => ({ value: currency, label: currency }),
-            )}
+            options={[
+              { value: "ALL", label: "Łącznie (zł)" },
+              ...(data?.currencies.length ? data.currencies : ["PLN"]).map(
+                (currency) => ({
+                  value: currency,
+                  label: currency,
+                  group: "Pojedyncza waluta",
+                }),
+              ),
+            ]}
           />
         </div>
       </section>

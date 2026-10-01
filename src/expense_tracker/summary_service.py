@@ -37,9 +37,13 @@ class MonthlyPoint(BaseModel):
 MONTHLY_BARS_LIMIT = 12
 
 
+ALL_CURRENCIES = "ALL"
+
+
 class SummaryResponse(BaseModel):
     currency: str
     currencies: list[str]
+    untranslated: list[str] = Field(default_factory=list)
     months: list[str]
     start: date | None
     end: date | None
@@ -61,6 +65,33 @@ def _nodes(level: dict) -> list[BreakdownNode]:
     ]
 
 
+def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[str]]:
+    """Restate every item in złoty, leaving out what no real transaction can value.
+
+    Nothing here invents a rate. An amount whose currency was never exchanged on record is
+    dropped and its code reported, so the total is visibly incomplete instead of quietly wrong.
+    """
+    from .wallet_service import HOME_CURRENCY, currency_rates, pln_equivalents
+
+    per_transaction = pln_equivalents(connection)
+    per_currency = currency_rates(connection)
+    converted: list[dict] = []
+    missing: set[str] = set()
+    for item in items:
+        code = str(item["currency"])
+        if code == HOME_CURRENCY:
+            converted.append(item)
+            continue
+        value = per_transaction.get(item["transaction_id"]) if item["transaction_id"] else None
+        if value is not None:
+            converted.append({**item, "amount": abs(value), "currency": HOME_CURRENCY})
+        elif code in per_currency:
+            converted.append({**item, "amount": item["amount"] * per_currency[code], "currency": HOME_CURRENCY})
+        else:
+            missing.add(code)
+    return converted, sorted(missing)
+
+
 def get_summary(
     connection: sqlite3.Connection,
     *,
@@ -72,10 +103,14 @@ def get_summary(
 ) -> SummaryResponse:
     data = summary_data(connection)
     currencies = sorted({str(item["currency"]) for item in data["items"]}, key=lambda code: (code != "PLN", code))
-    selected = currency or (currencies[0] if currencies else "PLN")
-    if currencies and selected not in currencies:
-        raise ValueError("Brak danych dla wybranej waluty.")
-    items = [item for item in data["items"] if item["currency"] == selected]
+    selected = currency or ALL_CURRENCIES
+    untranslated: list[str] = []
+    if selected == ALL_CURRENCIES:
+        items, untranslated = _converted_to_home(connection, data["items"])
+    else:
+        if currencies and selected not in currencies:
+            raise ValueError("Brak danych dla wybranej waluty.")
+        items = [item for item in data["items"] if item["currency"] == selected]
     dates = sorted(date.fromisoformat(str(item["date"])) for item in items)
     months = sorted({value.strftime("%Y-%m") for value in dates}, reverse=True)
     first, last = (dates[0], dates[-1]) if dates else (None, None)
@@ -137,6 +172,7 @@ def get_summary(
         monthly=monthly,
         currency=selected,
         currencies=currencies,
+        untranslated=untranslated,
         months=months,
         start=start,
         end=end,

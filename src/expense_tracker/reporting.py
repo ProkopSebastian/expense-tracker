@@ -19,6 +19,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
         if amount < 0:
             items.append(
                 {
+                    "transaction_id": row["id"],
                     "date": row["booking_date"],
                     "amount": -amount,
                     "currency": row["currency"],
@@ -31,6 +32,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
         elif amount > 0:
             items.append(
                 {
+                    "transaction_id": row["id"],
                     "date": row["booking_date"],
                     "amount": amount,
                     "currency": row["currency"],
@@ -46,6 +48,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
             continue
         items.append(
             {
+                "transaction_id": None,
                 "date": case["booking_date"],
                 "amount": abs(amount),
                 "currency": case["currency"],

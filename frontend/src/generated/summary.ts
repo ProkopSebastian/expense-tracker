@@ -20,6 +20,7 @@ export interface MonthlyPoint {
 export interface SummaryResponse {
   currency: string;
   currencies: Array<string>;
+  untranslated: Array<string>;
   months: Array<string>;
   start: string | null;
   end: string | null;
