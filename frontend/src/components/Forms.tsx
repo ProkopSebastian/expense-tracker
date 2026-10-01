@@ -2,6 +2,8 @@ import CategoryIcon, { curatedIcons } from "./CategoryIcon";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import {
+  createContext,
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -23,6 +25,15 @@ import {
 import type { Category } from "../domain";
 import { request } from "../hooks";
 import { palette } from "../categoryPresentation";
+
+/** A dialog locks scrolling everywhere outside itself. A floating list portalled to the body
+ * lands outside that boundary and stops responding to the wheel, so inside a modal it is
+ * portalled into the dialog's own content instead. */
+const ModalContainer = createContext<HTMLElement | null>(null);
+
+export function useModalContainer() {
+  return useContext(ModalContainer);
+}
 
 export interface CategoryNode {
   category: Category;
@@ -276,7 +287,7 @@ export function CategorySelect({
           <ChevronDown size={16} className="shrink-0 text-muted" />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
+      <Popover.Portal container={useModalContainer()}>
         <Popover.Content
           sideOffset={6}
           collisionPadding={8}
@@ -618,6 +629,7 @@ export function Modal({
   busy?: boolean;
 }) {
   const returnFocus = useRef(document.activeElement as HTMLElement | null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
   return (
     <Dialog.Root
       open
@@ -628,6 +640,7 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in motion-reduce:animate-none" />
         <Dialog.Content
+          ref={setContainer}
           aria-describedby={undefined}
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
@@ -656,7 +669,9 @@ export function Modal({
               </button>
             </Dialog.Close>
           </header>
-          {children}
+          <ModalContainer.Provider value={container}>
+            {children}
+          </ModalContainer.Provider>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

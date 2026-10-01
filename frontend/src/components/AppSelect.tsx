@@ -1,5 +1,6 @@
 import * as Select from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { useModalContainer } from "./Forms";
 
 export interface SelectOption {
   value: string;
@@ -53,7 +54,7 @@ export default function AppSelect({
           <ChevronDown size={16} />
         </Select.Icon>
       </Select.Trigger>
-      <Select.Portal>
+      <Select.Portal container={useModalContainer()}>
         <Select.Content
           position="popper"
           sideOffset={6}
