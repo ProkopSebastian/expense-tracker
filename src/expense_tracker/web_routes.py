@@ -24,9 +24,12 @@ from .web_models import (
     Decision,
     GroupEntry,
     ManualEntry,
+    WalletConvert,
     WalletCreate,
     WalletFundEntry,
+    WalletOpening,
     WalletReconcile,
+    WalletSell,
 )
 
 router = APIRouter(prefix="/api")
@@ -163,6 +166,21 @@ def fund_wallet(wallet_id: int, entry: WalletFundEntry, db: DB):
     if entry.fee_amount > 0 and entry.fee_category_key:
         service.category_exists(db, entry.fee_category_key)
     return {"case_id": wallet_service.fund_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.post("/wallets/{wallet_id}/convert", status_code=201)
+def convert_wallet(wallet_id: int, entry: WalletConvert, db: DB):
+    return {"case_id": wallet_service.convert_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.post("/wallets/{wallet_id}/sell", status_code=201)
+def sell_wallet(wallet_id: int, entry: WalletSell, db: DB):
+    return {"case_id": wallet_service.sell_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.post("/wallets/{wallet_id}/opening", status_code=201)
+def wallet_opening(wallet_id: int, entry: WalletOpening, db: DB):
+    return {"id": wallet_service.set_opening_balance(db, wallet_id=wallet_id, **entry.model_dump())}
 
 
 @router.post("/wallets/{wallet_id}/reconcile", status_code=201)

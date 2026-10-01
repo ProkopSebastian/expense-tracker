@@ -60,6 +60,8 @@ export default function LedgerTable({
   onOpenGroupModal,
   canFund,
   onOpenFundModal,
+  canSell,
+  onOpenSellModal,
   months,
   closedMonths,
   onClosedMonthsChange,
@@ -78,6 +80,8 @@ export default function LedgerTable({
   onOpenGroupModal: () => void;
   canFund: boolean;
   onOpenFundModal: () => void;
+  canSell: boolean;
+  onOpenSellModal: () => void;
   months: Map<string, Block[]>;
   closedMonths: string[];
   onClosedMonthsChange: (months: string[]) => void;
@@ -113,6 +117,15 @@ export default function LedgerTable({
             <Banknote size={16} />
             Zasil portfel
           </button>
+          {canSell && (
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              onClick={onOpenSellModal}
+            >
+              <Banknote size={16} />
+              Odsprzedaj walutę
+            </button>
+          )}
           {selected.length > 1 && !canGroup && !canFund && (
             <small>Wybierz transakcje w jednej walucie.</small>
           )}

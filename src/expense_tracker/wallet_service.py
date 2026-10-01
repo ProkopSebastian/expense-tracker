@@ -16,6 +16,7 @@ from .database import insert_transaction
 from .models import Transaction
 
 HOME_CURRENCY = "PLN"
+OPENING_BALANCE = "wallet_opening"
 COST_PRECISION = Decimal("0.000001")
 MONEY = Decimal("0.01")
 
@@ -139,6 +140,8 @@ def _apply_exchange(state, by_pot, group) -> None:
     if target_id is None:
         return
     received = _decimal(target["amount"])
+    if target["currency"] == HOME_CURRENCY:
+        cost = received
     pot = state[target_id]
     new_balance = pot["balance"] + received
     if new_balance > 0:
@@ -176,6 +179,25 @@ def _apply_movement(state, by_pot, row) -> None:
                 "amount": str(amount),
                 "pln": str(-(covered * pot["average_cost"]).quantize(MONEY)),
                 "uncovered": str(spent - covered),
+            }
+        )
+        return
+    opening = json.loads(row["raw_json"] or "{}")
+    if opening.get("Type") == OPENING_BALANCE:
+        cost = _decimal(opening.get("pln_cost", 0))
+        new_balance = pot["balance"] + amount
+        if new_balance > 0:
+            pot["average_cost"] = ((pot["balance"] * pot["average_cost"] + cost) / new_balance).quantize(COST_PRECISION)
+        pot["balance"] = new_balance
+        pot["history"].append(
+            {
+                "transaction_id": int(row["id"]),
+                "kind": "topup",
+                "date": row["booking_date"],
+                "description": row["description"],
+                "amount": str(amount),
+                "pln": str(cost),
+                "rate": str((cost / amount).quantize(COST_PRECISION)) if amount else None,
             }
         )
         return
@@ -452,3 +474,174 @@ def reconcile_wallet(
                 )
             )
     return created
+
+
+def _synthetic_leg(
+    connection: sqlite3.Connection,
+    *,
+    account: str,
+    booking_date: date,
+    amount: Decimal,
+    currency: str,
+    description: str,
+    raw: dict[str, str] | None = None,
+) -> int:
+    leg = Transaction(
+        account=account,
+        booking_date=booking_date,
+        amount=amount,
+        currency=currency,
+        description=description,
+        external_id=uuid.uuid4().hex,
+        raw=raw or {"Type": ledger.SYNTHETIC_EXCHANGE_LEG},
+    )
+    leg_id = insert_transaction(connection, leg, commit=False)
+    if leg_id is None:
+        raise ValueError("Nie udało się zapisać operacji portfela.")
+    return leg_id
+
+
+def _require_wallet(connection: sqlite3.Connection, wallet_id: int) -> sqlite3.Row:
+    wallet = connection.execute("SELECT id, account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
+    if wallet is None:
+        raise ValueError("Portfel nie istnieje.")
+    return wallet
+
+
+def convert_wallet(
+    connection: sqlite3.Connection,
+    *,
+    wallet_id: int,
+    target_wallet_id: int,
+    given_amount: Decimal,
+    received_amount: Decimal,
+    booking_date: date,
+) -> int:
+    """Exchange one pot straight into another, as a kantor abroad does with cash.
+
+    No złoty changes hands, so no new rate is invented: the dirhams inherit exactly what the
+    euro spent on them had cost, and no gain or loss can appear out of the conversion itself.
+    """
+    source = _require_wallet(connection, wallet_id)
+    target = _require_wallet(connection, target_wallet_id)
+    if wallet_id == target_wallet_id:
+        raise ValueError("Wybierz dwa różne portfele.")
+    if given_amount <= 0 or received_amount <= 0:
+        raise ValueError("Obie kwoty muszą być większe od zera.")
+    balance = wallet_balance(connection, wallet_id)
+    if given_amount > balance:
+        raise ValueError(f"Portfel ma {balance} {source['currency']}, a wymieniasz {given_amount}.")
+
+    with connection:
+        out_id = _synthetic_leg(
+            connection,
+            account=source["account"],
+            booking_date=booking_date,
+            amount=-given_amount,
+            currency=source["currency"],
+            description=f"Wymiana na {target['currency']}",
+        )
+        in_id = _synthetic_leg(
+            connection,
+            account=target["account"],
+            booking_date=booking_date,
+            amount=received_amount,
+            currency=target["currency"],
+            description=f"Wymiana na {target['currency']}",
+        )
+        return ledger.create_case(
+            connection,
+            "wallet_exchange",
+            f"Wymiana {source['currency']} na {target['currency']}",
+            "transfer_own",
+            Decimal(0),
+            target["currency"],
+            [(out_id, "account_transfer"), (in_id, "account_transfer")],
+            commit=False,
+        )
+
+
+def sell_wallet(
+    connection: sqlite3.Connection,
+    *,
+    wallet_id: int,
+    proceeds_transaction_id: int,
+    given_amount: Decimal,
+) -> int:
+    """Sell foreign currency back, against money that actually arrived on an account.
+
+    Most of the proceeds are the user's own money returning and must not read as income. Only
+    the difference from what the currency cost is real, and that difference is booked on its
+    own as an exchange-rate result.
+    """
+    wallet = _require_wallet(connection, wallet_id)
+    if wallet["currency"] == HOME_CURRENCY:
+        raise ValueError("Ten portfel trzyma złotówki, nie ma czego odsprzedawać.")
+    if given_amount <= 0:
+        raise ValueError("Kwota musi być większa od zera.")
+    proceeds = connection.execute(
+        "SELECT id, booking_date, amount, currency FROM transactions WHERE id = ?",
+        (proceeds_transaction_id,),
+    ).fetchone()
+    if proceeds is None:
+        raise ValueError("Transakcja z wpłatą nie istnieje.")
+    if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (proceeds_transaction_id,)).fetchone():
+        raise ValueError("Ta transakcja należy już do grupy.")
+    if _decimal(proceeds["amount"]) <= 0:
+        raise ValueError("Wybierz transakcję, na której pieniądze wpłynęły.")
+
+    state = wallet_states(connection)[wallet_id]
+    if given_amount > state["balance"]:
+        raise ValueError(f"Portfel ma {state['balance']} {wallet['currency']}, a sprzedajesz {given_amount}.")
+    basis = (given_amount * state["average_cost"]).quantize(MONEY)
+    difference = _decimal(proceeds["amount"]) - basis
+
+    with connection:
+        out_id = _synthetic_leg(
+            connection,
+            account=wallet["account"],
+            booking_date=proceeds["booking_date"],
+            amount=-given_amount,
+            currency=wallet["currency"],
+            description=f"Odsprzedaż {wallet['currency']}",
+        )
+        return ledger.create_case(
+            connection,
+            "wallet_exchange",
+            f"Odsprzedaż {wallet['currency']}",
+            "fx_result" if difference else "transfer_own",
+            # A positive personal_amount reads as an expense, so a gain is carried negative.
+            -difference,
+            HOME_CURRENCY,
+            [(proceeds_transaction_id, "account_transfer"), (out_id, "account_transfer")],
+            commit=False,
+        )
+
+
+def set_opening_balance(
+    connection: sqlite3.Connection,
+    *,
+    wallet_id: int,
+    amount: Decimal,
+    pln_cost: Decimal,
+    booking_date: date,
+) -> int:
+    """Record money already held, with what it cost, when no exchange was ever captured."""
+    wallet = _require_wallet(connection, wallet_id)
+    if amount <= 0:
+        raise ValueError("Kwota musi być większa od zera.")
+    if pln_cost < 0:
+        raise ValueError("Koszt nie może być ujemny.")
+    with connection:
+        leg_id = _synthetic_leg(
+            connection,
+            account=wallet["account"],
+            booking_date=booking_date,
+            amount=amount,
+            currency=wallet["currency"],
+            description="Saldo otwarcia",
+            raw={"Type": OPENING_BALANCE, "pln_cost": str(pln_cost)},
+        )
+        # Marked as a transfer so money that was already the user's does not read as income.
+        ledger.save_decision(connection, leg_id, "transfer_own", "Saldo otwarcia portfela", commit=False)
+    return leg_id

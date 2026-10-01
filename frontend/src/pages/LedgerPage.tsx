@@ -7,6 +7,7 @@ import {
   ManualForm,
   GroupForm,
   FundWalletForm,
+  SellWalletForm,
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerLinksPanel from "../components/LedgerLinksPanel";
@@ -38,7 +39,9 @@ export default function LedgerPage({
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
-    [modal, setModal] = useState<"manual" | "group" | "fund" | null>(null),
+    [modal, setModal] = useState<"manual" | "group" | "fund" | "sell" | null>(
+      null,
+    ),
     [dissolve, setDissolve] = useState<number | null>(null);
   const params = new URLSearchParams({
     q: query,
@@ -68,6 +71,8 @@ export default function LedgerPage({
   const canFund =
     (selectedRows.length === 1 && outflows.length === 1) ||
     (selectedRows.length === 2 && outflows.length === 1 && inflows.length === 1);
+  // Money arriving on its own is the other direction: currency sold back.
+  const canSell = selectedRows.length === 1 && inflows.length === 1;
   const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {
@@ -135,6 +140,8 @@ export default function LedgerPage({
           onOpenGroupModal={() => setModal("group")}
           canFund={canFund}
           onOpenFundModal={() => setModal("fund")}
+          canSell={canSell}
+          onOpenSellModal={() => setModal("sell")}
           months={months}
           closedMonths={closedMonths}
           onClosedMonthsChange={setClosedMonths}
@@ -178,6 +185,16 @@ export default function LedgerPage({
       {modal === "fund" && (
         <FundWalletForm
           categories={categories}
+          selected={selectedRows}
+          onClose={() => setModal(null)}
+          onSaved={() => {
+            setSelected([]);
+            onChanged();
+          }}
+        />
+      )}
+      {modal === "sell" && (
+        <SellWalletForm
           selected={selectedRows}
           onClose={() => setModal(null)}
           onSaved={() => {

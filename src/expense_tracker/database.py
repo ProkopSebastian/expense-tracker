@@ -125,6 +125,7 @@ CATEGORIES = (
     ("income_investments", "Inwestycje i dywidendy", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
     ("fees_fx", "Opłaty walutowe", None, "expense"),
+    ("fx_result", "Różnice kursowe", None, "adjustment"),
 )
 
 

@@ -516,3 +516,116 @@ export function FundWalletForm({
     </Modal>
   );
 }
+
+export function SellWalletForm({
+  selected,
+  onClose,
+  onSaved,
+}: {
+  selected: Block[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data } = useResource<{ wallets: Wallet[] }>("/wallets");
+  const wallets = (data?.wallets ?? []).filter(
+    (wallet) => wallet.currency !== "PLN" && Number(wallet.balance) > 0,
+  );
+  const proceeds = selected[0];
+  const [walletId, setWalletId] = useState("");
+  const [given, setGiven] = useState("");
+  const action = useAction(onSaved);
+  const wallet = wallets.find((item) => String(item.id) === walletId);
+
+  const amount = Number(given || 0);
+  const basis = wallet ? amount * Number(wallet.average_cost ?? 0) : 0;
+  const received = Number(proceeds.amount ?? 0);
+  const difference = received - basis;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ok = await action.run(() =>
+      request(`/wallets/${walletId}/sell`, "POST", {
+        proceeds_transaction_id: proceeds.id,
+        given_amount: given,
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal title="Odsprzedaj walutę" onClose={onClose} busy={action.busy}>
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted"
+      >
+        <Notice error={action.error} />
+        <p className="text-muted">
+          Większość tej wpłaty to Twoje własne pieniądze wracające, więc nie jest
+          przychodem. Przychodem jest tylko różnica między tym, co dostajesz, a
+          tym, ile ta waluta Cię kosztowała.
+        </p>
+        <label>
+          Z którego portfela
+          <AppSelect
+            ariaLabel="Portfel do odsprzedaży"
+            value={walletId}
+            onValueChange={setWalletId}
+            options={[
+              { value: "", label: "Wybierz portfel" },
+              ...wallets.map((item) => ({
+                value: String(item.id),
+                label: `${item.currency} — ${item.account} · ${money(item.balance, item.currency)}`,
+              })),
+            ]}
+          />
+          {!wallets.length && <small>Żaden portfel nie ma salda do sprzedania.</small>}
+        </label>
+        <label>
+          Ile sprzedajesz {wallet ? `(${wallet.currency})` : ""}
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            required
+            value={given}
+            onChange={(event) => setGiven(event.target.value)}
+          />
+        </label>
+        <div className="rounded-xl border border-line px-4 py-3 text-sm [&_div]:flex [&_div]:justify-between [&_div]:gap-4 [&_div]:py-1">
+          <div>
+            <span className="text-muted">Kosztowało Cię</span>
+            <strong>{wallet ? money(basis, "PLN") : "—"}</strong>
+          </div>
+          <div>
+            <span className="text-muted">Dostajesz</span>
+            <strong>{money(received, proceeds.currency)}</strong>
+          </div>
+          <div className="border-t border-line">
+            <span className="text-muted">
+              {difference >= 0 ? "Zysk kursowy" : "Strata kursowa"}
+            </span>
+            <strong className={difference >= 0 ? "text-success" : "text-danger"}>
+              {wallet ? money(Math.abs(difference), "PLN") : "—"}
+            </strong>
+          </div>
+        </div>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            onClick={onClose}
+            disabled={action.busy}
+          >
+            Anuluj
+          </button>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            disabled={action.busy || !wallet || amount <= 0}
+          >
+            {action.busy ? "Zapisuję…" : "Odsprzedaj"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}

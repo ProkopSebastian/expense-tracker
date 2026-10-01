@@ -63,6 +63,24 @@ class GroupEntry(BaseModel):
     members: list[Member] = Field(min_length=2, max_length=1000)
 
 
+class WalletConvert(BaseModel):
+    target_wallet_id: int
+    given_amount: Money
+    received_amount: Money
+    booking_date: date
+
+
+class WalletSell(BaseModel):
+    proceeds_transaction_id: int
+    given_amount: Money
+
+
+class WalletOpening(BaseModel):
+    amount: Money
+    pln_cost: Money
+    booking_date: date
+
+
 class ReconcileLine(BaseModel):
     amount: Money
     category_key: Text

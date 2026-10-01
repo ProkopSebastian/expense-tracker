@@ -6,6 +6,7 @@ import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
 import type { Category } from "../domain";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
+import AppSelect from "../components/AppSelect";
 
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
@@ -13,6 +14,8 @@ const BUTTON_CLASS =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft";
 const PRIMARY_BUTTON_CLASS = `${BUTTON_CLASS} border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!`;
 const DANGER_BUTTON_CLASS = `${BUTTON_CLASS} border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!`;
+const SMALL_BUTTON_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium transition hover:bg-accent-soft";
 
 // A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred
 // dirhams. Money stays at two places; the rate gets four.
@@ -262,6 +265,195 @@ function ReconcileForm({
   );
 }
 
+function ConvertForm({
+  wallet,
+  wallets,
+  onClose,
+  onSaved,
+}: {
+  wallet: Wallet;
+  wallets: Wallet[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const targets = wallets.filter((item) => item.id !== wallet.id);
+  const [targetId, setTargetId] = useState(targets[0] ? String(targets[0].id) : "");
+  const [given, setGiven] = useState("");
+  const [received, setReceived] = useState("");
+  const [day, setDay] = useState(new Date().toLocaleDateString("en-CA"));
+  const action = useAction(onSaved);
+  const target = targets.find((item) => String(item.id) === targetId);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ok = await action.run(() =>
+      request(`/wallets/${wallet.id}/convert`, "POST", {
+        target_wallet_id: Number(targetId),
+        given_amount: given,
+        received_amount: received,
+        booking_date: day,
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal
+      title={`Wymień ${wallet.currency} na inną walutę`}
+      onClose={onClose}
+      busy={action.busy}
+    >
+      <form onSubmit={submit} className={FORM_CLASS}>
+        <Notice error={action.error} />
+        <p className="text-muted">
+          Żadne złotówki tu nie przechodzą, więc nowa waluta przejmuje dokładnie
+          ten koszt, który miała poprzednia. Zysk ani strata nie powstają z samej
+          wymiany.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            Oddajesz ({wallet.currency})
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={given}
+              onChange={(event) => setGiven(event.target.value)}
+            />
+            <small>Masz {money(wallet.balance, wallet.currency)}.</small>
+          </label>
+          <label>
+            Do portfela
+            <AppSelect
+              ariaLabel="Portfel docelowy"
+              value={targetId}
+              onValueChange={setTargetId}
+              options={targets.map((item) => ({
+                value: String(item.id),
+                label: `${item.currency} — ${item.account}`,
+              }))}
+            />
+          </label>
+          <label>
+            Dostajesz {target ? `(${target.currency})` : ""}
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={received}
+              onChange={(event) => setReceived(event.target.value)}
+            />
+          </label>
+          <label>
+            Data
+            <input
+              type="date"
+              required
+              value={day}
+              onChange={(event) => setDay(event.target.value)}
+            />
+          </label>
+        </div>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button type="button" className={BUTTON_CLASS} onClick={onClose} disabled={action.busy}>
+            Anuluj
+          </button>
+          <button className={PRIMARY_BUTTON_CLASS} disabled={action.busy || !target}>
+            {action.busy ? "Zapisuję…" : "Wymień"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
+
+function OpeningForm({
+  wallet,
+  onClose,
+  onSaved,
+}: {
+  wallet: Wallet;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [cost, setCost] = useState("");
+  const [day, setDay] = useState(new Date().toLocaleDateString("en-CA"));
+  const action = useAction(onSaved);
+  const rate = Number(amount) > 0 ? Number(cost) / Number(amount) : 0;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ok = await action.run(() =>
+      request(`/wallets/${wallet.id}/opening`, "POST", {
+        amount,
+        pln_cost: cost,
+        booking_date: day,
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal title={`Saldo otwarcia ${wallet.currency}`} onClose={onClose} busy={action.busy}>
+      <form onSubmit={submit} className={FORM_CLASS}>
+        <Notice error={action.error} />
+        <p className="text-muted">
+          Dla pieniędzy, które już masz, a których wymiany nie ma w żadnym
+          wyciągu. Podaj ile i ile Cię kosztowały — choćby z pamięci. Lepsze
+          przybliżenie niż brak kursu.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            Ile masz ({wallet.currency})
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
+          </label>
+          <label>
+            Ile Cię kosztowały (zł)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={cost}
+              onChange={(event) => setCost(event.target.value)}
+            />
+          </label>
+          <label>
+            Od kiedy
+            <input
+              type="date"
+              required
+              value={day}
+              onChange={(event) => setDay(event.target.value)}
+            />
+          </label>
+        </div>
+        {rate > 0 && (
+          <p className="text-muted">Kurs wyjdzie {rateLabel(String(rate), wallet.currency)}.</p>
+        )}
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button type="button" className={BUTTON_CLASS} onClick={onClose} disabled={action.busy}>
+            Anuluj
+          </button>
+          <button className={PRIMARY_BUTTON_CLASS} disabled={action.busy}>
+            {action.busy ? "Zapisuję…" : "Zapisz saldo"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
+
 function WalletHistory({ wallet }: { wallet: Wallet }) {
   const { data, error, loading } = useResource<{ history: WalletEvent[] }>(
     `/wallets/${wallet.id}/history`,
@@ -305,12 +497,18 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
 
 function WalletRow({
   wallet,
+  canConvert,
   onDelete,
   onReconcile,
+  onConvert,
+  onOpening,
 }: {
   wallet: Wallet;
+  canConvert: boolean;
   onDelete: (wallet: Wallet) => void;
   onReconcile: (wallet: Wallet) => void;
+  onConvert: (wallet: Wallet) => void;
+  onOpening: (wallet: Wallet) => void;
 }) {
   const uncovered = Number(wallet.uncovered);
   return (
@@ -361,6 +559,16 @@ function WalletRow({
         </p>
       )}
       <Accordion.Content className="overflow-hidden pb-4">
+        <div className="flex flex-wrap gap-2 py-3">
+          <button className={SMALL_BUTTON_CLASS} onClick={() => onOpening(wallet)}>
+            Saldo otwarcia
+          </button>
+          {canConvert && (
+            <button className={SMALL_BUTTON_CLASS} onClick={() => onConvert(wallet)}>
+              Wymień na inną walutę
+            </button>
+          )}
+        </div>
         <WalletHistory wallet={wallet} />
       </Accordion.Content>
     </Accordion.Item>
@@ -385,6 +593,8 @@ export default function WalletsPage({
   const [creating, setCreating] = useState(false);
   const [removing, setRemoving] = useState<Wallet | null>(null);
   const [reconciling, setReconciling] = useState<Wallet | null>(null);
+  const [converting, setConverting] = useState<Wallet | null>(null);
+  const [opening, setOpening] = useState<Wallet | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
   const action = useAction(() => {
     setRemoving(null);
@@ -425,8 +635,11 @@ export default function WalletsPage({
             <WalletRow
               key={wallet.id}
               wallet={wallet}
+              canConvert={wallets.length > 1 && Number(wallet.balance) > 0}
               onDelete={setRemoving}
               onReconcile={setReconciling}
+              onConvert={setConverting}
+              onOpening={setOpening}
             />
           ))}
         </Accordion.Root>
@@ -444,6 +657,27 @@ export default function WalletsPage({
           accounts={accounts}
           onClose={() => setCreating(false)}
           onSaved={onChanged}
+        />
+      )}
+      {converting && (
+        <ConvertForm
+          wallet={converting}
+          wallets={wallets}
+          onClose={() => setConverting(null)}
+          onSaved={() => {
+            setConverting(null);
+            onChanged();
+          }}
+        />
+      )}
+      {opening && (
+        <OpeningForm
+          wallet={opening}
+          onClose={() => setOpening(null)}
+          onSaved={() => {
+            setOpening(null);
+            onChanged();
+          }}
         />
       )}
       {reconciling && (
