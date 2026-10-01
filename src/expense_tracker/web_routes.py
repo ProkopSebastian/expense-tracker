@@ -317,11 +317,17 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
             finally:
                 database.close()
 
-    inserted = await run_in_threadpool(run_import)
+    outcome = await run_in_threadpool(run_import)
+    if outcome is None:
+        return {"message": "Ten plik został już wczytany."}
+    pairs = (
+        f" Rozpoznane wymiany walut: {outcome.paired}, portfele zasilone automatycznie."
+        if outcome.paired
+        else ""
+    )
     return {
-        "message": "Ten plik został już wczytany."
-        if inserted is None
-        else f"Import zakończony. Nowe transakcje: {inserted}. Istniejące operacje zostały sprawdzone i zaktualizowane."
+        "message": f"Import zakończony. Nowe transakcje: {outcome.inserted}. "
+        f"Istniejące operacje zostały sprawdzone i zaktualizowane.{pairs}"
     }
 
 

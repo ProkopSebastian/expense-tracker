@@ -17,6 +17,7 @@ from .importers import (
     import_velo_pdf,
 )
 from .ledger import apply_rules
+from .wallet_service import pair_exchanges
 
 IMPORTERS = {
     "nest": import_nest_csv,
@@ -71,11 +72,17 @@ def sync_data_directory(database: Database, data_dir: Path) -> SyncResult:
             result.skipped_files.append(path.name)
         else:
             result.new_files.append(path.name)
-            result.transactions_inserted += result_one
+            result.transactions_inserted += result_one.inserted
     return result
 
 
-def import_file(database: Database, path: Path, account: str | None = None) -> int | None:
+@dataclass(frozen=True)
+class ImportOutcome:
+    inserted: int
+    paired: int
+
+
+def import_file(database: Database, path: Path, account: str | None = None) -> ImportOutcome | None:
     """Import one export atomically; account separates multiple accounts at the same bank."""
     bank = detect_file_format(path)
     if bank is None:
@@ -108,6 +115,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> i
     with database.connection:
         inserted, skipped = database.insert_transactions(found, commit=False)
         apply_rules(database.connection, commit=False)
+        paired = pair_exchanges(database.connection)
         database.connection.execute(
             """INSERT INTO import_batches
             (file_name,file_hash,importer,rows_found,rows_inserted,rows_skipped_duplicate,parser_version)
@@ -118,4 +126,4 @@ def import_file(database: Database, path: Path, account: str | None = None) -> i
                 parser_version=excluded.parser_version, imported_at=CURRENT_TIMESTAMP""",
             (path.name, file_hash, bank, len(found), inserted, skipped, PARSER_VERSION),
         )
-    return inserted
+    return ImportOutcome(inserted=inserted, paired=paired)

@@ -102,8 +102,8 @@ def test_revolut_identity_does_not_depend_on_export_language(tmp_path: Path) -> 
     assert source_key(english_row) == source_key(polish_row)
     database = Database(tmp_path / "expenses.sqlite3")
     try:
-        assert import_file(database, english) == 1
-        assert import_file(database, polish) == 0
+        assert import_file(database, english).inserted == 1
+        assert import_file(database, polish).inserted == 0
         assert database.connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 1
     finally:
         database.close()

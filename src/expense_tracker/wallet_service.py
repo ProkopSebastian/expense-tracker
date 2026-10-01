@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from contextlib import nullcontext
 from decimal import Decimal
 from typing import Any
 
@@ -19,6 +20,13 @@ MONEY = Decimal("0.01")
 
 def wallet_account(currency: str) -> str:
     return f"Portfel {currency}"
+
+
+def _transfer_label(source_currency: str, wallet_account_name: str, wallet_currency: str) -> str:
+    # Taking złoty out of a cash machine exchanges nothing; only a change of currency does.
+    if source_currency == wallet_currency:
+        return f"Zasilenie: {wallet_account_name}"
+    return f"Wymiana na {wallet_currency}"
 
 
 def _decimal(value: Any) -> Decimal:
@@ -212,11 +220,12 @@ def wallet_history(connection: sqlite3.Connection, wallet_id: int) -> list[dict[
     return state[wallet_id]["history"]
 
 
-def create_wallet(connection: sqlite3.Connection, account: str, currency: str) -> int:
+def create_wallet(connection: sqlite3.Connection, account: str, currency: str, *, commit: bool = True) -> int:
     if connection.execute("SELECT 1 FROM wallets WHERE account = ? AND currency = ?", (account, currency)).fetchone():
         raise ValueError("Portfel dla tego konta i waluty już istnieje.")
     cursor = connection.execute("INSERT INTO wallets(account, currency) VALUES (?, ?)", (account, currency))
-    connection.commit()
+    if commit:
+        connection.commit()
     return int(cursor.lastrowid)
 
 
@@ -241,6 +250,7 @@ def fund_wallet(
     target_transaction_id: int | None = None,
     fee_amount: Decimal = Decimal(0),
     fee_category_key: str | None = None,
+    commit: bool = True,
 ) -> int:
     """Link an outflow to the money it became.
 
@@ -266,6 +276,7 @@ def fund_wallet(
     if source["account"] == wallet["account"] and source["currency"] == wallet["currency"]:
         raise ValueError("Transakcja źródłowa należy do tego samego portfela.")
 
+    label = _transfer_label(source["currency"], wallet["account"], wallet["currency"])
     if target_transaction_id is not None:
         target = connection.execute(
             "SELECT id, account, amount, currency FROM transactions WHERE id = ?", (target_transaction_id,)
@@ -283,7 +294,7 @@ def fund_wallet(
         if target["account"] != wallet["account"] or target["currency"] != wallet["currency"]:
             raise ValueError("Transakcja docelowa nie należy do tego portfela.")
 
-    with connection:
+    with connection if commit else nullcontext():
         if target_transaction_id is not None:
             leg_id = target_transaction_id
         else:
@@ -292,7 +303,7 @@ def fund_wallet(
                 booking_date=source["booking_date"],
                 amount=received_amount,
                 currency=wallet["currency"],
-                description=f"Wymiana na {wallet['currency']}",
+                description=label,
                 external_id=uuid.uuid4().hex,
                 raw={"Type": ledger.SYNTHETIC_EXCHANGE_LEG},
             )
@@ -313,10 +324,63 @@ def fund_wallet(
         return ledger.create_case(
             connection,
             "wallet_exchange",
-            f"Wymiana na {wallet['currency']}",
+            label,
             "transfer_own",
             Decimal(0),
             wallet["currency"],
             [(source_transaction_id, "account_transfer"), (leg_id, "account_transfer")],
             commit=False,
         )
+
+
+def pair_exchanges(connection: sqlite3.Connection) -> int:
+    """Link the two halves of a bank-recorded currency exchange. Returns how many were linked.
+
+    Both halves carry the same start timestamp down to the second, so matching them is
+    bookkeeping rather than inference. Anything less than certain is left to the user: a moment
+    without exactly one outgoing and one incoming row is skipped whole, never resolved by
+    picking the closest candidate.
+    """
+    rows = connection.execute(
+        """SELECT t.id, t.account, t.amount, t.currency, t.raw_json
+        FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id
+        WHERE t.transaction_type = 'Exchange' AND cm.transaction_id IS NULL"""
+    ).fetchall()
+
+    by_moment: dict[str, list[sqlite3.Row]] = {}
+    for row in rows:
+        moment = json.loads(row["raw_json"] or "{}").get("Started Date")
+        if moment:
+            by_moment.setdefault(str(moment), []).append(row)
+
+    paired = 0
+    for candidates in by_moment.values():
+        outgoing = [row for row in candidates if _decimal(row["amount"]) < 0]
+        incoming = [row for row in candidates if _decimal(row["amount"]) > 0]
+        if len(candidates) != 2 or len(outgoing) != 1 or len(incoming) != 1:
+            continue
+        source, target = outgoing[0], incoming[0]
+        if source["currency"] == target["currency"]:
+            continue
+        # Selling foreign currency back into złoty realises a gain or loss against the wallet's
+        # cost. Linking it here would quietly swallow that difference, so it stays manual.
+        if target["currency"] == HOME_CURRENCY:
+            continue
+        wallet = connection.execute(
+            "SELECT id FROM wallets WHERE account = ? AND currency = ?",
+            (target["account"], target["currency"]),
+        ).fetchone()
+        wallet_id = (
+            int(wallet["id"])
+            if wallet
+            else create_wallet(connection, target["account"], target["currency"], commit=False)
+        )
+        fund_wallet(
+            connection,
+            wallet_id=wallet_id,
+            source_transaction_id=int(source["id"]),
+            target_transaction_id=int(target["id"]),
+            commit=False,
+        )
+        paired += 1
+    return paired

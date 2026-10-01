@@ -61,12 +61,12 @@ def test_sync_applies_merchant_rules_after_import(tmp_path: Path, database: Data
 def test_reprocesses_an_older_parser_version_without_duplicating_rows(tmp_path: Path, database: Database) -> None:
     path = tmp_path / "export.csv"
     path.write_text(NEST_CSV, encoding="utf-8")
-    assert import_file(database, path) == 1
+    assert import_file(database, path).inserted == 1
     database.connection.execute("UPDATE transactions SET merchant=NULL")
     database.connection.execute("UPDATE import_batches SET parser_version=1")
     database.connection.commit()
 
-    assert import_file(database, path) == 0
+    assert import_file(database, path).inserted == 0
     [row] = transactions(database.connection)
     assert row["merchant"] == "MR.ROLLO WARSZAWA Nr karty 4724"
     assert database.connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 1
