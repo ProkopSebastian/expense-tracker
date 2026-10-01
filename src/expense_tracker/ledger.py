@@ -373,6 +373,7 @@ def add_manual_transaction(
     description: str,
     counterparty: str | None,
     category_key: str,
+    commit: bool = True,
 ) -> int:
     transaction = Transaction(
         account=account,
@@ -384,7 +385,7 @@ def add_manual_transaction(
         external_id=uuid.uuid4().hex,
         raw={"Type": "manual_entry", "entered_at": datetime.now(UTC).isoformat()},
     )
-    with connection:
+    with connection if commit else nullcontext():
         transaction_id = insert_transaction(connection, transaction, commit=False)
         if transaction_id is None:
             raise ValueError("Nie udało się dodać ręcznego wpisu.")

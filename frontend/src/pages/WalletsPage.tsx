@@ -1,10 +1,11 @@
 import { useId, useState, type FormEvent } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { ChevronDown, Plus, Scale, Trash2, TriangleAlert } from "lucide-react";
 import type { Wallet, WalletEvent } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
-import { CurrencyInput, Modal, Notice } from "../components/Forms";
+import type { Category } from "../domain";
+import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
@@ -103,6 +104,164 @@ function NewWalletForm({
   );
 }
 
+type Split = { amount: string; category: string; description: string };
+
+function ReconcileForm({
+  wallet,
+  categories,
+  onClose,
+  onSaved,
+}: {
+  wallet: Wallet;
+  categories: Category[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [remaining, setRemaining] = useState("0");
+  const [day, setDay] = useState(new Date().toLocaleDateString("en-CA"));
+  const [splits, setSplits] = useState<Split[]>([
+    { amount: "", category: "", description: "" },
+  ]);
+  const action = useAction(onSaved);
+
+  const balance = Number(wallet.balance);
+  const missing = balance - Number(remaining || 0);
+  const assigned = splits.reduce((sum, split) => sum + Number(split.amount || 0), 0);
+  const left = missing - assigned;
+  const surplus = missing < 0;
+
+  function update(index: number, patch: Partial<Split>) {
+    setSplits(splits.map((split, at) => (at === index ? { ...split, ...patch } : split)));
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ok = await action.run(() =>
+      request(`/wallets/${wallet.id}/reconcile`, "POST", {
+        remaining,
+        booking_date: day,
+        lines: splits
+          .filter((split) => Number(split.amount) > 0)
+          .map((split) => ({
+            amount: split.amount,
+            category_key: split.category,
+            description: split.description || "Wydatki gotówkowe",
+          })),
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal
+      title={`Rozlicz portfel ${wallet.currency}`}
+      onClose={onClose}
+      busy={action.busy}
+    >
+      <form onSubmit={submit} className={FORM_CLASS}>
+        <Notice error={action.error} />
+        <p className="text-muted">
+          Nie musisz pamiętać każdego wydatku. Podaj, ile zostało — resztę
+          aplikacja wyliczy sama, a Ty rozdzielisz ją na kategorie z grubsza.
+          Suma będzie dokładna, podział przybliżony.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            Ile zostało ({wallet.currency})
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={remaining}
+              onChange={(event) => setRemaining(event.target.value)}
+            />
+            <small>W portfelu jest {money(wallet.balance, wallet.currency)}.</small>
+          </label>
+          <label>
+            Data wydatków
+            <input
+              type="date"
+              required
+              value={day}
+              onChange={(event) => setDay(event.target.value)}
+            />
+            <small>Kiedy te pieniądze zostały wydane, nie dzisiaj.</small>
+          </label>
+        </div>
+        {surplus ? (
+          <p className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed bg-danger/10 text-danger">
+            <TriangleAlert size={17} />
+            Podajesz więcej, niż portfel kiedykolwiek dostał. Brakuje zapisanego
+            zasilenia — dodaj je najpierw.
+          </p>
+        ) : (
+          <>
+            <p className="text-muted">
+              Do rozdzielenia: {money(missing, wallet.currency)} · zostało{" "}
+              {money(left, wallet.currency)}
+            </p>
+            {splits.map((split, index) => (
+              <div key={index} className="grid gap-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                <label>
+                  Kwota
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={split.amount}
+                    onChange={(event) => update(index, { amount: event.target.value })}
+                  />
+                </label>
+                <label>
+                  Na co
+                  <CategorySelect
+                    categories={categories}
+                    value={split.category}
+                    onChange={(value) => update(index, { category: value })}
+                  />
+                </label>
+              </div>
+            ))}
+            <button
+              type="button"
+              className={`${BUTTON_CLASS} self-start`}
+              onClick={() =>
+                setSplits([...splits, { amount: "", category: "", description: "" }])
+              }
+            >
+              <Plus size={16} />
+              Kolejna kategoria
+            </button>
+          </>
+        )}
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button
+            type="button"
+            className={BUTTON_CLASS}
+            onClick={onClose}
+            disabled={action.busy}
+          >
+            Anuluj
+          </button>
+          <button
+            className={PRIMARY_BUTTON_CLASS}
+            disabled={
+              action.busy ||
+              surplus ||
+              missing <= 0 ||
+              Math.abs(left) > 0.004 ||
+              splits.some((split) => Number(split.amount) > 0 && !split.category)
+            }
+          >
+            {action.busy ? "Zapisuję…" : "Rozlicz"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
+
 function WalletHistory({ wallet }: { wallet: Wallet }) {
   const { data, error, loading } = useResource<{ history: WalletEvent[] }>(
     `/wallets/${wallet.id}/history`,
@@ -147,9 +306,11 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
 function WalletRow({
   wallet,
   onDelete,
+  onReconcile,
 }: {
   wallet: Wallet;
   onDelete: (wallet: Wallet) => void;
+  onReconcile: (wallet: Wallet) => void;
 }) {
   const uncovered = Number(wallet.uncovered);
   return (
@@ -177,6 +338,14 @@ function WalletRow({
           </span>
         </Accordion.Trigger>
         <button
+          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+          aria-label={`Rozlicz portfel ${wallet.currency} ${wallet.account}`}
+          title="Rozlicz: podaj, ile zostało"
+          onClick={() => onReconcile(wallet)}
+        >
+          <Scale size={16} />
+        </button>
+        <button
           className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger"
           aria-label={`Usuń portfel ${wallet.currency} ${wallet.account}`}
           onClick={() => onDelete(wallet)}
@@ -200,10 +369,12 @@ function WalletRow({
 
 export default function WalletsPage({
   accounts,
+  categories,
   revision,
   onChanged,
 }: {
   accounts: string[];
+  categories: Category[];
   revision: number;
   onChanged: () => void;
 }) {
@@ -213,6 +384,7 @@ export default function WalletsPage({
   );
   const [creating, setCreating] = useState(false);
   const [removing, setRemoving] = useState<Wallet | null>(null);
+  const [reconciling, setReconciling] = useState<Wallet | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
   const action = useAction(() => {
     setRemoving(null);
@@ -236,7 +408,7 @@ export default function WalletsPage({
       <Notice error={error || action.error} notice={action.notice} />
       <section className="border-t border-line">
         {wallets.length > 0 && (
-          <div className="hidden grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-4 border-b border-line py-3 text-xs font-semibold tracking-wide text-muted uppercase sm:grid">
+          <div className="hidden grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] gap-4 border-b border-line py-3 text-xs font-semibold tracking-wide text-muted uppercase sm:grid">
             <span>Portfel</span>
             <span>Saldo</span>
             <span>Średni koszt</span>
@@ -250,7 +422,12 @@ export default function WalletsPage({
           onValueChange={setExpanded}
         >
           {wallets.map((wallet) => (
-            <WalletRow key={wallet.id} wallet={wallet} onDelete={setRemoving} />
+            <WalletRow
+              key={wallet.id}
+              wallet={wallet}
+              onDelete={setRemoving}
+              onReconcile={setReconciling}
+            />
           ))}
         </Accordion.Root>
         {!wallets.length && !error && (
@@ -267,6 +444,17 @@ export default function WalletsPage({
           accounts={accounts}
           onClose={() => setCreating(false)}
           onSaved={onChanged}
+        />
+      )}
+      {reconciling && (
+        <ReconcileForm
+          wallet={reconciling}
+          categories={categories}
+          onClose={() => setReconciling(null)}
+          onSaved={() => {
+            setReconciling(null);
+            onChanged();
+          }}
         />
       )}
       {removing && (

@@ -72,6 +72,7 @@ ACTION_LABELS: dict[tuple[str, str], str] = {
     ("POST", "/api/wallets"): "Utworzenie portfela walutowego",
     ("DELETE", "/api/wallets/{}"): "Usunięcie portfela walutowego",
     ("POST", "/api/wallets/{}/fund"): "Zasilenie portfela walutowego",
+    ("POST", "/api/wallets/{}/reconcile"): "Rozliczenie portfela walutowego",
     ("POST", "/api/sync"): "Synchronizacja katalogu danych",
     ("POST", "/api/ai/merchants"): "Analiza AI sprzedawców",
     ("POST", "/api/ai/relations"): "Analiza AI powiązań",

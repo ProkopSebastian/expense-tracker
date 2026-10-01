@@ -33,6 +33,7 @@ class ManualEntry(BaseModel):
     description: Text
     counterparty: str | None = None
     category_key: Text
+    wallet_id: int | None = None
 
 
 class WalletCreate(BaseModel):
@@ -60,6 +61,18 @@ class GroupEntry(BaseModel):
     currency: Currency
     category_key: Text
     members: list[Member] = Field(min_length=2, max_length=1000)
+
+
+class ReconcileLine(BaseModel):
+    amount: Money
+    category_key: Text
+    description: Text
+
+
+class WalletReconcile(BaseModel):
+    remaining: Money
+    booking_date: date
+    lines: list[ReconcileLine] = Field(min_length=1, max_length=50)
 
 
 class ClientError(BaseModel):

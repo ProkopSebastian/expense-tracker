@@ -77,10 +77,29 @@ def decide(db: sqlite3.Connection, tid: int, entry: Decision) -> None:
 
 
 def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
+    from . import wallet_service
+
     category_exists(db, entry.category_key)
     if entry.amount == 0:
         raise ValueError("Kwota musi być różna od zera.")
-    return ledger.add_manual_transaction(db, **entry.model_dump())
+    fields = entry.model_dump(exclude={"wallet_id"})
+    if entry.wallet_id is not None:
+        # Take the pot's identity from the record, not from the client, so a stale form cannot
+        # file a dirham spend against the euro wallet.
+        wallet = db.execute(
+            "SELECT account, currency FROM wallets WHERE id = ?", (entry.wallet_id,)
+        ).fetchone()
+        if wallet is None:
+            raise ValueError("Portfel nie istnieje.")
+        fields["account"] = wallet["account"]
+        fields["currency"] = wallet["currency"]
+        if entry.amount < 0:
+            balance = wallet_service.wallet_balance(db, entry.wallet_id)
+            if balance + entry.amount < 0:
+                raise ValueError(
+                    f"Portfel ma {balance} {wallet['currency']}, a wydatek to {-entry.amount}."
+                )
+    return ledger.add_manual_transaction(db, **fields)
 
 
 def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:

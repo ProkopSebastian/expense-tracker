@@ -14,6 +14,10 @@ export function ManualForm({
   onSaved: () => void;
 }) {
   const [category, setCategory] = useState("");
+  const [walletId, setWalletId] = useState("");
+  const { data } = useResource<{ wallets: Wallet[] }>("/wallets");
+  const wallets = data?.wallets ?? [];
+  const wallet = wallets.find((item) => String(item.id) === walletId);
   const action = useAction(onSaved);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,13 +25,15 @@ export function ManualForm({
     const amount = String(f.get("amount"));
     const ok = await action.run(() =>
       request("/transactions", "POST", {
-        account: f.get("account"),
+        // A wallet decides the account and currency server-side; these are only a fallback.
+        account: wallet ? wallet.account : f.get("account"),
         booking_date: f.get("date"),
         amount: f.get("direction") === "expense" ? `-${amount}` : amount,
-        currency: f.get("currency"),
+        currency: wallet ? wallet.currency : f.get("currency"),
         description: f.get("description"),
         counterparty: f.get("counterparty") || null,
         category_key: category,
+        wallet_id: wallet ? wallet.id : null,
       }),
     );
     if (ok) onClose();
@@ -51,12 +57,24 @@ export function ManualForm({
           </label>
           <label>
             Konto / źródło
-            <input
-              name="account"
-              required
-              defaultValue="Gotówka"
-              maxLength={500}
-            />
+            {wallets.length > 0 && (
+              <AppSelect
+                ariaLabel="Konto lub portfel"
+                value={walletId}
+                onValueChange={setWalletId}
+                options={[
+                  { value: "", label: "Wpiszę ręcznie", group: "Bez portfela" },
+                  ...wallets.map((item) => ({
+                    value: String(item.id),
+                    label: `${item.currency} — ${item.account} · ${money(item.balance, item.currency)}`,
+                    group: "Portfele",
+                  })),
+                ]}
+              />
+            )}
+            {!wallet && (
+              <input name="account" required defaultValue="Gotówka" maxLength={500} />
+            )}
           </label>
           <label>
             Rodzaj
@@ -80,10 +98,18 @@ export function ManualForm({
               required
             />
           </label>
-          <label>
-            Waluta
-            <CurrencyInput name="currency" ariaLabel="Waluta" defaultValue="PLN" />
-          </label>
+          {wallet ? (
+            <label>
+              Waluta
+              <input value={wallet.currency} readOnly aria-readonly />
+              <small>Z portfela — nie trzeba jej wybierać.</small>
+            </label>
+          ) : (
+            <label>
+              Waluta
+              <CurrencyInput name="currency" ariaLabel="Waluta" defaultValue="PLN" />
+            </label>
+          )}
           <label>
             Kategoria
             <CategorySelect

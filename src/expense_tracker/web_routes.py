@@ -19,7 +19,15 @@ from .data_sync import sync_data_directory
 from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
-from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry, WalletCreate, WalletFundEntry
+from .web_models import (
+    CategoryEntry,
+    Decision,
+    GroupEntry,
+    ManualEntry,
+    WalletCreate,
+    WalletFundEntry,
+    WalletReconcile,
+)
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
@@ -155,6 +163,20 @@ def fund_wallet(wallet_id: int, entry: WalletFundEntry, db: DB):
     if entry.fee_amount > 0 and entry.fee_category_key:
         service.category_exists(db, entry.fee_category_key)
     return {"case_id": wallet_service.fund_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.post("/wallets/{wallet_id}/reconcile", status_code=201)
+def reconcile_wallet(wallet_id: int, entry: WalletReconcile, db: DB):
+    for line in entry.lines:
+        service.category_exists(db, line.category_key)
+    created = wallet_service.reconcile_wallet(
+        db,
+        wallet_id=wallet_id,
+        remaining=entry.remaining,
+        booking_date=entry.booking_date,
+        lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
+    )
+    return {"created": created}
 
 
 @router.get("/wallets/{wallet_id}/history")

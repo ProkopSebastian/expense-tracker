@@ -98,6 +98,7 @@ export default function App() {
             ) : page === "wallets" ? (
               <WalletsPage
                 accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
+                categories={meta.categories}
                 revision={revision}
                 onChanged={changed}
               />

@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections.abc import Sequence
 from contextlib import nullcontext
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -320,6 +322,7 @@ def fund_wallet(
                 description="Opłata za wymianę walut",
                 counterparty=None,
                 category_key=fee_category_key or "fees_fx",
+                commit=False,
             )
         return ledger.create_case(
             connection,
@@ -384,3 +387,68 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
         )
         paired += 1
     return paired
+
+
+def wallet_balance(connection: sqlite3.Connection, wallet_id: int) -> Decimal:
+    state = wallet_states(connection)
+    if wallet_id not in state:
+        raise ValueError("Portfel nie istnieje.")
+    return state[wallet_id]["balance"]
+
+
+def reconcile_wallet(
+    connection: sqlite3.Connection,
+    *,
+    wallet_id: int,
+    remaining: Decimal,
+    booking_date: date,
+    lines: Sequence[tuple[Decimal, str, str]],
+) -> list[int]:
+    """Turn "this much is left" into the spending that must have happened.
+
+    Cash carries no statement, so the amount that disappeared is known exactly while its
+    purpose is not. The total is therefore taken from the balance and only the split across
+    categories comes from the user.
+    """
+    wallet = connection.execute("SELECT account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
+    if wallet is None:
+        raise ValueError("Portfel nie istnieje.")
+    if remaining < 0:
+        raise ValueError("Pozostała kwota nie może być ujemna.")
+
+    balance = wallet_balance(connection, wallet_id)
+    missing = balance - remaining
+    if missing < 0:
+        # More money than the wallet was ever given means a funding nobody recorded. Booking it
+        # as an inflow would assign it a cost of nothing and drag the average cost down.
+        raise ValueError(
+            f"W portfelu jest {balance} {wallet['currency']}, a podajesz {remaining}. "
+            "Brakuje zapisanego zasilenia — dodaj je najpierw."
+        )
+    if missing == 0:
+        raise ValueError("Saldo już się zgadza, nie ma czego rozliczać.")
+    if not lines:
+        raise ValueError("Podaj, na co poszły pieniądze.")
+    if sum((amount for amount, _, _ in lines), Decimal(0)) != missing:
+        raise ValueError(f"Kwoty muszą sumować się do {missing} {wallet['currency']}.")
+
+    if any(amount <= 0 for amount, _, _ in lines):
+        raise ValueError("Każda kwota musi być większa od zera.")
+
+    created: list[int] = []
+    with connection:
+        for amount, category_key, description in lines:
+            created.append(
+                ledger.add_manual_transaction(
+                    connection,
+                    account=wallet["account"],
+                    booking_date=booking_date,
+                    amount=-amount,
+                    currency=wallet["currency"],
+                    description=description,
+                    counterparty=None,
+                    category_key=category_key,
+                    commit=False,
+                )
+            )
+    return created
