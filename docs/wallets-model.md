@@ -100,6 +100,48 @@ wygasania.
 Zamiana jednego portfela na drugi (gotówkowe euro na dirhamy) **przenosi podstawę złotówkową**,
 zamiast wymyślać nowy kurs, bo żadne złotówki nie przeszły z rąk do rąk.
 
+## Gdy bank przysyła obie transakcje, aplikacja łączy je sama
+
+Przewalutowanie w Revolucie widać dwa razy: jako ubytek w eksporcie salda złotówkowego i jako
+przyrost w eksporcie waluty docelowej. Obie mają **ten sam czas rozpoczęcia co do sekundy**, co
+wystarcza, żeby je dopasować bez zgadywania. Dzieje się to przy imporcie, a liczbę rozpoznanych
+wymian widać w komunikacie po wczytaniu pliku.
+
+Dopasowanie wymaga dokładnie dwóch transakcji w tej samej sekundzie, jednej w dół i jednej w
+górę, w różnych walutach. Cokolwiek innego zostaje nietknięte — pojedyncza transakcja bez pary
+nie jest błędem i nie zgłasza się jako ostrzeżenie. Portfel dla nowej waluty powstaje przy
+okazji sam, z poprawnym kursem.
+
+Sprzedaż waluty z powrotem na złotówki jest celowo wyłączona z automatu: realizuje zysk albo
+stratę, a automatyczne połączenie połknęłoby tę różnicę po cichu.
+
+## „Ile zostało" zamiast pamiętania każdego wydatku
+
+Gotówka nie ma wyciągu. Dokładnie wiadomo, **ile zniknęło**, ale nie wiadomo na co. Dlatego
+podaje się tylko kwotę, która została, a aplikacja wylicza resztę i prosi o rozdzielenie jej na
+kategorie z grubsza. Suma jest dokładna co do grosza, podział przybliżony — i to jest uczciwy
+opis tego, co naprawdę wiesz.
+
+Wydatki dostają własną datę, domyślnie dzisiejszą, ale do cofnięcia. Bez tego gotówka wydana we
+wrześniu wpadłaby do podsumowania października tylko dlatego, że wtedy się ją rozlicza.
+
+Jeśli podasz **więcej**, niż portfel kiedykolwiek dostał, aplikacja odmawia zamiast dopisać
+brakujące pieniądze. Taki dopisek miałby koszt zero i zaniżyłby średni kurs całego portfela.
+
+## Saldo otwarcia, gdy wymiany nie ma w żadnym wyciągu
+
+Dla pieniędzy, które już masz, a których pochodzenia nie da się odtworzyć: podajesz ile i ile Cię
+kosztowały. Kurs wylicza się z tych dwóch liczb. To jedyna furtka na wszystkie luki i świadome
+przybliżenie — lepsze niż brak kursu, bo bez niego taka waluta w ogóle nie wchodzi do sum
+złotówkowych.
+
+## Gdy wydatki wyprzedzają zapisane zasilenia
+
+Import potrafi pokazać wydatek w walucie, dla której zasilenia nie ma w danych. Takiego wiersza
+nie wolno odrzucić — bank ma rację, transakcja się wydarzyła. Portfel schodzi wtedy poniżej zera,
+mówi o tym wprost, a **część niepokryta nie wchodzi do sum złotówkowych**, bo nie ma dla niej
+żadnego prawdziwego kursu. Naprawia się to, dopisując brakującą wymianę albo saldo otwarcia.
+
 ## Odsprzedaż waluty i różnice kursowe
 
 Sprzedaż reszty dirhamów rodzicom to ten sam transfer, tylko w drugą stronę — z jednym
@@ -115,6 +157,10 @@ różnica                       =  +5 zł → „Różnice kursowe"
 Bez tej osobnej pozycji zostają dwa błędy do wyboru: albo całe 126 zł wygląda jak przychód
 (choć 121 zł to Twoje własne pieniądze wracające), albo wszystko jest transferem i 5 zł znika,
 więc bilans się nie spina.
+
+Jeden wyjątek: jeśli sprzedajesz walutę za złotówki trafiające do portfela gotówkowego PLN, ten
+portfel przyjmuje je po wartości nominalnej, a nie po koszcie sprzedawanej waluty. Inaczej kurs
+złotówki odpływałby od 1,00, mimo że prawdziwa różnica jest już zaksięgowana osobno.
 
 ## Czego świadomie nie modelujemy
 
