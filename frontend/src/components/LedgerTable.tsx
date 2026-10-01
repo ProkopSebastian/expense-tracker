@@ -126,9 +126,7 @@ export default function LedgerTable({
               Odsprzedaj walutę
             </button>
           )}
-          {selected.length > 1 && !canGroup && !canFund && (
-            <small>Wybierz transakcje w jednej walucie.</small>
-          )}
+
         </div>
       )}
       <div className="flex items-center justify-between gap-3 border-b border-line py-3 text-xs text-muted">

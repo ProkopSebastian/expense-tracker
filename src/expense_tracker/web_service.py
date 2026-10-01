@@ -12,6 +12,8 @@ from .ledger_view import visible_counterparty
 from .text_utils import clean_description
 from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
 
+HOME_CURRENCY = "PLN"
+
 _POLISH_TRANSLITERATION = str.maketrans({"ł": "l", "Ł": "L"})
 
 
@@ -86,9 +88,7 @@ def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
     if entry.wallet_id is not None:
         # Take the pot's identity from the record, not from the client, so a stale form cannot
         # file a dirham spend against the euro wallet.
-        wallet = db.execute(
-            "SELECT account, currency FROM wallets WHERE id = ?", (entry.wallet_id,)
-        ).fetchone()
+        wallet = db.execute("SELECT account, currency FROM wallets WHERE id = ?", (entry.wallet_id,)).fetchone()
         if wallet is None:
             raise ValueError("Portfel nie istnieje.")
         fields["account"] = wallet["account"]
@@ -96,9 +96,7 @@ def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
         if entry.amount < 0:
             balance = wallet_service.wallet_balance(db, entry.wallet_id)
             if balance + entry.amount < 0:
-                raise ValueError(
-                    f"Portfel ma {balance} {wallet['currency']}, a wydatek to {-entry.amount}."
-                )
+                raise ValueError(f"Portfel ma {balance} {wallet['currency']}, a wydatek to {-entry.amount}.")
     return ledger.add_manual_transaction(db, **fields)
 
 
@@ -110,11 +108,16 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
     # Acquire the write lock before validation to prevent overlapping groups from concurrent requests.
     with db:
         db.execute("BEGIN IMMEDIATE")
+        currencies = set()
         for tid in ids:
             transaction_exists(db, tid)
             row = db.execute("SELECT currency FROM transactions WHERE id=?", (tid,)).fetchone()
-            if row["currency"] != entry.currency:
-                raise ValueError("Wszystkie transakcje muszą być w jednej walucie.")
+            currencies.add(row["currency"])
+        # A group spanning currencies has no native unit, so its real cost is stated in złoty.
+        if len(currencies) > 1 and entry.currency != HOME_CURRENCY:
+            raise ValueError("Grupa łączy różne waluty, więc koszt podaj w złotówkach.")
+        if len(currencies) == 1 and entry.currency not in currencies | {HOME_CURRENCY}:
+            raise ValueError("Waluta kosztu musi pasować do transakcji albo być złotówką.")
         return ledger.create_case(
             db,
             entry.kind,
@@ -128,11 +131,16 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
 
 
 def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: list[str], page: int) -> dict:
+    from . import wallet_service
+
     raw = ledger.transactions(db)
     cases = ledger.approved_cases(db)
+    in_pln = wallet_service.pln_equivalents(db)
 
     def item(row):
         return {
+            # Absent when nothing can value this row honestly, so the UI can say so.
+            "pln_amount": str(in_pln[row["id"]]) if row["id"] in in_pln else None,
             "id": row["id"],
             "bank_status": row["bank_status"],
             "date": row["booking_date"],

@@ -14,6 +14,7 @@ export interface Meta {
 }
 export interface TransactionRow {
   bank_status?: string;
+  pln_amount?: string | null;
   id: number;
   date: string;
   account: string;

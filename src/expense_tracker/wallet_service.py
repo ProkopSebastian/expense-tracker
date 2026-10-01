@@ -237,6 +237,21 @@ def list_wallets(connection: sqlite3.Connection) -> list[dict[str, object]]:
     ]
 
 
+def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
+    """What each foreign-currency transaction is worth in złoty, at the pot's own cost.
+
+    Only movements a wallet could value appear here. A currency with no recorded exchange is
+    absent rather than guessed, so callers can tell "nothing to convert" from "worth zero".
+    """
+    values: dict[int, Decimal] = {}
+    for state in wallet_states(connection).values():
+        for event in state["history"]:
+            if event["kind"] == "spend" and _decimal(event["uncovered"]) > 0:
+                continue
+            values[int(event["transaction_id"])] = _decimal(event["pln"])
+    return values
+
+
 def wallet_history(connection: sqlite3.Connection, wallet_id: int) -> list[dict[str, Any]]:
     state = wallet_states(connection)
     if wallet_id not in state:

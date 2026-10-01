@@ -188,8 +188,20 @@ export function GroupForm({
     [category, setCategory] = useState(""),
     [overrides, setOverrides] = useState<Record<number, string>>({});
   const action = useAction(onSaved);
-  const total = selected.reduce((sum, row) => sum + Number(row.amount), 0),
-    currency = selected[0].currency;
+  const currencies = [...new Set(selected.map((row) => row.currency))];
+  const mixed = currencies.length > 1;
+  // A group spanning currencies has no native unit; złoty is the only common one.
+  const currency = mixed ? "PLN" : currencies[0];
+  // A złoty row carries no separate converted value because it already is one.
+  const inPln = (row: Block) =>
+    row.currency === "PLN" ? Number(row.amount) : Number(row.pln_amount ?? 0);
+  const total = selected.reduce(
+    (sum, row) => sum + (mixed ? inPln(row) : Number(row.amount)),
+    0,
+  );
+  const unconvertible = selected.filter(
+    (row) => mixed && row.currency !== "PLN" && row.pln_amount == null,
+  );
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -222,10 +234,37 @@ export function GroupForm({
       >
         <Notice error={action.error} />
         <p className="text-sm leading-relaxed text-muted">
-          {selected.length} transakcje · suma przepływów{" "}
-          {money(total, currency)}. W podsumowaniu grupa będzie jedną pozycją na
-          kwotę Twojego rzeczywistego kosztu.
+          {selected.length} transakcje · suma przepływów {money(total, currency)}
+          {mixed && " po Twoich kursach"}. W podsumowaniu grupa będzie jedną
+          pozycją na kwotę Twojego rzeczywistego kosztu.
         </p>
+        {mixed && (
+          <ul className="rounded-xl border border-line px-4 py-3 text-sm [&_li]:flex [&_li]:justify-between [&_li]:gap-4 [&_li]:py-1">
+            {selected.map((row) => (
+              <li key={row.id}>
+                <span className="min-w-0 truncate text-muted">
+                  {row.description}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {money(row.amount!, row.currency)}
+                  {row.currency !== "PLN" && (
+                    <span className="ml-2 text-muted">
+                      {row.pln_amount == null
+                        ? "brak kursu"
+                        : money(row.pln_amount, "PLN")}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {unconvertible.length > 0 && (
+          <p className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed bg-danger/10 text-danger">
+            Część transakcji nie ma kursu, więc suma w złotówkach jest niepełna.
+            Zasil najpierw ich portfel albo podaj saldo otwarcia.
+          </p>
+        )}
         <label>
           Nazwa grupy
           <input

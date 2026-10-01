@@ -67,9 +67,14 @@ def test_manual_recategorize_group_and_dissolve(client):
 def test_reject_invalid_or_overlapping_groups_without_partial_writes(client):
     first = add(client)
     euro = add(client, currency="EUR")
-    for ids in [[first, euro], [first, first], [first, 9999]]:
+    for ids in [[first, first], [first, 9999]]:
         assert client.post("/api/cases", json=group_payload(ids)).status_code == 422
+    # Mixing currencies is allowed only when the real cost is stated in złoty.
+    mixed = group_payload([first, euro])
+    assert client.post("/api/cases", json=mixed | {"currency": "EUR"}).status_code == 422
     assert client.get("/api/ledger").json()["cases"] == []
+    assert client.post("/api/cases", json=mixed).status_code == 201
+    assert client.delete(f"/api/cases/{client.get('/api/ledger').json()['cases'][0]['id']}").status_code == 200
     second = add(client)
     assert client.post("/api/cases", json=group_payload([first, second])).status_code == 201
     assert client.post("/api/cases", json=group_payload([first, second])).status_code == 422

@@ -61,9 +61,10 @@ export default function LedgerPage({
     data?.blocks.filter(
       (row) => row.id !== null && selected.includes(row.id),
     ) ?? [];
-  const canGroup =
-    selectedRows.length >= 2 &&
-    new Set(selectedRows.map((row) => row.currency)).size === 1;
+  // A refetch empties this list for a moment while the modal is still open, and every form
+  // below reads selectedRows[0]. Keep them unmounted until there is something to act on.
+  const hasSelection = selectedRows.length > 0;
+  const canGroup = selectedRows.length >= 2;
   // One row: the bank only recorded the money leaving, so the other side is entered by hand.
   // Two rows: both sides were imported and only need linking.
   const outflows = selectedRows.filter((row) => Number(row.amount) < 0);
@@ -171,7 +172,7 @@ export default function LedgerPage({
           onSaved={onChanged}
         />
       )}
-      {modal === "group" && (
+      {modal === "group" && hasSelection && (
         <GroupForm
           categories={categories}
           selected={selectedRows}
@@ -182,7 +183,7 @@ export default function LedgerPage({
           }}
         />
       )}
-      {modal === "fund" && (
+      {modal === "fund" && hasSelection && (
         <FundWalletForm
           categories={categories}
           selected={selectedRows}
@@ -193,7 +194,7 @@ export default function LedgerPage({
           }}
         />
       )}
-      {modal === "sell" && (
+      {modal === "sell" && hasSelection && (
         <SellWalletForm
           selected={selectedRows}
           onClose={() => setModal(null)}
