@@ -15,7 +15,10 @@ from .models import Transaction
 
 _DOMAIN = re.compile(r"\b([a-z0-9-]+\.(?:pl|com|net|org|eu|shop|store|io))\b", re.IGNORECASE)
 
-CaseKind = Literal["own_transfer", "shared_purchase", "reimbursement", "refund", "payment_dispute"]
+CaseKind = Literal[
+    "own_transfer", "shared_purchase", "reimbursement", "refund", "payment_dispute", "wallet_exchange"
+]
+SYNTHETIC_EXCHANGE_LEG = "wallet_exchange_leg"
 CaseRole = Literal["purchase", "received_reimbursement", "paid_settlement", "received_refund", "account_transfer"]
 DecisionSource = Literal["manual", "rule", "llm"]
 
@@ -331,9 +334,21 @@ def create_case(
 
 
 def dissolve_case(connection: sqlite3.Connection, case_id: int) -> None:
-    connection.execute("DELETE FROM case_members WHERE case_id = ?", (case_id,))
-    connection.execute("UPDATE cases SET status = 'rejected' WHERE id = ?", (case_id,))
-    connection.commit()
+    # One leg of a wallet exchange is created by the app, not imported. Left behind it would
+    # become an orphan inflow and a wallet balance nothing can account for.
+    invented = [
+        row["transaction_id"]
+        for row in connection.execute(
+            """SELECT cm.transaction_id FROM case_members cm JOIN transactions t ON t.id = cm.transaction_id
+            WHERE cm.case_id = ? AND t.transaction_type = ?""",
+            (case_id, SYNTHETIC_EXCHANGE_LEG),
+        ).fetchall()
+    ]
+    with connection:
+        connection.execute("DELETE FROM case_members WHERE case_id = ?", (case_id,))
+        connection.execute("UPDATE cases SET status = 'rejected' WHERE id = ?", (case_id,))
+        for transaction_id in invented:
+            connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
 
 
 def infer_case_member_role(kind: CaseKind, amount: Decimal) -> CaseRole:

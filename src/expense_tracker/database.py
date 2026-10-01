@@ -39,7 +39,9 @@ CREATE TABLE IF NOT EXISTS merchant_rules (
 );
 CREATE TABLE IF NOT EXISTS cases (
     id INTEGER PRIMARY KEY,
-    kind TEXT NOT NULL CHECK(kind IN ('own_transfer', 'shared_purchase', 'reimbursement', 'refund', 'payment_dispute')),
+    kind TEXT NOT NULL CHECK(kind IN (
+        'own_transfer', 'shared_purchase', 'reimbursement', 'refund', 'payment_dispute', 'wallet_exchange'
+    )),
     title TEXT NOT NULL, category_key TEXT REFERENCES categories(key), personal_amount TEXT NOT NULL,
     currency TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('suggested', 'approved', 'rejected')),
     source TEXT NOT NULL CHECK(source IN ('manual', 'rule', 'llm')), explanation TEXT,
@@ -122,6 +124,7 @@ CATEGORIES = (
     ("income_other", "Inne przychody", "income", "income"),
     ("income_investments", "Inwestycje i dywidendy", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
+    ("fees_fx", "Opłaty walutowe", None, "expense"),
 )
 
 
@@ -226,6 +229,46 @@ def _migrate_category_presentation(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE categories ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0")
 
 
+def _migrate_wallet_exchange_case_kind(connection: sqlite3.Connection) -> None:
+    row = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'").fetchone()
+    if row is None or "wallet_exchange" in row["sql"]:
+        return
+    # Build the replacement under a temporary name and drop the original, never the reverse:
+    # renaming `cases` while foreign keys are enforced rewrites case_members' REFERENCES clause
+    # to follow it, which silently detaches every membership. Foreign keys stay off for the
+    # swap so the rename leaves other tables' clauses alone, and cannot be toggled mid-
+    # transaction, hence the commit first.
+    connection.commit()
+    connection.execute("PRAGMA foreign_keys=OFF")
+    try:
+        connection.execute("""
+            CREATE TABLE cases_rebuilt (
+                id INTEGER PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN (
+                    'own_transfer', 'shared_purchase', 'reimbursement', 'refund', 'payment_dispute',
+                    'wallet_exchange'
+                )),
+                title TEXT NOT NULL, category_key TEXT REFERENCES categories(key),
+                personal_amount TEXT NOT NULL, currency TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('suggested', 'approved', 'rejected')),
+                source TEXT NOT NULL CHECK(source IN ('manual', 'rule', 'llm')), explanation TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        connection.execute("""
+            INSERT INTO cases_rebuilt
+            SELECT id, kind, title, category_key, personal_amount, currency, status, source, explanation, created_at
+            FROM cases
+        """)
+        connection.execute("DROP TABLE cases")
+        connection.execute("ALTER TABLE cases_rebuilt RENAME TO cases")
+        if connection.execute("PRAGMA foreign_key_check").fetchall():
+            raise sqlite3.IntegrityError("Migracja grup transakcji naruszyłaby powiązania.")
+        connection.commit()
+    finally:
+        connection.execute("PRAGMA foreign_keys=ON")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -233,6 +276,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_merchant_and_parser_version,
     _migrate_nest_external_id,
     _migrate_category_presentation,
+    _migrate_wallet_exchange_case_kind,
 )
 
 

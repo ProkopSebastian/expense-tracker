@@ -3,7 +3,11 @@ import { Plus } from "lucide-react";
 import type { Category, LedgerData, Block } from "../domain";
 import { useResource, useAction, useSessionState } from "../hooks";
 import { buildCategoryTree, Notice } from "../components/Forms";
-import { ManualForm, GroupForm } from "../components/TransactionForms";
+import {
+  ManualForm,
+  GroupForm,
+  FundWalletForm,
+} from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerLinksPanel from "../components/LedgerLinksPanel";
 import LedgerTable from "../components/LedgerTable";
@@ -34,7 +38,7 @@ export default function LedgerPage({
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
-    [modal, setModal] = useState<"manual" | "group" | null>(null),
+    [modal, setModal] = useState<"manual" | "group" | "fund" | null>(null),
     [dissolve, setDissolve] = useState<number | null>(null);
   const params = new URLSearchParams({
     q: query,
@@ -57,6 +61,13 @@ export default function LedgerPage({
   const canGroup =
     selectedRows.length >= 2 &&
     new Set(selectedRows.map((row) => row.currency)).size === 1;
+  // One row: the bank only recorded the money leaving, so the other side is entered by hand.
+  // Two rows: both sides were imported and only need linking.
+  const outflows = selectedRows.filter((row) => Number(row.amount) < 0);
+  const inflows = selectedRows.filter((row) => Number(row.amount) > 0);
+  const canFund =
+    (selectedRows.length === 1 && outflows.length === 1) ||
+    (selectedRows.length === 2 && outflows.length === 1 && inflows.length === 1);
   const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {
@@ -122,6 +133,8 @@ export default function LedgerPage({
           onSelectedChange={setSelected}
           canGroup={canGroup}
           onOpenGroupModal={() => setModal("group")}
+          canFund={canFund}
+          onOpenFundModal={() => setModal("fund")}
           months={months}
           closedMonths={closedMonths}
           onClosedMonthsChange={setClosedMonths}
@@ -153,6 +166,17 @@ export default function LedgerPage({
       )}
       {modal === "group" && (
         <GroupForm
+          categories={categories}
+          selected={selectedRows}
+          onClose={() => setModal(null)}
+          onSaved={() => {
+            setSelected([]);
+            onChanged();
+          }}
+        />
+      )}
+      {modal === "fund" && (
+        <FundWalletForm
           categories={categories}
           selected={selectedRows}
           onClose={() => setModal(null)}

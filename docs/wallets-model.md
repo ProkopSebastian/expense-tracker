@@ -65,6 +65,25 @@ Dziś aplikacja księguje wypłatę z bankomatu jako wydatek w kategorii „Wyp�
 pieniądze liczą się jako wydane w chwili wyjęcia z maszyny i nic nie zapisuje, co za nie
 kupiłeś. To zmienia się wraz z zasilaniem portfeli.
 
+## Wymiana ma dwie transakcje, ale bank nie zawsze przysyła obie
+
+Każda wymiana to dwie transakcje: jedna, z której pieniądze wychodzą, i druga, do której
+wchodzą. Z czyjego wyciągu pochodzą, zależy od tego, gdzie wymiana się odbyła, i aplikacja
+musi radzić sobie z obiema sytuacjami.
+
+**Revolut przysyła obie.** Przewalutowanie widać dwa razy: jako ubytek w eksporcie salda
+złotówkowego i jako przyrost w eksporcie salda docelowego. Obie transakcje są już w bazie po
+imporcie, więc aplikacja ma je tylko **połączyć ze sobą**. Gdyby zamiast tego dopisała trzecią,
+saldo portfela byłoby dwa razy za duże.
+
+**Kantor i bankomat przysyłają jedną.** Na wyciągu widać tylko ubytek na koncie. Tego, że
+dostałeś w zamian 497,70 dirhama, nie wie żaden bank — ta informacja istnieje wyłącznie na
+paragonie z kantoru. Tutaj aplikacja musi **zapisać drugą transakcję sama**, z kwotą, którą
+jej podasz.
+
+Rozpoznanie, który to przypadek, nie jest zgadywaniem: albo druga transakcja jest w bazie, albo
+jej nie ma.
+
 ## Średni koszt, gdy pieniądze przychodzą po różnych kursach
 
 Portfel trzyma jedno saldo i jeden średni koszt. Dołożenie pieniędzy przelicza średnią

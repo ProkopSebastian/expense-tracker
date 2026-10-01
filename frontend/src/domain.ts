@@ -80,6 +80,18 @@ export interface Wallet {
   balance: string;
   average_cost: string | null;
   pln_value: string;
+  uncovered: string;
+}
+export interface WalletEvent {
+  transaction_id: number;
+  kind: "topup" | "spend" | "inflow" | "conversion_out";
+  date: string;
+  description: string;
+  amount: string;
+  pln: string;
+  rate?: string | null;
+  uncovered?: string;
+  rate_known?: boolean;
 }
 export interface Rule {
   created_at: string;

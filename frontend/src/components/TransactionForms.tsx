@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
-import type { Category, Block } from "../domain";
-import { request, useAction } from "../hooks";
+import { useMemo, useState, type FormEvent } from "react";
+import type { Category, Block, Wallet } from "../domain";
+import { request, useAction, useResource } from "../hooks";
 import { money } from "../api";
 import { Modal, CategorySelect, CurrencyInput, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
@@ -303,6 +303,187 @@ export function GroupForm({
             disabled={action.busy}
           >
             {action.busy ? "Zapisuję…" : "Utwórz grupę"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
+
+const rateFormat = new Intl.NumberFormat("pl-PL", {
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
+export function FundWalletForm({
+  selected,
+  categories,
+  onClose,
+  onSaved,
+}: {
+  selected: Block[];
+  categories: Category[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data } = useResource<{ wallets: Wallet[] }>("/wallets");
+  const wallets = useMemo(() => data?.wallets ?? [], [data]);
+  const source = selected.find((row) => Number(row.amount) < 0)!;
+  const target = selected.find((row) => Number(row.amount) > 0) ?? null;
+  const paired = wallets.find(
+    (wallet) => target && wallet.account === target.account && wallet.currency === target.currency,
+  );
+  const [walletId, setWalletId] = useState("");
+  const [received, setReceived] = useState(
+    target ? Math.abs(Number(target.amount)).toFixed(2) : "",
+  );
+  const [fee, setFee] = useState("0");
+  const [feeCategory, setFeeCategory] = useState("fees_fx");
+  const action = useAction(onSaved);
+
+  const given = Math.abs(Number(source.amount));
+  const amount = Number(received);
+  const rate = amount > 0 ? given / amount : 0;
+  const chosen = target ? paired : wallets.find((wallet) => String(wallet.id) === walletId);
+  const needsNewWallet = Boolean(target) && !paired;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ok = await action.run(async () => {
+      let id = chosen?.id;
+      if (needsNewWallet && target) {
+        const created = await request<{ id: number }>("/wallets", "POST", {
+          account: target.account,
+          currency: target.currency,
+        });
+        id = created.id;
+      }
+      if (!id) throw new Error("Wybierz portfel, który ma zostać zasilony.");
+      await request(`/wallets/${id}/fund`, "POST", {
+        source_transaction_id: source.id,
+        target_transaction_id: target ? target.id : null,
+        received_amount: target ? null : received,
+        fee_amount: fee || "0",
+        fee_category_key: Number(fee) > 0 ? feeCategory : null,
+      });
+    });
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal title="Zasil portfel" onClose={onClose} busy={action.busy}>
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3"
+      >
+        <Notice error={action.error} />
+        <p className="text-muted">
+          {target
+            ? "Obie strony wymiany są już w rejestrze. Zostaną połączone, żeby saldo portfela nie policzyło ich dwa razy."
+            : "Z wyciągu widać tylko wypłatę. Podaj, ile dostałeś w zamian — tego bank nie wie."}
+        </p>
+        <div className="rounded-xl border border-line px-4 py-3 text-sm [&_div]:flex [&_div]:justify-between [&_div]:gap-4 [&_div]:py-1">
+          <div>
+            <span className="text-muted">Wychodzi</span>
+            <strong>{money(source.amount!, source.currency)}</strong>
+          </div>
+          <div>
+            <span className="text-muted">Wchodzi</span>
+            <strong>
+              {amount > 0 && chosen
+                ? money(amount, chosen.currency)
+                : target
+                  ? money(amount, target.currency)
+                  : "—"}
+            </strong>
+          </div>
+          <div className="border-t border-line">
+            <span className="text-muted">Kurs</span>
+            <strong>
+              {rate > 0
+                ? `${rateFormat.format(rate)} zł za 1 ${(chosen ?? target)?.currency ?? ""}`
+                : "—"}
+            </strong>
+          </div>
+        </div>
+        {needsNewWallet && target && (
+          <p className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed bg-accent-soft text-accent">
+            Powstanie nowy portfel {target.currency} dla konta {target.account}.
+          </p>
+        )}
+        {!target && (
+          <>
+            <label>
+              Portfel
+              <AppSelect
+                ariaLabel="Portfel do zasilenia"
+                value={walletId}
+                onValueChange={setWalletId}
+                options={[
+                  { value: "", label: "Wybierz portfel" },
+                  ...wallets.map((wallet) => ({
+                    value: String(wallet.id),
+                    label: `${wallet.currency} — ${wallet.account}`,
+                  })),
+                ]}
+              />
+              {!wallets.length && (
+                <small>Najpierw załóż portfel na stronie Portfele.</small>
+              )}
+            </label>
+            <label>
+              Ile dostałeś {chosen ? `(${chosen.currency})` : ""}
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                value={received}
+                onChange={(event) => setReceived(event.target.value)}
+              />
+            </label>
+          </>
+        )}
+        <details>
+          <summary>Prowizja</summary>
+          <p className="text-sm leading-relaxed text-muted">
+            Prowizja jest osobnym wydatkiem, nie wlicza się w kurs.
+          </p>
+          <label>
+            Kwota ({source.currency})
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={fee}
+              onChange={(event) => setFee(event.target.value)}
+            />
+          </label>
+          {Number(fee) > 0 && (
+            <label>
+              Kategoria prowizji
+              <CategorySelect
+                categories={categories}
+                value={feeCategory}
+                onChange={setFeeCategory}
+              />
+            </label>
+          )}
+        </details>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            onClick={onClose}
+            disabled={action.busy}
+          >
+            Anuluj
+          </button>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            disabled={action.busy || (!target && !chosen)}
+          >
+            {action.busy ? "Zapisuję…" : "Zasil portfel"}
           </button>
         </footer>
       </form>

@@ -40,6 +40,14 @@ class WalletCreate(BaseModel):
     currency: Currency
 
 
+class WalletFundEntry(BaseModel):
+    source_transaction_id: int
+    received_amount: Money | None = None
+    target_transaction_id: int | None = None
+    fee_amount: Money = Decimal(0)
+    fee_category_key: str | None = None
+
+
 class Member(BaseModel):
     transaction_id: int
     role: Role

@@ -1,6 +1,14 @@
 import * as Accordion from "@radix-ui/react-accordion";
 import { Fragment } from "react";
-import { ChevronDown, ChevronRight, Link2, ArrowLeft, ArrowRight, Unlink } from "lucide-react";
+import {
+  Banknote,
+  ChevronDown,
+  ChevronRight,
+  Link2,
+  ArrowLeft,
+  ArrowRight,
+  Unlink,
+} from "lucide-react";
 import CategoryIcon from "./CategoryIcon";
 import type { LedgerData, Block } from "../domain";
 import { money, monthLabel } from "../api";
@@ -50,6 +58,8 @@ export default function LedgerTable({
   onSelectedChange,
   canGroup,
   onOpenGroupModal,
+  canFund,
+  onOpenFundModal,
   months,
   closedMonths,
   onClosedMonthsChange,
@@ -66,6 +76,8 @@ export default function LedgerTable({
   onSelectedChange: (selected: number[]) => void;
   canGroup: boolean;
   onOpenGroupModal: () => void;
+  canFund: boolean;
+  onOpenFundModal: () => void;
   months: Map<string, Block[]>;
   closedMonths: string[];
   onClosedMonthsChange: (months: string[]) => void;
@@ -93,7 +105,15 @@ export default function LedgerTable({
             <Link2 size={16} />
             Połącz w grupę
           </button>
-          {selected.length > 1 && !canGroup && (
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            disabled={!canFund}
+            onClick={onOpenFundModal}
+          >
+            <Banknote size={16} />
+            Zasil portfel
+          </button>
+          {selected.length > 1 && !canGroup && !canFund && (
             <small>Wybierz transakcje w jednej walucie.</small>
           )}
         </div>

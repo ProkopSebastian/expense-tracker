@@ -19,7 +19,7 @@ from .data_sync import sync_data_directory
 from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
-from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry, WalletCreate
+from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry, WalletCreate, WalletFundEntry
 
 router = APIRouter(prefix="/api")
 DB = Annotated[sqlite3.Connection, Depends(get_connection)]
@@ -142,6 +142,24 @@ def wallets(db: DB):
 @router.post("/wallets", status_code=201)
 def create_wallet(entry: WalletCreate, db: DB):
     return {"id": wallet_service.create_wallet(db, entry.account, entry.currency)}
+
+
+@router.delete("/wallets/{wallet_id}")
+def delete_wallet(wallet_id: int, db: DB):
+    wallet_service.delete_wallet(db, wallet_id)
+    return {"message": "Portfel usunięty."}
+
+
+@router.post("/wallets/{wallet_id}/fund", status_code=201)
+def fund_wallet(wallet_id: int, entry: WalletFundEntry, db: DB):
+    if entry.fee_amount > 0 and entry.fee_category_key:
+        service.category_exists(db, entry.fee_category_key)
+    return {"case_id": wallet_service.fund_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.get("/wallets/{wallet_id}/history")
+def wallet_history(wallet_id: int, db: DB):
+    return {"history": wallet_service.wallet_history(db, wallet_id)}
 
 
 @router.get("/classification")
