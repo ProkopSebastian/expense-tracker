@@ -18,6 +18,10 @@ def application_paths() -> ApplicationPaths:
     if sys.platform == "win32":
         root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / name
         return ApplicationPaths(data_dir=root, config_dir=root, state_dir=root)
+    if sys.platform == "darwin":
+        library = Path.home() / "Library"
+        root = library / "Application Support" / name
+        return ApplicationPaths(data_dir=root, config_dir=root, state_dir=library / "Logs" / name)
 
     data_dir = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / name
     config_dir = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / name
