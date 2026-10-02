@@ -1,7 +1,7 @@
 import { useSessionState } from "../hooks";
 import BalanceTimeline from "../components/BalanceTimeline";
 import { useEffect, useState } from "react";
-import { CircleHelp, LockKeyhole } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 import { fetchSummary, type Filters, type Summary } from "../api";
 import SummaryFilters from "../components/SummaryFilters";
 import SummaryCards from "../components/SummaryCards";
@@ -44,19 +44,15 @@ export default function SummaryPage({
 
   return (
     <>
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted">
-        <div>
-          <h1>Podsumowanie</h1>
-          <p>Wydatki i przychody w wybranym okresie.</p>
-        </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1>Podsumowanie</h1>
+        <SummaryFilters
+          filters={filters}
+          data={data}
+          loading={loading}
+          setFilters={setFilters}
+        />
       </div>
-
-      <SummaryFilters
-        filters={filters}
-        data={data}
-        loading={loading}
-        setFilters={setFilters}
-      />
 
       {error ? (
         <div
@@ -108,13 +104,9 @@ export default function SummaryPage({
             key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
             data={data}
           />
-          <div className="mt-6 flex flex-wrap justify-between gap-3 text-xs text-muted [&>span]:flex [&>span]:items-center [&>span]:gap-2">
-            <span>
-              <LockKeyhole size={14} />
-              Dane z lokalnej bazy · waluty liczone osobno
-            </span>
-            <span>{data.item_count} pozycji w okresie</span>
-          </div>
+          <p className="mt-6 text-right text-xs text-muted">
+            {data.item_count} pozycji w okresie
+          </p>
         </div>
       )}
     </>
