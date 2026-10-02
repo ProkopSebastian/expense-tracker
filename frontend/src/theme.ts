@@ -9,13 +9,13 @@ export const themeOptions = [
   },
   {
     id: "light",
-    label: "Jasny",
+    label: "Domyślny",
     description: "Spokojny fiolet i jasne tło",
     colors: ["#7054d9", "#ffffff", "#eef0f8"],
   },
   {
     id: "dark",
-    label: "Ciemny",
+    label: "Domyślny",
     description: "Stonowany, wygodny wieczorem",
     colors: ["#9b8afb", "#1c1e2b", "#33354a"],
   },
