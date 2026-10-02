@@ -294,6 +294,10 @@
   --color-info: var(--app-info);
 }
 
+@utility card {
+  @apply rounded-xl bg-surface ring-1 ring-line/60;
+}
+
 @layer base {
   body {
     @apply m-0 bg-canvas font-sans text-ink antialiased transition-colors duration-150;

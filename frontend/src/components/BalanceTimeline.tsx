@@ -1,16 +1,19 @@
 import * as Tabs from "@radix-ui/react-tabs";
+import { useState } from "react";
 import type { Summary } from "../api";
 import BalanceChart from "./BalanceChart";
 import MonthlyBarChart from "./MonthlyBarChart";
 
 export default function BalanceTimeline({ data }: { data: Summary }) {
+  const [view, setView] = useState("daily");
   return (
     <Tabs.Root
-      defaultValue="daily"
-      className="min-w-0 lg:border-l lg:border-line lg:pl-8"
+      value={view}
+      onValueChange={setView}
+      className="min-w-0"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2>Bilans w czasie</h2>
+        <h2>{view === "daily" ? "Bilans w czasie" : "Wynik każdego miesiąca"}</h2>
         <Tabs.List
           aria-label="Widok bilansu"
           className="flex gap-1 rounded-lg bg-surface-muted p-1 [&_button]:rounded-md [&_button]:px-3 [&_button]:py-1.5 [&_button]:text-xs [&_button]:text-muted [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:font-medium [&_button[data-state=active]]:text-ink [&_button[data-state=active]]:shadow-sm"

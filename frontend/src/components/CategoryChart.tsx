@@ -157,12 +157,10 @@ export default function CategoryChart({
         </span>
         <strong>{money(total, currency)}</strong>
         <span className="flex items-center gap-1 text-[11px] text-muted">
-          {canGoBack ? (
+          {canGoBack && (
             <>
               <ArrowLeft size={14} /> Wróć
             </>
-          ) : (
-            "Wydatki w okresie"
           )}
         </span>
       </button>

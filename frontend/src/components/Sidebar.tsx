@@ -76,20 +76,17 @@ export default function Sidebar({
   }
   return (
     <>
-      <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-surface/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-0">
+      <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-surface/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-10">
         <a
           className="flex items-center gap-2 text-2xl font-bold tracking-tight max-xl:justify-center md:max-xl:text-[0px]"
           href="#summary"
           aria-label="Wydatki — strona główna"
         >
-          <span className="grid size-10 shrink-0 -rotate-6 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-hover text-white shadow-lg shadow-accent/20">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white">
             <Wallet size={23} />
           </span>
           wydatki<span className="-ml-2 text-accent md:max-xl:hidden">.</span>
         </a>
-        <div className="mb-4 mt-12 hidden px-3 text-[10px] font-semibold tracking-[0.2em] text-muted xl:block">
-          TWOJE FINANSE
-        </div>
         <nav aria-label="Nawigacja główna">
           {(
             ["summary", "ledger", "wallets", "classification", "rules", "data"] as Page[]

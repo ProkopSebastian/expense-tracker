@@ -96,17 +96,20 @@ export default function SummaryPage({
               portfel albo podaj saldo otwarcia.
             </p>
           )}
-          <div className="mb-8 grid gap-8 border-y border-line py-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-0">
-            <SummaryCards data={data} />
-            <BalanceTimeline data={data} />
+          <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
+            <div className="card">
+              <SummaryCards data={data} />
+            </div>
+            <div className="card p-6">
+              <BalanceTimeline data={data} />
+            </div>
           </div>
-          <BreakdownPanel
-            key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
-            data={data}
-          />
-          <p className="mt-6 text-right text-xs text-muted">
-            {data.item_count} pozycji w okresie
-          </p>
+          <div className="card p-6">
+            <BreakdownPanel
+              key={`${data.start}:${data.end}:${data.currency}:${revision}:${externalRevision}`}
+              data={data}
+            />
+          </div>
         </div>
       )}
     </>

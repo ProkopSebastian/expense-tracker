@@ -196,7 +196,7 @@ export default function RulesPage({
         </label>
       </div>
       <Notice error={error} />
-      <section className="overflow-hidden rounded-2xl bg-surface shadow-sm ring-1 ring-line/60">
+      <section className="card overflow-hidden">
         {visibleRules.length > 0 && (
           <div
             className={`${RULE_COLUMNS} hidden pt-4 pb-2 text-xs font-medium text-muted sm:grid`}
