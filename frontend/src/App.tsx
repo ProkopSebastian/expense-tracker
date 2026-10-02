@@ -62,7 +62,7 @@ export default function App() {
               <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
                 {error ? (
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+                    className="btn"
                     onClick={changed}
                   >
                     Spróbuj ponownie

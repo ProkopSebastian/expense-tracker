@@ -139,7 +139,7 @@ export default function LedgerFilterBar({
               <CategoryIcon /> Do przypisania
             </label>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              className="btn"
               onClick={() => onCategoryChange([])}
             >
               Wyczyść

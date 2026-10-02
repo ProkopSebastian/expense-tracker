@@ -46,7 +46,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             <pre>{this.state.error.stack ?? this.state.error.message}</pre>
           </details>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="btn"
             onClick={() => window.location.reload()}
           >
             Odśwież stronę

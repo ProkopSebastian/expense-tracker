@@ -99,13 +99,13 @@ export default function LedgerTable({
         <div className="card fixed inset-x-0 bottom-6 z-30 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3 px-4 py-3 text-sm shadow-xl">
           <span>{selected.length} zaznaczone</span>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="btn"
             onClick={() => onSelectedChange([])}
           >
             Odznacz
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="btn-primary"
             disabled={!canGroup}
             onClick={onOpenGroupModal}
           >
@@ -113,7 +113,7 @@ export default function LedgerTable({
             Połącz w grupę
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="btn"
             disabled={!canFund}
             onClick={onOpenFundModal}
           >
@@ -122,7 +122,7 @@ export default function LedgerTable({
           </button>
           {canSell && (
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+              className="btn"
               onClick={onOpenSellModal}
             >
               <Banknote size={16} />

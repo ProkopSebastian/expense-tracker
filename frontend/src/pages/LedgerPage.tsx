@@ -88,7 +88,7 @@ export default function LedgerPage({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h1>Historia transakcji</h1>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft"
+          className="btn"
           onClick={() => setModal("manual")}
         >
           <Plus size={17} />

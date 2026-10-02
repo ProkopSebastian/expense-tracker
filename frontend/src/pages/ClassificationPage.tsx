@@ -401,7 +401,7 @@ export default function ClassificationPage({
             />
           </label>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+            className="btn-primary"
             disabled={
               !aiEnabled ||
               action.busy ||
@@ -415,7 +415,7 @@ export default function ClassificationPage({
               : "Zaproponuj kategorie"}
           </button>
           <Popover.Root>
-            <Popover.Trigger className="rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft">
+            <Popover.Trigger className="btn">
               Narzędzia AI
             </Popover.Trigger>
             <Popover.Portal>
@@ -431,7 +431,7 @@ export default function ClassificationPage({
                 </p>
                 <Popover.Close asChild>
                   <button
-                    className="mt-4 rounded-lg border border-line px-3.5 py-2 font-medium transition hover:bg-accent-soft"
+                    className="btn mt-4"
                     disabled={!aiEnabled || action.busy}
                     onClick={() => analyze("relations")}
                   >
@@ -556,7 +556,7 @@ export default function ClassificationPage({
         {remainingRowsCount > 0 && (
           <div className="flex justify-center" ref={sentinelRef}>
             <button
-              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
+              className="btn"
               disabled={isLoadingMore}
               aria-busy={isLoadingMore}
               onClick={loadMore}

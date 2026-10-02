@@ -7,8 +7,6 @@ import CategoryIcon from "../components/CategoryIcon";
 
 const RULES_PAGE_SIZE = 25;
 
-const BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft";
 const RULE_COLUMNS =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_7rem_4.5rem]";
 
@@ -86,11 +84,11 @@ function RuleRow({
             </p>
             <Notice error={action.error} />
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-              <button className={BUTTON_CLASS} onClick={() => setEditing(false)}>
+              <button className="btn" onClick={() => setEditing(false)}>
                 Anuluj
               </button>
               <button
-                className={BUTTON_CLASS}
+                className="btn"
                 disabled={
                   action.busy || !category || category === rule.category_key
                 }
@@ -122,11 +120,11 @@ function RuleRow({
             </p>
             <Notice error={action.error} />
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-              <button className={BUTTON_CLASS} onClick={() => setRemove(false)}>
+              <button className="btn" onClick={() => setRemove(false)}>
                 Anuluj
               </button>
               <button
-                className={`${BUTTON_CLASS} border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!`}
+                className="btn-danger"
                 disabled={action.busy}
                 onClick={() =>
                   action.run(() => request(`/rules/${rule.id}`, "DELETE"))
@@ -234,7 +232,7 @@ export default function RulesPage({
         {remainingRulesCount > 0 && (
           <div className="flex justify-center p-4" ref={sentinelRef}>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:bg-accent-soft"
+              className="btn"
               disabled={isLoadingMore}
               aria-busy={isLoadingMore}
               onClick={loadMore}

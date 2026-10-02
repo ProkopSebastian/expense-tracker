@@ -298,6 +298,35 @@
   @apply rounded-xl bg-surface ring-1 ring-line/60;
 }
 
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2 text-sm font-medium text-danger transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-quiet {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-muted transition hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility segmented {
+  @apply inline-flex w-fit gap-1 rounded-lg bg-surface-muted p-1;
+
+  & > button {
+    @apply flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap text-muted transition-colors hover:text-ink;
+  }
+
+  & > button[data-state="active"],
+  & > button[aria-pressed="true"] {
+    @apply bg-surface font-medium text-ink shadow-sm;
+  }
+}
+
 @layer base {
   body {
     @apply m-0 bg-canvas font-sans text-ink antialiased transition-colors duration-150;

@@ -49,7 +49,7 @@ export function EditCategoryModal({
         </label>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="btn-primary"
             disabled={action.busy}
           >
             Zapisz kategorię
@@ -79,13 +79,13 @@ export function DissolveGroupModal({
         </p>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft"
+            className="btn"
             onClick={onClose}
           >
             Anuluj
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!"
+            className="btn-primary"
             disabled={action.busy}
             onClick={async () => {
               if (

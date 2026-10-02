@@ -164,7 +164,7 @@ export default function OnboardingTour({ onClose }: { onClose: () => void }) {
                 {index > 0 && (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-accent-soft hover:text-accent"
+                    className="btn-quiet"
                     onClick={() => setIndex((value) => value - 1)}
                   >
                     <ArrowLeft size={15} />
@@ -173,7 +173,7 @@ export default function OnboardingTour({ onClose }: { onClose: () => void }) {
                 )}
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+                  className="btn-primary"
                   onClick={() => (last ? onClose() : setIndex((value) => value + 1))}
                 >
                   {last ? "Zaczynajmy" : "Dalej"}

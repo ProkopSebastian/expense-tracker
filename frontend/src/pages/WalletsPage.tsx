@@ -20,10 +20,6 @@ import HelpPopover from "../components/HelpPopover";
 
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
-const BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft";
-const PRIMARY_BUTTON_CLASS = `${BUTTON_CLASS} border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!`;
-const DANGER_BUTTON_CLASS = `${BUTTON_CLASS} border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!`;
 
 // A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred
 // dirhams. Money stays at two places; the rate gets four.
@@ -100,13 +96,13 @@ function NewWalletForm({
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className={BUTTON_CLASS}
+            className="btn"
             disabled={action.busy}
             onClick={onClose}
           >
             Anuluj
           </button>
-          <button className={PRIMARY_BUTTON_CLASS} disabled={action.busy}>
+          <button className="btn-primary" disabled={action.busy}>
             {action.busy ? "Zapisuję…" : "Utwórz portfel"}
           </button>
         </footer>
@@ -236,7 +232,7 @@ function ReconcileForm({
             ))}
             <button
               type="button"
-              className={`${BUTTON_CLASS} self-start`}
+              className="btn self-start"
               onClick={() =>
                 setSplits([...splits, { amount: "", category: "", description: "" }])
               }
@@ -249,14 +245,14 @@ function ReconcileForm({
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
-            className={BUTTON_CLASS}
+            className="btn"
             onClick={onClose}
             disabled={action.busy}
           >
             Anuluj
           </button>
           <button
-            className={PRIMARY_BUTTON_CLASS}
+            className="btn-primary"
             disabled={
               action.busy ||
               surplus ||
@@ -367,10 +363,10 @@ function ConvertForm({
           </label>
         </div>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-          <button type="button" className={BUTTON_CLASS} onClick={onClose} disabled={action.busy}>
+          <button type="button" className="btn" onClick={onClose} disabled={action.busy}>
             Anuluj
           </button>
-          <button className={PRIMARY_BUTTON_CLASS} disabled={action.busy || !target}>
+          <button className="btn-primary" disabled={action.busy || !target}>
             {action.busy ? "Zapisuję…" : "Wymień"}
           </button>
         </footer>
@@ -452,10 +448,10 @@ function OpeningForm({
           <p className="text-muted">Kurs wyjdzie {rateLabel(String(rate), wallet.currency)}.</p>
         )}
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-          <button type="button" className={BUTTON_CLASS} onClick={onClose} disabled={action.busy}>
+          <button type="button" className="btn" onClick={onClose} disabled={action.busy}>
             Anuluj
           </button>
-          <button className={PRIMARY_BUTTON_CLASS} disabled={action.busy}>
+          <button className="btn-primary" disabled={action.busy}>
             {action.busy ? "Zapisuję…" : "Zapisz saldo"}
           </button>
         </footer>
@@ -746,7 +742,7 @@ export default function WalletsPage({
             </div>
           </HelpPopover>
         </div>
-        <button className={BUTTON_CLASS} onClick={() => setCreating(true)}>
+        <button className="btn" onClick={() => setCreating(true)}>
           <Plus size={17} />
           Nowy portfel
         </button>
@@ -844,14 +840,14 @@ export default function WalletsPage({
             <Notice error={action.error} />
             <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
               <button
-                className={BUTTON_CLASS}
+                className="btn"
                 onClick={() => setRemoving(null)}
                 disabled={action.busy}
               >
                 Anuluj
               </button>
               <button
-                className={DANGER_BUTTON_CLASS}
+                className="btn-danger"
                 disabled={action.busy}
                 onClick={() =>
                   action.run(() => request(`/wallets/${removing.id}`, "DELETE"))

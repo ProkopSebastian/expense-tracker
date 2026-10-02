@@ -99,7 +99,7 @@ export default function DataPage({
               <strong className="text-sm font-medium text-ink">
                 Przeciągnij plik tutaj
               </strong>
-              <span className="shrink-0 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink">
+              <span className="btn shrink-0">
                 Wybierz plik
               </span>
               <input
@@ -192,7 +192,7 @@ export default function DataPage({
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-accent-soft disabled:opacity-50"
+                className="btn"
                 disabled={action.busy}
                 onClick={() => {
                   setSyncError("");
@@ -216,7 +216,7 @@ export default function DataPage({
                 <RefreshCw size={16} /> Wczytaj nowe pliki
               </button>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-muted transition hover:bg-accent-soft hover:text-accent"
+                className="btn-quiet"
                 onClick={() =>
                   fetch("/open-data-folder", { method: "POST" }).catch(() => {})
                 }

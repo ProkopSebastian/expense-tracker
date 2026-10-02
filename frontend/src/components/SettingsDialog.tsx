@@ -85,13 +85,12 @@ export default function SettingsDialog({
           <div
             role="group"
             aria-label="Sekcje ustawień"
-            className="flex gap-6 border-b border-line"
+            className="segmented"
           >
             <button
               type="button"
               aria-pressed={activeTab === "appearance"}
               onClick={() => setActiveTab("appearance")}
-              className={`border-b-2 px-0.5 pb-3 text-sm font-medium transition-colors ${activeTab === "appearance" ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
             >
               Wygląd
             </button>
@@ -99,7 +98,6 @@ export default function SettingsDialog({
               type="button"
               aria-pressed={activeTab === "data"}
               onClick={() => setActiveTab("data")}
-              className={`border-b-2 px-0.5 pb-3 text-sm font-medium transition-colors ${activeTab === "data" ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
             >
               Dane i prywatność
             </button>
@@ -107,7 +105,6 @@ export default function SettingsDialog({
               type="button"
               aria-pressed={activeTab === "help"}
               onClick={() => setActiveTab("help")}
-              className={`border-b-2 px-0.5 pb-3 text-sm font-medium transition-colors ${activeTab === "help" ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
             >
               Pomoc
             </button>
@@ -229,7 +226,7 @@ export default function SettingsDialog({
                       </div>
                     </div>
                     <button
-                      className="inline-flex items-center justify-center self-start rounded-lg border border-danger/25 px-3.5 py-2 text-sm font-medium text-danger transition hover:bg-danger/10 sm:self-auto"
+                      className="btn-danger self-start sm:self-auto"
                       disabled={busy || action.busy}
                       onClick={() =>
                         void action.run(async () => {
@@ -260,7 +257,7 @@ export default function SettingsDialog({
                     </label>
                     <div className="flex justify-end">
                       <button
-                        className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-45"
+                        className="btn-primary"
                         disabled={busy || action.busy || !apiKey.trim()}
                         onClick={() =>
                           void action.run(async () => {
@@ -313,7 +310,7 @@ export default function SettingsDialog({
                           </label>
                           <div className="flex flex-wrap justify-end gap-2">
                             <button
-                              className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium"
+                              className="btn"
                               disabled={busy}
                               onClick={() => {
                                 setConfirming(false);
@@ -323,7 +320,7 @@ export default function SettingsDialog({
                               Anuluj
                             </button>
                             <button
-                              className="rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white"
+                              className="btn-danger"
                               disabled={busy || confirmation !== CONFIRMATION}
                               onClick={() => void resetData()}
                             >
@@ -333,7 +330,7 @@ export default function SettingsDialog({
                         </div>
                       ) : (
                         <button
-                          className="mt-4 rounded-lg border border-danger/30 px-3.5 py-2 text-sm font-medium text-danger transition hover:bg-danger/10"
+                          className="btn-danger mt-4"
                           onClick={() => setConfirming(true)}
                         >
                           Usuń dane…
@@ -371,7 +368,7 @@ export default function SettingsDialog({
               </div>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-accent-soft"
+                className="btn"
                 onClick={onOpenTour}
               >
                 <Compass size={17} className="text-accent" />

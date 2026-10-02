@@ -366,7 +366,7 @@ export function CategorySelect({
                   type="button"
                   disabled={!newLabel.trim() || !newIcon || createBusy}
                   onClick={submitCreate}
-                  className="rounded-xl border border-accent bg-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  className="btn-primary"
                 >
                   {createBusy ? "Zapisuję…" : "Zapisz"}
                 </button>

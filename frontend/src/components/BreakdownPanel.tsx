@@ -59,15 +59,15 @@ export default function BreakdownPanel({ data }: { data: Summary }) {
           ))}
         </h2>
         <Tabs.List
-          className="flex gap-1 rounded-xl border border-line bg-surface-muted p-1 [&_button]:flex [&_button]:items-center [&_button]:gap-2 [&_button]:rounded-lg [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:text-accent [&_button[data-state=active]]:shadow-sm"
+          className="segmented"
           aria-label="Rodzaj wykresu"
         >
           <Tabs.Trigger value="donut">
-            <PieChart size={16} />
+            <PieChart size={15} />
             Koło
           </Tabs.Trigger>
           <Tabs.Trigger value="bars">
-            <BarChart3 size={16} />
+            <BarChart3 size={15} />
             Słupki
           </Tabs.Trigger>
         </Tabs.List>

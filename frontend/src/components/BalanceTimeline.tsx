@@ -16,7 +16,7 @@ export default function BalanceTimeline({ data }: { data: Summary }) {
         <h2>{view === "daily" ? "Bilans w czasie" : "Wynik każdego miesiąca"}</h2>
         <Tabs.List
           aria-label="Widok bilansu"
-          className="flex gap-1 rounded-lg bg-surface-muted p-1 [&_button]:rounded-md [&_button]:px-3 [&_button]:py-1.5 [&_button]:text-xs [&_button]:text-muted [&_button[data-state=active]]:bg-surface [&_button[data-state=active]]:font-medium [&_button[data-state=active]]:text-ink [&_button[data-state=active]]:shadow-sm"
+          className="segmented"
         >
           <Tabs.Trigger value="daily">Dziennie</Tabs.Trigger>
           <Tabs.Trigger value="monthly">Miesięcznie</Tabs.Trigger>
