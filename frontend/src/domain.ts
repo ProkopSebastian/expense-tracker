@@ -51,6 +51,7 @@ export interface LedgerData {
   pages: number;
   page_size: number;
   total: number;
+  currencies: string[];
   cases: {
     id: number;
     title: string;

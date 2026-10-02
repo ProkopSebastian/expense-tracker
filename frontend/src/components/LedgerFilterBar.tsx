@@ -54,6 +54,9 @@ export default function LedgerFilterBar({
   category,
   onCategoryChange,
   categoryTree,
+  currency,
+  onCurrencyChange,
+  currencies,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -62,6 +65,9 @@ export default function LedgerFilterBar({
   category: string[];
   onCategoryChange: (category: string[]) => void;
   categoryTree: CategoryNode[];
+  currency: string;
+  onCurrencyChange: (value: string) => void;
+  currencies: string[];
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-line py-4">
@@ -82,6 +88,15 @@ export default function LedgerFilterBar({
           { value: "all", label: "Wszystkie przepływy" },
           { value: "expense", label: "Wydatki" },
           { value: "income", label: "Wpływy" },
+        ]}
+      />
+      <AppSelect
+        ariaLabel="Waluta"
+        value={currency}
+        onValueChange={onCurrencyChange}
+        options={[
+          { value: "all", label: "Wszystkie waluty" },
+          ...currencies.map((code) => ({ value: code, label: code })),
         ]}
       />
       <Popover.Root>

@@ -130,7 +130,9 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
         )
 
 
-def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: list[str], page: int) -> dict:
+def ledger_blocks(
+    db: sqlite3.Connection, query: str, direction: str, category: list[str], currency: list[str], page: int
+) -> dict:
     from . import wallet_service
 
     raw = ledger.transactions(db)
@@ -196,6 +198,9 @@ def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: 
             continue
         if category and (block["category_key"] or "") not in category:
             continue
+        # A mixed-currency group belongs to every currency one of its members was paid in.
+        if currency and not any(r["currency"] in currency for r in [block, *block["members"]]):
+            continue
         if needle and not any(
             needle in f"{r['description']} {r['counterparty']}".casefold() for r in [block, *block["members"]]
         ):
@@ -211,6 +216,7 @@ def ledger_blocks(db: sqlite3.Connection, query: str, direction: str, category: 
         "pages": pages,
         "page_size": page_size,
         "total": len(filtered),
+        "currencies": sorted({row["currency"] for row in raw}),
         "cases": cases,
         "relations": [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"],
     }

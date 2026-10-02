@@ -111,9 +111,10 @@ def history(
     q: str = "",
     direction: Literal["all", "expense", "income"] = "all",
     category: Annotated[list[str] | None, Query()] = None,
+    currency: Annotated[list[str] | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
 ):
-    return service.ledger_blocks(db, q, direction, category or [], page)
+    return service.ledger_blocks(db, q, direction, category or [], currency or [], page)
 
 
 @router.post("/transactions", status_code=201)

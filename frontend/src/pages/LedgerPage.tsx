@@ -26,6 +26,7 @@ export default function LedgerPage({
   const [query, setQuery] = useSessionState("ledger.query", ""),
     [direction, setDirection] = useSessionState("ledger.direction", "all"),
     [category, setCategory] = useSessionState<string[]>("ledger.category", []),
+    [currency, setCurrency] = useSessionState("ledger.currency", "all"),
     [page, setPage] = useSessionState("ledger.page", 1),
     [linksTab, setLinksTab] = useSessionState<"relations" | "groups">(
       "ledger.linksTab",
@@ -49,6 +50,7 @@ export default function LedgerPage({
     page: String(page),
   });
   category.forEach((c) => params.append("category", c));
+  if (currency !== "all") params.append("currency", currency);
   const { data, error, loading } = useResource<LedgerData>(
     `/ledger?${params}`,
     revision,
@@ -129,6 +131,12 @@ export default function LedgerPage({
             filtersChanged();
           }}
           categoryTree={categoryTree}
+          currency={currency}
+          onCurrencyChange={(value) => {
+            setCurrency(value);
+            filtersChanged();
+          }}
+          currencies={data?.currencies ?? []}
         />
         <LedgerTable
           data={data}
