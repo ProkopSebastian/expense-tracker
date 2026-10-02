@@ -100,6 +100,17 @@ export const themeOptions = [
 ] as const;
 
 export type ThemePreference = (typeof themeOptions)[number]["id"];
+export const DARK_THEMES: ReadonlySet<string> = new Set([
+  "dark",
+  "midnight",
+  "mocha",
+  "nord",
+  "dracula",
+  "gruvbox",
+  "one-dark",
+  "tokyo-night",
+  "catppuccin",
+]);
 const STORAGE_KEY = "theme";
 const CHANGE_EVENT = "expense-tracker-theme-change";
 let pendingSave = Promise.resolve();
@@ -164,19 +175,7 @@ export function useResolvedTheme(preference: ThemePreference) {
   }, []);
 
   if (preference === "system") return systemDark ? "dark" : "light";
-  return [
-    "dark",
-    "midnight",
-    "mocha",
-    "nord",
-    "dracula",
-    "gruvbox",
-    "one-dark",
-    "tokyo-night",
-    "catppuccin",
-  ].includes(preference)
-    ? "dark"
-    : "light";
+  return DARK_THEMES.has(preference) ? "dark" : "light";
 }
 
 export function useThemeSignal() {

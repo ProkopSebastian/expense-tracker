@@ -2,13 +2,17 @@ import { useState } from "react";
 import {
   Check,
   CheckCircle2,
+  ChevronDown,
   Compass,
+  Info,
   Monitor,
   ShieldCheck,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { request, useAction } from "../hooks";
 import {
+  DARK_THEMES,
   themeOptions,
   useResolvedTheme,
   useTheme,
@@ -137,51 +141,59 @@ export default function SettingsDialog({
                     <Check size={18} className="shrink-0 text-accent" />
                   )}
                 </button>
-                <div>
-                  <p className="mb-3 text-xs font-medium text-muted">
-                    Pozostałe motywy
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {themeOptions
-                      .filter((option) => option.id !== "system")
-                      .map((option) => (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={theme === option.id}
-                          onClick={() => selectTheme(option.id)}
-                          className={`min-w-0 rounded-lg border p-2.5 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${theme === option.id ? "border-accent bg-accent-soft" : "border-line bg-surface"}`}
-                        >
-                          <span
-                            className="mb-2 flex h-9 items-center justify-between rounded-md border border-black/5 px-2"
-                            style={{ backgroundColor: option.colors[1] }}
-                            aria-hidden="true"
-                          >
-                            <span className="flex gap-1.5">
+                {([["Jasne", false], ["Ciemne", true]] as const).map(
+                  ([groupLabel, dark]) => (
+                    <div key={groupLabel}>
+                      <p className="mb-3 text-xs font-medium text-muted">
+                        {groupLabel}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {themeOptions
+                          .filter(
+                            (option) =>
+                              option.id !== "system" &&
+                              DARK_THEMES.has(option.id) === dark,
+                          )
+                          .map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              aria-pressed={theme === option.id}
+                              onClick={() => selectTheme(option.id)}
+                              className={`min-w-0 rounded-lg border p-2.5 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${theme === option.id ? "border-accent bg-accent-soft" : "border-line bg-surface"}`}
+                            >
                               <span
-                                className="size-4 rounded-full"
-                                style={{ backgroundColor: option.colors[0] }}
-                              />
-                              <span
-                                className="size-4 rounded-full"
-                                style={{ backgroundColor: option.colors[2] }}
-                              />
-                            </span>
-                            {theme === option.id && (
-                              <Check
-                                size={16}
-                                style={{ color: option.colors[0] }}
-                              />
-                            )}
-                          </span>
-                          <span className="block text-sm font-medium text-ink">
-                            {option.label}
-                          </span>
-                          <span className="sr-only">{option.description}</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
+                                className="mb-2 flex h-9 items-center justify-between rounded-md border border-black/5 px-2"
+                                style={{ backgroundColor: option.colors[1] }}
+                                aria-hidden="true"
+                              >
+                                <span className="flex gap-1.5">
+                                  <span
+                                    className="size-4 rounded-full"
+                                    style={{ backgroundColor: option.colors[0] }}
+                                  />
+                                  <span
+                                    className="size-4 rounded-full"
+                                    style={{ backgroundColor: option.colors[2] }}
+                                  />
+                                </span>
+                                {theme === option.id && (
+                                  <Check
+                                    size={16}
+                                    style={{ color: option.colors[0] }}
+                                  />
+                                )}
+                              </span>
+                              <span className="block text-sm font-medium text-ink">
+                                {option.label}
+                              </span>
+                              <span className="sr-only">{option.description}</span>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ),
+                )}
               </div>
             </section>
           )}
@@ -201,7 +213,7 @@ export default function SettingsDialog({
                   Pomoc AI
                 </h2>
                 {aiEnabled ? (
-                  <div className="flex flex-col justify-between gap-4 border-y border-line py-4 sm:flex-row sm:items-center">
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div className="flex items-center gap-3">
                       <CheckCircle2
                         size={20}
@@ -231,7 +243,7 @@ export default function SettingsDialog({
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4 border-y border-line py-4">
+                  <div className="space-y-4">
                     <p className="text-sm leading-relaxed text-muted">
                       Klucz API jest przechowywany lokalnie. Dane trafiają do
                       dostawcy modelu dopiero po ręcznym uruchomieniu analizy.
@@ -268,7 +280,7 @@ export default function SettingsDialog({
 
               <section
                 aria-labelledby="reset-heading"
-                className="space-y-3 border-t border-line pt-5"
+                className="space-y-3"
               >
                 <h2 id="reset-heading" className="text-base!">
                   Reset danych
@@ -337,17 +349,26 @@ export default function SettingsDialog({
           {activeTab === "help" && (
             <div className="space-y-5">
               <p className="text-sm leading-relaxed text-muted">
-                Aplikacja liczy podsumowania i wykresy z wyciągów bankowych,
-                które sam wgrywasz — na stronie Import. Kategorie sprzedawców
-                dopasowują się automatycznie na podstawie reguł, a resztę
-                poprawiasz ręcznie w klasyfikacji. Wszystkie dane zostają na
-                tym komputerze.
+                <strong className="text-ink">Jak zacząć:</strong> wgraj wyciąg na
+                stronie Import — podsumowanie i kategorie zrobią się same.
               </p>
-              <p className="text-sm leading-relaxed text-muted">
-                Przy trudniejszych miejscach szukaj małej okrągłej ikonki ze
-                znakiem informacji — otwiera krótkie wyjaśnienie danego
-                elementu.
-              </p>
+              <div className="text-sm">
+                <p className="mb-2 font-medium">Znaki w aplikacji</p>
+                <dl className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-muted [&_dt]:flex [&_dt]:justify-center [&_dt]:text-accent">
+                  <dt>
+                    <Info size={15} />
+                  </dt>
+                  <dd>wyjaśnienie, jak coś działa</dd>
+                  <dt>
+                    <Sparkles size={15} />
+                  </dt>
+                  <dd>podpowiedź AI</dd>
+                  <dt>
+                    <ChevronDown size={15} />
+                  </dt>
+                  <dd>kliknij, żeby zobaczyć więcej</dd>
+                </dl>
+              </div>
               <button
                 type="button"
                 className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-accent-soft"
@@ -359,7 +380,7 @@ export default function SettingsDialog({
 
               <section
                 aria-labelledby="changelog-heading"
-                className="space-y-3 border-t border-line pt-5"
+                className="space-y-3 pt-2"
               >
                 <h2 id="changelog-heading" className="text-base!">
                   Co nowego
