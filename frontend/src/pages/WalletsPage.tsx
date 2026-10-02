@@ -7,6 +7,7 @@ import { money } from "../api";
 import type { Category } from "../domain";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 import AppSelect from "../components/AppSelect";
+import HelpPopover from "../components/HelpPopover";
 
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
@@ -603,18 +604,20 @@ export default function WalletsPage({
   const wallets = data?.wallets ?? [];
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <h1>Portfele</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h1>Portfele</h1>
+          <HelpPopover label="Czym jest portfel">
+            Portfel pamięta, ile masz w kieszeni i ile Cię to kosztowało. Dla
+            waluty obcej daje kurs z Twojej wymiany, a dla gotówki — odpowiedź
+            na pytanie, na co właściwie poszła.
+          </HelpPopover>
+        </div>
         <button className={BUTTON_CLASS} onClick={() => setCreating(true)}>
           <Plus size={17} />
           Nowy portfel
         </button>
       </div>
-      <p className="mb-6 max-w-3xl text-sm leading-relaxed text-muted">
-        Portfel pamięta, ile masz w kieszeni i ile Cię to kosztowało. Dla waluty
-        obcej daje kurs z Twojej wymiany, a dla gotówki — odpowiedź na pytanie,
-        na co właściwie poszła.
-      </p>
       <Notice error={error || action.error} notice={action.notice} />
       <section className="border-t border-line">
         {wallets.length > 0 && (
