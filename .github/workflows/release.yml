@@ -20,7 +20,6 @@ jobs:
         with:
           version: '10'
       - run: uv sync --frozen
-      - run: uv run pytest -q
       - name: Build Windows package
         shell: pwsh
         run: ./scripts/build_windows.ps1
@@ -52,7 +51,6 @@ jobs:
         with:
           version: '10'
       - run: uv sync --group desktop --frozen
-      - run: uv run pytest -q
       - name: Build Linux package
         run: scripts/build_linux.sh
       - run: sudo apt-get update && sudo apt-get install -y rpm ruby-dev && sudo gem install --no-document fpm
@@ -80,7 +78,6 @@ jobs:
         with:
           version: '10'
       - run: uv sync --group desktop --frozen
-      - run: uv run pytest -q
       - name: Build macOS app
         run: scripts/build_macos.sh
       - uses: actions/upload-artifact@v7

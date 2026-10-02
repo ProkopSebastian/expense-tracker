@@ -1,5 +1,11 @@
 name: CI
-on: [push]
+# Tags point at commits that already passed on their branch; release.yml builds them.
+on:
+  push:
+    branches: ['**']
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
