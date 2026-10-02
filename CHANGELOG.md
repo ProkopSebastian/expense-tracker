@@ -1,3 +1,23 @@
+## v0.4.0 — 02.10.2026
+
+- feat: portfele na gotówkę i waluty obce — wydatki w euro czy dirhamach liczą się w złotówkach po kursie Twojej wymiany
+- feat: wymiany walut z wyciągów Revoluta same zakładają i zasilają portfel
+- feat: „Rozlicz” w portfelu — wpisujesz, ile zostało, a różnica trafia do wydatków
+- feat: podsumowanie domyślnie liczy wszystkie waluty łącznie w złotówkach
+- feat: grupy mogą łączyć transakcje w różnych walutach
+- feat: filtr waluty w historii transakcji
+- feat: nowy, spokojniejszy wygląd wszystkich stron
+- feat: sugestie powiązań AI są teraz w „Do klasyfikacji”, razem z transakcjami, których dotyczą
+- feat: „Zatwierdź pewne” zatwierdza jednym kliknięciem sugestie AI z pewnością od 90%
+- feat: „Cofnij” w komunikacie po każdej zmianie
+- feat: na stronie Import widać, do którego dnia masz dane z każdego rachunku
+- feat: nowy przewodnik z przykładami (Ustawienia → Pomoc)
+- feat: nowe logo aplikacji
+- fix: przelewy bez nazwy sprzedawcy pokazują swój tytuł zamiast powtórzonego nazwiska
+- fix: AI nie uznaje już przelewu do innej osoby za przelew własny
+- fix: listy rozwijane w okienkach nie są już przycinane
+- fix: w jasnym motywie przy ciemnym motywie systemu pola wyboru nie są już wypełnione
+
 ## v0.3.2 — 16.09.2026
 
 - feat: dodano obsługę wyciągów PDF z PKO BP
