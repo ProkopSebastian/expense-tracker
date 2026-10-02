@@ -17,6 +17,12 @@
   --app-info: #0284c7;
 }
 
+/* Native controls such as checkboxes follow color-scheme; a chosen light theme must not
+   inherit a dark system preference. Dark themes below set it back to dark. */
+:root[data-theme] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --app-canvas: #14151f;
