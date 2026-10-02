@@ -221,6 +221,22 @@ def ledger_blocks(
     }
 
 
+def account_coverage(db: sqlite3.Connection) -> list[dict]:
+    from .wallet_service import OPENING_BALANCE
+
+    # Rows the app writes itself (manual entries, wallet openings and legs) say nothing about
+    # which statements have been imported.
+    rows = db.execute(
+        """SELECT account, MIN(booking_date) AS first_date, MAX(booking_date) AS last_date,
+                  COUNT(*) AS transactions
+           FROM transactions
+           WHERE transaction_type IS NOT NULL AND transaction_type NOT IN (?, ?)
+           GROUP BY account ORDER BY last_date DESC, account""",
+        (OPENING_BALANCE, ledger.SYNTHETIC_EXCHANGE_LEG),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
     suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"]
     ids = {int(i) for s in suggestions for i in s["payload"]["transaction_ids"]}

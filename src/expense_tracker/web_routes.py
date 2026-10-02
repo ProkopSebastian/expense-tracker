@@ -316,6 +316,11 @@ def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
         lock.release()
 
 
+@router.get("/accounts/coverage")
+def accounts_coverage(db: DB):
+    return {"accounts": service.account_coverage(db)}
+
+
 @router.get("/recovery")
 def recovery(request: Request):
     from .recovery import undo_available
