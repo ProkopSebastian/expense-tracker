@@ -1,6 +1,15 @@
-import { useId, useState, type FormEvent } from "react";
-import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown, Plus, Scale, Trash2, TriangleAlert } from "lucide-react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
+import {
+  ArrowDownToLine,
+  ArrowLeftRight,
+  Banknote,
+  Landmark,
+  Plus,
+  Scale,
+  Trash2,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import type { Wallet, WalletEvent } from "../domain";
 import { request, useResource, useAction } from "../hooks";
 import { money } from "../api";
@@ -15,8 +24,6 @@ const BUTTON_CLASS =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-accent/30 hover:bg-accent-soft";
 const PRIMARY_BUTTON_CLASS = `${BUTTON_CLASS} border-accent! bg-accent! text-white! shadow-accent/15 hover:bg-accent-hover!`;
 const DANGER_BUTTON_CLASS = `${BUTTON_CLASS} border-danger/25! bg-danger/10! text-danger! hover:bg-danger/15!`;
-const SMALL_BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium transition hover:bg-accent-soft";
 
 // A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred
 // dirhams. Money stays at two places; the rate gets four.
@@ -306,11 +313,13 @@ function ConvertForm({
     >
       <form onSubmit={submit} className={FORM_CLASS}>
         <Notice error={action.error} />
-        <p className="text-muted">
-          Żadne złotówki tu nie przechodzą, więc nowa waluta przejmuje dokładnie
-          ten koszt, który miała poprzednia. Zysk ani strata nie powstają z samej
-          wymiany.
-        </p>
+        {Number(given) > 0 && wallet.average_cost !== null && (
+          <p className="text-muted">
+            Oddajesz {money(given, wallet.currency)}, które kosztowały Cię{" "}
+            {money(Number(given) * Number(wallet.average_cost), "PLN")} — tyle
+            samo będzie kosztować to, co dostaniesz.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
             Oddajesz ({wallet.currency})
@@ -471,32 +480,134 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
           Pusto. Zasil portfel z transakcji w Historii transakcji.
         </p>
       )}
-      {events.map((event) => (
-        <div
-          key={event.transaction_id}
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-t border-line py-2.5 text-sm"
-        >
-          <span className="min-w-0 truncate">{event.description}</span>
-          <span className="tabular-nums">
-            {money(event.amount, wallet.currency)}
-          </span>
-          <span className="text-xs text-muted">
-            {event.date} · {EVENT_LABELS[event.kind]}
-            {event.kind === "topup" &&
-              event.rate &&
-              ` · ${rateLabel(event.rate, wallet.currency)}`}
-            {event.rate_known === false && " · brak kursu"}
-          </span>
-          <span className="text-xs text-muted tabular-nums">
-            {money(event.pln, "PLN")}
-          </span>
-        </div>
-      ))}
+      {events.length > 0 && (
+        <table className="w-full table-fixed text-sm [&_td]:border-t [&_td]:border-line/40 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:pr-4 [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-normal [&_th]:text-muted">
+          <colgroup>
+            <col className="w-28" />
+            <col />
+            <col className="w-44" />
+            <col className="w-32" />
+            <col className="w-32" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Opis</th>
+              <th>Rodzaj</th>
+              <th className="text-right!">Kwota</th>
+              <th className="text-right!">W złotówkach</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((event) => (
+              <tr key={event.transaction_id}>
+                <td className="text-muted tabular-nums">
+                  {event.date.split("-").reverse().join(".")}
+                </td>
+                <td className="truncate">{event.description}</td>
+                <td className="text-muted">
+                  {EVENT_LABELS[event.kind]}
+                  {event.kind === "topup" && event.rate && (
+                    <span className="block text-xs">
+                      {rateLabel(event.rate, wallet.currency)}
+                    </span>
+                  )}
+                  {event.rate_known === false && (
+                    <span className="block text-xs">brak kursu</span>
+                  )}
+                </td>
+                <td className="text-right tabular-nums">
+                  {money(event.amount, wallet.currency)}
+                </td>
+                <td className="text-right text-muted tabular-nums">
+                  {money(event.pln, "PLN")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
   );
 }
 
-function WalletRow({
+function WalletTile({
+  wallet,
+  selected,
+  onSelect,
+}: {
+  wallet: Wallet;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const cash = wallet.account.toLocaleLowerCase("pl") === "gotówka";
+  const KindIcon = cash ? Banknote : Landmark;
+  return (
+    <button
+      className={`card flex flex-col gap-5 p-5 text-left transition hover:ring-accent/50 ${selected ? "ring-2! ring-accent!" : ""}`}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span className="flex w-full items-center gap-3">
+        <span className="grid h-8 shrink-0 place-items-center rounded-lg bg-accent-soft px-2 text-xs font-semibold tracking-wide text-accent ring-1 ring-accent/30">
+          {wallet.currency}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm text-muted">
+          {wallet.account}
+        </span>
+        <KindIcon
+          size={18}
+          className="shrink-0 text-muted"
+          aria-label={cash ? "Gotówka" : "Konto w banku"}
+        />
+      </span>
+      <span>
+        <strong className="block text-2xl font-semibold tracking-tight tabular-nums">
+          {money(wallet.balance, wallet.currency)}
+        </strong>
+        <span className="block text-sm text-muted tabular-nums">
+          {wallet.currency === "PLN"
+            ? "\u00a0"
+            : `≈ ${money(wallet.pln_value, "PLN")}`}
+        </span>
+        {wallet.currency !== "PLN" && wallet.average_cost !== null && (
+          <span className="block text-xs text-muted tabular-nums">
+            1 {wallet.currency} = {rateFormat.format(Number(wallet.average_cost))} zł
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+const ACTION_ROW_CLASS =
+  "flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent-soft hover:text-accent";
+
+function WalletAction({
+  icon: Icon,
+  label,
+  help,
+  helpLabel,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  help: ReactNode;
+  helpLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-1">
+      <button className={ACTION_ROW_CLASS} onClick={onClick}>
+        <Icon size={16} className="shrink-0 text-muted" />
+        {label}
+      </button>
+      <HelpPopover label={helpLabel}>{help}</HelpPopover>
+    </li>
+  );
+}
+
+function WalletDetail({
   wallet,
   canConvert,
   onDelete,
@@ -513,66 +624,77 @@ function WalletRow({
 }) {
   const uncovered = Number(wallet.uncovered);
   return (
-    <Accordion.Item value={String(wallet.id)}>
-      <div className="flex items-center gap-2 border-b border-line">
-        <Accordion.Trigger className="group grid flex-1 grid-cols-2 items-baseline gap-x-4 gap-y-2 py-4 text-left sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <span className="flex items-center gap-2 text-sm">
-            <ChevronDown
-              size={15}
-              className="shrink-0 text-muted transition group-data-[state=open]:rotate-180"
-            />
-            <strong className="font-semibold">{wallet.currency}</strong>
-            <span className="text-muted">{wallet.account}</span>
-          </span>
-          <span className="text-right text-sm tabular-nums sm:text-left">
-            {money(wallet.balance, wallet.currency)}
-          </span>
-          <span className="text-sm text-muted tabular-nums">
-            {wallet.average_cost === null
-              ? "—"
-              : rateLabel(wallet.average_cost, wallet.currency)}
-          </span>
-          <span className="text-right text-sm tabular-nums">
-            {money(wallet.pln_value, "PLN")}
-          </span>
-        </Accordion.Trigger>
-        <button
-          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-          aria-label={`Rozlicz portfel ${wallet.currency} ${wallet.account}`}
-          title="Rozlicz: podaj, ile zostało"
-          onClick={() => onReconcile(wallet)}
-        >
-          <Scale size={16} />
-        </button>
-        <button
-          className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger"
-          aria-label={`Usuń portfel ${wallet.currency} ${wallet.account}`}
-          onClick={() => onDelete(wallet)}
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
+    <section className="card p-6">
       {uncovered > 0 && (
-        <p className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed bg-danger/10 text-danger">
+        <p className="mb-6 flex items-center gap-3 rounded-xl bg-danger/10 px-4 py-3 text-sm leading-relaxed text-danger">
           <TriangleAlert size={17} />
           {money(uncovered, wallet.currency)} wydane bez zapisanego zasilenia —
           ta część nie wchodzi do sumy w złotówkach. Dodaj brakującą wymianę.
         </p>
       )}
-      <Accordion.Content className="overflow-hidden pb-4">
-        <div className="flex flex-wrap gap-2 py-3">
-          <button className={SMALL_BUTTON_CLASS} onClick={() => onOpening(wallet)}>
-            Saldo otwarcia
-          </button>
-          {canConvert && (
-            <button className={SMALL_BUTTON_CLASS} onClick={() => onConvert(wallet)}>
-              Wymień na inną walutę
-            </button>
-          )}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 overflow-x-auto">
+          <WalletHistory wallet={wallet} />
         </div>
-        <WalletHistory wallet={wallet} />
-      </Accordion.Content>
-    </Accordion.Item>
+        <div>
+          <ul className="flex flex-col gap-0.5">
+            <WalletAction
+              icon={Scale}
+              label="Rozlicz"
+              helpLabel="Jak działa rozliczenie"
+              onClick={() => onReconcile(wallet)}
+              help={
+                <>
+                  <strong className="text-ink">Przykład:</strong> wypłaciłeś
+                  50 zł z bankomatu, po tygodniu w kieszeni masz 10 zł. Wpisujesz
+                  „zostało 10 zł” — aplikacja wie, że wydałeś 40 zł, a Ty z
+                  grubsza mówisz na co, np. 30 zł jedzenie i 10 zł transport.
+                </>
+              }
+            />
+            <WalletAction
+              icon={ArrowDownToLine}
+              label="Saldo otwarcia"
+              helpLabel="Czym jest saldo otwarcia"
+              onClick={() => onOpening(wallet)}
+              help={
+                <>
+                  Punkt startowy, gdy wymiany nie ma w żadnym wyciągu.{" "}
+                  <strong className="text-ink">Przykład:</strong> masz w
+                  szufladzie 100 € kupione kiedyś za około 430 zł — wpisujesz
+                  100 € i 430 zł.
+                </>
+              }
+            />
+            {canConvert && (
+              <WalletAction
+                icon={ArrowLeftRight}
+                label="Wymień na inną walutę"
+                helpLabel="Jak działa wymiana między portfelami"
+                onClick={() => onConvert(wallet)}
+                help={
+                  <>
+                    <strong className="text-ink">Przykład:</strong> wymieniasz
+                    10 € na 110 dirhamów. Te 10 € kosztowało Cię 43,72 zł, więc
+                    110 dirhamów też kosztuje 43,72 zł — nowych złotówek nie
+                    wydałeś. Obiad za 55 dirhamów liczy się potem jako 21,86 zł.
+                  </>
+                }
+              />
+            )}
+            <li className="flex pr-7">
+              <button
+                className={`${ACTION_ROW_CLASS} text-muted hover:bg-danger/10! hover:text-danger!`}
+                onClick={() => onDelete(wallet)}
+              >
+                <Trash2 size={16} className="shrink-0" />
+                Usuń portfel
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -596,21 +718,32 @@ export default function WalletsPage({
   const [reconciling, setReconciling] = useState<Wallet | null>(null);
   const [converting, setConverting] = useState<Wallet | null>(null);
   const [opening, setOpening] = useState<Wallet | null>(null);
-  const [expanded, setExpanded] = useState<string[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const action = useAction(() => {
     setRemoving(null);
     onChanged();
   });
   const wallets = data?.wallets ?? [];
+  const selected =
+    wallets.find((wallet) => wallet.id === selectedId) ?? wallets[0];
   return (
-    <div className="mx-auto max-w-3xl">
+    <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <h1>Portfele</h1>
           <HelpPopover label="Czym jest portfel">
-            Portfel pamięta, ile masz w kieszeni i ile Cię to kosztowało. Dla
-            waluty obcej daje kurs z Twojej wymiany, a dla gotówki — odpowiedź
-            na pytanie, na co właściwie poszła.
+            <div className="flex flex-col gap-3 [&_strong]:text-ink">
+              <p>
+                Bank widzi, że wymieniłeś złotówki na euro albo wypłaciłeś
+                gotówkę. Nie widzi, na co potem je wydałeś. Portfel śledzi te
+                pieniądze dalej.
+              </p>
+              <p>
+                <strong>Przykład:</strong> wymieniasz 43,72 zł na 10 €. Portfel
+                zapamiętuje, że 1 € kosztował Cię 4,372 zł. Kawa za 4 € liczy
+                się potem w podsumowaniu jako 17,49 zł.
+              </p>
+            </div>
           </HelpPopover>
         </div>
         <button className={BUTTON_CLASS} onClick={() => setCreating(true)}>
@@ -619,42 +752,37 @@ export default function WalletsPage({
         </button>
       </div>
       <Notice error={error || action.error} notice={action.notice} />
-      <section className="border-t border-line">
-        {wallets.length > 0 && (
-          <div className="hidden grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] gap-4 border-b border-line py-3 text-xs font-semibold tracking-wide text-muted uppercase sm:grid">
-            <span>Portfel</span>
-            <span>Saldo</span>
-            <span>Średni koszt</span>
-            <span className="text-right">Wartość</span>
-            <span />
+      {!wallets.length && !error && (
+        <div className="card flex min-h-48 flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
+          <h2>{loading ? "Wczytuję…" : "Brak portfeli"}</h2>
+          {!loading && (
+            <p>Załóż portfel na gotówkę w kieszeni albo na walutę z wymiany.</p>
+          )}
+        </div>
+      )}
+      {selected && (
+        <>
+          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-4">
+            {wallets.map((wallet) => (
+              <WalletTile
+                key={wallet.id}
+                wallet={wallet}
+                selected={wallet.id === selected.id}
+                onSelect={() => setSelectedId(wallet.id)}
+              />
+            ))}
           </div>
-        )}
-        <Accordion.Root
-          type="multiple"
-          value={expanded}
-          onValueChange={setExpanded}
-        >
-          {wallets.map((wallet) => (
-            <WalletRow
-              key={wallet.id}
-              wallet={wallet}
-              canConvert={wallets.length > 1 && Number(wallet.balance) > 0}
-              onDelete={setRemoving}
-              onReconcile={setReconciling}
-              onConvert={setConverting}
-              onOpening={setOpening}
-            />
-          ))}
-        </Accordion.Root>
-        {!wallets.length && !error && (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
-            <h2>{loading ? "Wczytuję…" : "Brak portfeli"}</h2>
-            {!loading && (
-              <p>Załóż portfel na gotówkę w kieszeni albo na walutę z wymiany.</p>
-            )}
-          </div>
-        )}
-      </section>
+          <WalletDetail
+            key={selected.id}
+            wallet={selected}
+            canConvert={wallets.length > 1 && Number(selected.balance) > 0}
+            onDelete={setRemoving}
+            onReconcile={setReconciling}
+            onConvert={setConverting}
+            onOpening={setOpening}
+          />
+        </>
+      )}
       {creating && (
         <NewWalletForm
           accounts={accounts}
@@ -730,6 +858,6 @@ export default function WalletsPage({
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
