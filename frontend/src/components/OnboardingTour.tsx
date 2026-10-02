@@ -3,8 +3,13 @@ import { useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Banknote,
+  ChevronDown,
   Info,
+  Link2,
   ListChecks,
+  Sparkles,
+  Undo2,
   Upload,
   X,
 } from "lucide-react";
@@ -13,9 +18,9 @@ function WelcomeIllustration() {
   return (
     <div className="grid grid-cols-3 gap-2">
       {[
-        { label: "Saldo", value: "6 240 zł", tone: "text-success" },
-        { label: "Wydatki", value: "3 180 zł", tone: "text-danger" },
-        { label: "Wpływy", value: "9 420 zł", tone: "text-accent" },
+        { label: "Wydatki", value: "3 180 zł", tone: "text-ink" },
+        { label: "Przychody", value: "9 420 zł", tone: "text-ink" },
+        { label: "Bilans", value: "+6 240 zł", tone: "text-success" },
       ].map((tile) => (
         <div
           key={tile.label}
@@ -48,7 +53,7 @@ function ClassificationIllustration() {
   return (
     <div className="flex flex-col gap-2">
       {[
-        { name: "Żabka", tag: "Jedzenie", color: "bg-amber-400" },
+        { name: "Żabka", tag: "Zakupy spożywcze", color: "bg-amber-400" },
         { name: "Netflix", tag: "Rozrywka", color: "bg-violet-400" },
       ].map((row) => (
         <div
@@ -72,47 +77,109 @@ function ClassificationIllustration() {
   );
 }
 
-function HelpIllustration() {
+function WalletIllustration() {
   return (
-    <div className="rounded-lg border border-line bg-surface px-4 py-5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm font-semibold text-ink">Folder danych</span>
-        <span className="grid size-5 place-items-center rounded-full bg-accent-soft text-accent ring-4 ring-accent/15">
-          <Info size={12} />
-        </span>
+    <div className="flex flex-col gap-2 text-xs">
+      {[
+        { label: "Wypłata z bankomatu", value: "+200,00 zł" },
+        { label: "Rozlicz: zostało", value: "60,00 zł" },
+      ].map((row) => (
+        <div
+          key={row.label}
+          className="flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-2.5"
+        >
+          <span className="text-muted">{row.label}</span>
+          <span className="font-medium tabular-nums text-ink">{row.value}</span>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 self-start rounded-lg bg-accent-soft px-2.5 py-1 text-[10px] font-medium text-accent">
+        <Banknote size={12} />
+        wydane 140,00 zł — rozdzielasz na kategorie
       </div>
-      <div className="mt-2 h-2 w-40 max-w-full rounded-full bg-surface-muted" />
-      <div className="mt-1.5 h-2 w-28 max-w-full rounded-full bg-surface-muted" />
     </div>
+  );
+}
+
+function SharedIllustration() {
+  return (
+    <div className="rounded-lg border border-line bg-surface px-3 py-3 text-xs">
+      {[
+        { label: "Bilety na koncert", value: "−240,00 zł", tone: "text-ink" },
+        { label: "BLIK od Kasi", value: "+120,00 zł", tone: "text-success" },
+      ].map((row) => (
+        <div key={row.label} className="flex justify-between py-1">
+          <span className="text-muted">{row.label}</span>
+          <span className={`tabular-nums ${row.tone}`}>{row.value}</span>
+        </div>
+      ))}
+      <div className="mt-2 flex items-center justify-between border-t border-line pt-2 font-medium text-ink">
+        <span className="flex items-center gap-1.5">
+          <Link2 size={12} className="text-accent" /> Twój koszt
+        </span>
+        <span className="tabular-nums">120,00 zł</span>
+      </div>
+    </div>
+  );
+}
+
+function SignsIllustration() {
+  return (
+    <dl className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 rounded-lg border border-line bg-surface px-4 py-3 text-xs text-muted [&_dt]:flex [&_dt]:justify-center [&_dt]:text-accent">
+      <dt>
+        <Info size={14} />
+      </dt>
+      <dd>wyjaśnienie, jak coś działa</dd>
+      <dt>
+        <Sparkles size={14} />
+      </dt>
+      <dd>podpowiedź AI</dd>
+      <dt>
+        <ChevronDown size={14} />
+      </dt>
+      <dd>kliknij, żeby zobaczyć więcej</dd>
+      <dt>
+        <Undo2 size={14} />
+      </dt>
+      <dd>„Cofnij” po każdej zmianie</dd>
+    </dl>
   );
 }
 
 const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
   {
     title: "Twoje finanse, lokalnie",
-    body: "Aplikacja liczy podsumowania i wykresy z wyciągów, które sam wgrywasz. Dane zostają na tym komputerze.",
+    body: "Wgrywasz wyciągi z banku, a aplikacja liczy, na co idą pieniądze. Wszystko zostaje na tym komputerze.",
     illustration: <WelcomeIllustration />,
   },
   {
-    title: "Wgraj wyciąg z banku",
-    body: "Na stronie Import przeciągasz plik CSV lub PDF, a bank rozpoznawany jest automatycznie. Transakcje trafiają od razu do rejestru.",
+    title: "Wgraj wyciąg",
+    body: "Na stronie Import przeciągnij plik CSV lub PDF. Bank rozpozna się sam, a ten sam plik możesz wgrać ponownie bez duplikatów.",
     illustration: <ImportIllustration />,
   },
   {
-    title: "Kategorie same się dopasują",
-    body: "Znane sprzedawców klasyfikacja przypisuje automatycznie na podstawie reguł. Resztę poprawiasz ręcznie, a aplikacja się tego uczy.",
+    title: "Kategorie",
+    body: "Znanych sprzedawców aplikacja przypisze sama. Resztę zatwierdzasz w „Do klasyfikacji” — raz powiesz „Żabka → Zakupy spożywcze” i następnym razem nie zapyta.",
     illustration: <ClassificationIllustration />,
   },
   {
-    title: "Masz wątpliwości? Szukaj ikonki pomocy",
-    body: "Przy trudniejszych miejscach, np. na stronie Import, mała okrągła ikonka ze znakiem informacji otwiera krótkie wyjaśnienie danego elementu.",
-    illustration: <HelpIllustration />,
+    title: "Gotówka i waluty",
+    body: "Wypłaciłeś 200 zł z bankomatu? Bank nie wie, na co poszły. Załóż portfel „Gotówka”, a po tygodniu w „Rozlicz” wpisz, ile zostało — różnica to Twoje wydatki.",
+    illustration: <WalletIllustration />,
+  },
+  {
+    title: "Wspólne wydatki",
+    body: "Zapłaciłeś 240 zł za bilety, a Kasia oddała 120 zł BLIK-iem? Połącz obie transakcje w grupę — w podsumowaniu zostanie 120 zł, czyli Twój prawdziwy koszt.",
+    illustration: <SharedIllustration />,
+  },
+  {
+    title: "Znaki w aplikacji",
+    body: "Te znaki spotkasz na każdej stronie.",
+    illustration: <SignsIllustration />,
   },
 ];
 
 export default function OnboardingTour({ onClose }: { onClose: () => void }) {
   const [index, setIndex] = useState(0);
-  const step = steps[index];
   const last = index === steps.length - 1;
   return (
     <Dialog.Root
@@ -135,13 +202,29 @@ export default function OnboardingTour({ onClose }: { onClose: () => void }) {
             <X size={18} />
           </Dialog.Close>
           <div className="p-6 pt-7 sm:p-7">
-            <Dialog.Title className="pr-8 text-lg font-semibold">
-              {step.title}
-            </Dialog.Title>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              {step.body}
-            </p>
-            <div className="mt-5">{step.illustration}</div>
+            {/* Every step sits in the same grid cell, so the dialog takes the tallest step's
+                height and the buttons below stay put while clicking through. */}
+            <div className="grid [&>*]:col-start-1 [&>*]:row-start-1">
+              {steps.map((item, itemIndex) => (
+                <div
+                  key={item.title}
+                  className={itemIndex === index ? "" : "invisible"}
+                  aria-hidden={itemIndex !== index}
+                >
+                  {itemIndex === index ? (
+                    <Dialog.Title className="pr-8 text-lg font-semibold">
+                      {item.title}
+                    </Dialog.Title>
+                  ) : (
+                    <p className="pr-8 text-lg font-semibold">{item.title}</p>
+                  )}
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    {item.body}
+                  </p>
+                  <div className="mt-5">{item.illustration}</div>
+                </div>
+              ))}
+            </div>
             <div className="mt-7 flex items-center justify-between gap-4">
               <div
                 className="flex gap-1.5"

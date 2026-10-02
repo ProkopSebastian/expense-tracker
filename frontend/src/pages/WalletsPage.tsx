@@ -754,10 +754,22 @@ export default function WalletsPage({
         onUndo={action.undo}
       />
       {!wallets.length && !error && (
-        <div className="card flex min-h-48 flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
-          <h2>{loading ? "Wczytuję…" : "Brak portfeli"}</h2>
-          {!loading && (
-            <p>Załóż portfel na gotówkę w kieszeni albo na walutę z wymiany.</p>
+        <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">
+          {loading ? (
+            <h2>Wczytuję…</h2>
+          ) : (
+            <>
+              <h2 className="text-ink">Gotówka i waluty</h2>
+              <p className="max-w-md leading-relaxed">
+                Wypłaciłeś 200 zł z bankomatu? Bank nie wie, na co poszły. Załóż
+                portfel „Gotówka”, a po tygodniu w „Rozlicz” wpisz, ile zostało
+                — różnica to Twoje wydatki. Tak samo z walutą po wymianie.
+              </p>
+              <button className="btn-primary" onClick={() => setCreating(true)}>
+                <Plus size={17} />
+                Nowy portfel
+              </button>
+            </>
           )}
         </div>
       )}
