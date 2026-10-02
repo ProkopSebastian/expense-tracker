@@ -477,14 +477,7 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
         </p>
       )}
       {events.length > 0 && (
-        <table className="w-full table-fixed text-sm [&_td]:border-t [&_td]:border-line/40 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:pr-4 [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-normal [&_th]:text-muted">
-          <colgroup>
-            <col className="w-28" />
-            <col />
-            <col className="w-44" />
-            <col className="w-32" />
-            <col className="w-32" />
-          </colgroup>
+        <table className="w-full text-sm [&_td]:border-t [&_td]:border-line/40 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:pr-4 [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-normal [&_th]:whitespace-nowrap [&_th]:text-muted [&_td:not(:nth-child(2))]:whitespace-nowrap">
           <thead>
             <tr>
               <th>Data</th>
@@ -500,7 +493,7 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
                 <td className="text-muted tabular-nums">
                   {event.date.split("-").reverse().join(".")}
                 </td>
-                <td className="truncate">{event.description}</td>
+                <td className="w-full">{event.description}</td>
                 <td className="text-muted">
                   {EVENT_LABELS[event.kind]}
                   {event.kind === "topup" && event.rate && (
