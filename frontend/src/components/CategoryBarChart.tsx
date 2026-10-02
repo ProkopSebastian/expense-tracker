@@ -155,6 +155,7 @@ export default function CategoryBarChart({
       },
       yAxis: {
         type: "value",
+        animation: false,
         axisLabel: {
           color: muted,
           formatter: (value: number) => money(value, currency),
