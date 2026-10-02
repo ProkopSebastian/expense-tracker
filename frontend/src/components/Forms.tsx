@@ -150,11 +150,17 @@ export function CategorySelect({
   value,
   onChange,
   label = "Kategoria",
+  inline = false,
+  remember,
+  onRememberChange,
 }: {
   categories: Category[];
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  inline?: boolean;
+  remember?: boolean;
+  onRememberChange?: (remember: boolean) => void;
 }) {
   const [localCategories, setLocalCategories] = useState(categories);
   useEffect(() => setLocalCategories(categories), [categories]);
@@ -265,7 +271,7 @@ export function CategorySelect({
         <button
           type="button"
           aria-label={label}
-          className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left text-sm text-ink transition hover:border-accent/40 data-[state=open]:border-accent"
+          className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm text-ink transition data-[state=open]:border-accent ${inline ? "border-transparent bg-transparent hover:border-line hover:bg-surface [&>svg:last-child]:opacity-0 hover:[&>svg:last-child]:opacity-100 data-[state=open]:[&>svg:last-child]:opacity-100" : "border-line bg-surface hover:border-accent/40"}`}
         >
           <CategoryIcon
             categoryKey={value}
@@ -531,6 +537,16 @@ export function CategorySelect({
                   </button>
                 )}
               </div>
+              {onRememberChange && (
+                <label className="flex items-center gap-2 border-t border-line px-4 py-3 text-sm text-muted">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => onRememberChange(event.target.checked)}
+                  />
+                  Zapamiętaj dla sprzedawcy
+                </label>
+              )}
             </>
           )}
         </Popover.Content>

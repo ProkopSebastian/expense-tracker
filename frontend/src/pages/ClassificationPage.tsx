@@ -1,10 +1,11 @@
 import { useCallback, useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Sparkles, Check, LoaderCircle, Search } from "lucide-react";
+import { Sparkles, Check, ChevronDown, Link2, LoaderCircle, Search, X } from "lucide-react";
 import type { Category, ClassificationRow, Relation } from "../domain";
 import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
+import HelpPopover from "../components/HelpPopover";
 
 const CLASSIFICATION_PAGE_SIZE = 25;
 
@@ -39,6 +40,15 @@ function StatBadge({ label, value }: { label: string; value: number }) {
   );
 }
 
+const ITEM_COLUMNS =
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(12rem,1.3fr)_5rem] lg:gap-x-6";
+const APPROVE_BUTTON_CLASS =
+  "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent hover:text-white";
+const ICON_APPROVE_CLASS =
+  "inline-grid size-8 place-items-center rounded-lg text-accent transition hover:bg-accent hover:text-white disabled:text-muted disabled:hover:bg-transparent";
+const REJECT_BUTTON_CLASS =
+  "inline-grid size-8 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger";
+
 function ClassificationItem({
   row,
   categories,
@@ -51,92 +61,88 @@ function ClassificationItem({
   const [category, setCategory] = useState(row.category_key ?? ""),
     [remember, setRemember] = useState(row.remember);
   const action = useAction(onChanged);
-  const amountClassName = {
-    expense: "text-danger",
-    income: "text-success",
-    mixed: "text-info",
-  }[transactionDirection(row.totals)];
+  const income = transactionDirection(row.totals) === "income";
   const amount = Object.entries(row.totals)
     .map(([currency, total]) => formatSignedAmount(Number(total), currency))
     .join(" / ");
   return (
-    <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 border-b border-line py-4 lg:grid-cols-[minmax(0,1fr)_minmax(130px,160px)_minmax(180px,220px)_auto] lg:items-center lg:gap-5">
+    <article className={`${ITEM_COLUMNS} py-3`}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <strong className="text-sm font-medium leading-relaxed wrap-anywhere">
             {row.description}
           </strong>
           {row.suggestion_id && (
-            <span className="text-xs whitespace-nowrap text-muted">
+            <span className="flex items-center text-xs whitespace-nowrap text-muted">
               AI
               {row.confidence !== null
                 ? ` · ${Math.round(row.confidence * 100)}%`
                 : ""}
+              {row.rationale && (
+                <HelpPopover label="Dlaczego ta kategoria?">
+                  {row.rationale}
+                </HelpPopover>
+              )}
             </span>
           )}
         </div>
-        <div className="mt-1 text-xs leading-relaxed text-muted">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs leading-relaxed text-muted">
           {row.date}
-          {row.count > 1 ? ` · ${row.count} transakcje` : ""}
+          {row.count > 1 && row.members && (
+            <Popover.Root>
+              <Popover.Trigger className="inline-flex items-center gap-0.5 rounded hover:text-accent">
+                · {row.count} transakcje
+                <ChevronDown size={13} />
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  align="start"
+                  sideOffset={6}
+                  className="z-50 w-64 rounded-xl border border-line bg-surface p-3 text-sm shadow-xl"
+                >
+                  <ul className="space-y-1.5">
+                    {row.members.map((member, index) => (
+                      <li key={index} className="flex justify-between gap-3">
+                        <span className="text-muted">{member.date}</span>
+                        <span className="tabular-nums">
+                          {formatSignedAmount(Number(member.amount), member.currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
+          )}
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
         </div>
-        {row.rationale && (
-          <details className="mt-2 text-xs text-muted">
-            <summary className="w-fit hover:text-accent">
-              Dlaczego ta kategoria?
-            </summary>
-            <p className="mt-2 max-w-xl leading-relaxed">{row.rationale}</p>
-          </details>
-        )}
         <Notice error={action.error} />
       </div>
-      <div className="max-w-40 text-right lg:justify-self-end">
+      <div className="text-right">
         <strong
-          className={`text-base font-semibold tracking-tight tabular-nums wrap-anywhere ${amountClassName}`}
+          className={`text-sm font-semibold tabular-nums wrap-anywhere ${income ? "text-success" : ""}`}
           aria-label={`Kwota transakcji: ${amount}`}
         >
           {amount}
         </strong>
-        {row.count > 1 && row.members && (
-          <details className="mt-1 text-xs text-muted">
-            <summary className="cursor-pointer hover:text-accent">
-              Suma {row.count} transakcji
-            </summary>
-            <ul className="mt-2 space-y-1 text-left">
-              {row.members.map((member, index) => (
-                <li key={index} className="flex justify-between gap-3">
-                  <span>{member.date}</span>
-                  <span className="tabular-nums">
-                    {formatSignedAmount(Number(member.amount), member.currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
       </div>
-      <div className="col-span-2 grid min-w-0 gap-2 lg:col-span-1">
-        <div className="flex min-w-0 items-center gap-2 [&>span]:w-full">
-          <CategorySelect
-            categories={categories}
-            value={category}
-            onChange={setCategory}
-            label={`Kategoria ${row.description}`}
-          />
-        </div>
-        <label className="flex items-center gap-2 text-xs text-muted">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          Zapamiętaj dla sprzedawcy
-        </label>
+      <div className="col-span-2 flex min-w-0 lg:col-span-1 [&>span]:w-full">
+        <CategorySelect
+          inline
+          categories={categories}
+          value={category}
+          onChange={setCategory}
+          label={`Kategoria ${row.description}`}
+          remember={remember}
+          onRememberChange={setRemember}
+        />
       </div>
-      <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
+      <div className="col-span-2 flex items-center gap-1 lg:col-span-1 lg:justify-end">
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+          className={ICON_APPROVE_CLASS}
           disabled={!category || action.busy}
+          aria-label={`${row.suggestion_id ? "Zatwierdź" : "Przypisz"} kategorię dla ${row.description}`}
+          title={row.suggestion_id ? "Zatwierdź" : "Przypisz"}
           onClick={() =>
             action.run(() =>
               request(
@@ -149,27 +155,28 @@ function ClassificationItem({
             )
           }
         >
-          <Check size={16} />
-          {row.suggestion_id ? "Zatwierdź" : "Przypisz"}
+          <Check size={17} />
         </button>
         {row.suggestion_id && (
           <button
-            className="rounded-lg px-2 py-2 text-sm text-muted transition hover:bg-accent-soft hover:text-accent"
+            className={REJECT_BUTTON_CLASS}
             disabled={action.busy}
             aria-label={`Odrzuć sugestię dla ${row.description}`}
+            title="Odrzuć"
             onClick={() =>
               action.run(() =>
                 request(`/suggestions/${row.suggestion_id}/reject`, "POST"),
               )
             }
           >
-            Odrzuć
+            <X size={16} />
           </button>
         )}
       </div>
     </article>
   );
 }
+
 function RelationSuggestion({
   relation,
   onChanged,
@@ -179,33 +186,23 @@ function RelationSuggestion({
 }) {
   const action = useAction(onChanged);
   return (
-    <article className="flex flex-col justify-between gap-4 border-b border-line py-5 sm:flex-row sm:items-center">
-      <div>
-        <strong className="text-sm font-medium">{relation.payload.title}</strong>
-        <p className="my-2 max-w-3xl text-sm leading-relaxed text-muted">
-          {relation.payload.rationale}
-        </p>
-        <small className="text-xs text-muted">
-          {relation.payload.transaction_ids.length} transakcje · Twój koszt:{" "}
+    <article className="flex flex-col justify-between gap-3 px-5 py-3 sm:flex-row sm:items-center">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1">
+          <strong className="text-sm font-medium">{relation.payload.title}</strong>
+          <HelpPopover label="Dlaczego to powiązanie?">
+            {relation.payload.rationale}
+          </HelpPopover>
+        </div>
+        <div className="mt-0.5 text-xs text-muted">
+          {relation.payload.transaction_ids.length} transakcje · Twój koszt{" "}
           {money(relation.payload.personal_amount, relation.payload.currency)}
-        </small>
+        </div>
         <Notice error={action.error} />
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1">
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft"
-          disabled={action.busy}
-          onClick={() =>
-            action.run(
-              () => request(`/suggestions/${relation.id}/reject`, "POST"),
-              "Sugestia odrzucona.",
-            )
-          }
-        >
-          Odrzuć
-        </button>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+          className={APPROVE_BUTTON_CLASS}
           disabled={action.busy}
           onClick={() =>
             action.run(
@@ -214,7 +211,22 @@ function RelationSuggestion({
             )
           }
         >
+          <Link2 size={15} />
           Połącz
+        </button>
+        <button
+          className={REJECT_BUTTON_CLASS}
+          disabled={action.busy}
+          aria-label={`Odrzuć powiązanie ${relation.payload.title}`}
+          title="Odrzuć"
+          onClick={() =>
+            action.run(
+              () => request(`/suggestions/${relation.id}/reject`, "POST"),
+              "Sugestia odrzucona.",
+            )
+          }
+        >
+          <X size={16} />
         </button>
       </div>
     </article>
@@ -284,6 +296,19 @@ export default function ClassificationPage({
         .includes(query.toLocaleLowerCase()),
     ) ?? [];
   const suggestions = rows.filter((row) => row.suggestion_id);
+  const confident = suggestions.filter(
+    (row) => (row.confidence ?? 0) >= 0.9 && row.category_key,
+  );
+  const bulk = useAction(onChanged);
+  function approveConfident() {
+    bulk.run(async () => {
+      for (const row of confident)
+        await request(`/suggestions/${row.suggestion_id}/approve`, "POST", {
+          category_key: row.category_key,
+          remember: row.remember,
+        });
+    }, `Zatwierdzono ${confident.length} sugestii.`);
+  }
   const unclassified = rows.filter((row) => !row.suggestion_id);
   const visibleRows = [...suggestions, ...unclassified].slice(
     0,
@@ -303,101 +328,94 @@ export default function ClassificationPage({
   );
   const groups = [
     {
-      title: "Sugestie do zatwierdzenia",
+      title: "Sugestie AI",
       count: suggestions.length,
+      bulk: confident.length > 0,
       rows: visibleRows.filter((row) => row.suggestion_id),
     },
     {
       title: "Bez kategorii",
       count: unclassified.length,
+      bulk: false,
       rows: visibleRows.filter((row) => !row.suggestion_id),
     },
   ];
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1>Do klasyfikacji</h1>
-        <span
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted"
-          role="status"
-        >
-          {loading && !data ? (
-            <>
-              <LoaderCircle
-                size={14}
-                className="animate-spin motion-reduce:animate-none"
-              />
-              Wczytuję klasyfikacje…
-            </>
-          ) : (
-            `${(data?.rows.length ?? 0) + (data?.relations.length ?? 0)} do przejrzenia`
-          )}
-        </span>
+        <div className="flex items-baseline gap-3">
+          <h1>Do klasyfikacji</h1>
+          <span className="text-sm text-muted" role="status">
+            {loading && !data
+              ? "Wczytuję…"
+              : (data?.rows.length ?? 0) + (data?.relations.length ?? 0)}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex w-full items-center sm:w-64 gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
+            <Search size={16} />
+            <input
+              aria-label="Szukaj do klasyfikacji"
+              placeholder="Szukaj sprzedawcy"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setVisibleRowsCount(CLASSIFICATION_PAGE_SIZE);
+              }}
+            />
+          </label>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+            disabled={
+              !aiEnabled ||
+              action.busy ||
+              !data?.rows.some((row) => row.transaction_id)
+            }
+            onClick={() => analyze("merchants")}
+          >
+            <Sparkles size={15} />
+            {action.busy && activeKind === "merchants"
+              ? "Analiza trwa…"
+              : "Zaproponuj kategorie"}
+          </button>
+          <Popover.Root>
+            <Popover.Trigger className="rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft">
+              Narzędzia AI
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                sideOffset={6}
+                className="z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm shadow-xl"
+              >
+                <h2>Znajdź powiązania</h2>
+                <p className="mt-2 leading-relaxed text-muted">
+                  Wspólne zakupy, zwroty i rozliczenia. Propozycje pojawią się
+                  na tej stronie do zatwierdzenia.
+                </p>
+                <Popover.Close asChild>
+                  <button
+                    className="mt-4 rounded-lg border border-line px-3.5 py-2 font-medium transition hover:bg-accent-soft"
+                    disabled={!aiEnabled || action.busy}
+                    onClick={() => analyze("relations")}
+                  >
+                    Wykryj powiązania
+                  </button>
+                </Popover.Close>
+                <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
+                  Analiza obejmuje do 100 najnowszych transakcji poza grupami.
+                </p>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <HelpPopover label="Jak działa AI">
+            {aiEnabled
+              ? "AI analizuje dane dopiero po kliknięciu. Rozpoznawanie może korzystać z internetu."
+              : "Aby korzystać z AI, dodaj klucz API w Ustawieniach."}
+          </HelpPopover>
+        </div>
       </div>
-      <Notice error={error} />
-      <div className="flex flex-wrap items-center gap-3 border-y border-line py-4">
-        <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
-          <Search size={16} />
-          <input
-            aria-label="Szukaj do klasyfikacji"
-            placeholder="Szukaj sprzedawcy"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setVisibleRowsCount(CLASSIFICATION_PAGE_SIZE);
-            }}
-          />
-        </label>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
-          disabled={
-            !aiEnabled ||
-            action.busy ||
-            !data?.rows.some((row) => row.transaction_id)
-          }
-          onClick={() => analyze("merchants")}
-        >
-          <Sparkles size={15} />
-          {action.busy && activeKind === "merchants"
-            ? "Analiza trwa…"
-            : "Zaproponuj kategorie"}
-        </button>
-        <Popover.Root>
-          <Popover.Trigger className="rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft">
-            Narzędzia AI
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              sideOffset={6}
-              className="z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm shadow-xl"
-            >
-              <h2>Znajdź powiązania</h2>
-              <p className="mt-2 leading-relaxed text-muted">
-                Wspólne zakupy, zwroty i rozliczenia. Propozycje pojawią się
-                na tej stronie do zatwierdzenia.
-              </p>
-              <Popover.Close asChild>
-                <button
-                  className="mt-4 rounded-lg border border-line px-3.5 py-2 font-medium transition hover:bg-accent-soft"
-                  disabled={!aiEnabled || action.busy}
-                  onClick={() => analyze("relations")}
-                >
-                  Wykryj powiązania
-                </button>
-              </Popover.Close>
-              <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Analiza obejmuje do 100 najnowszych transakcji poza grupami.
-              </p>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-      </div>
-      <p className="mb-6 mt-2 text-xs leading-relaxed text-muted">
-        {aiEnabled
-          ? "AI analizuje dane dopiero po kliknięciu. Rozpoznawanie może korzystać z internetu."
-          : "Aby korzystać z AI, dodaj klucz API w Ustawieniach."}
-      </p>
+      <Notice error={error || bulk.error} notice={bulk.notice} />
       {activeKind && <Notice error={action.error} notice={notice} />}
       {merchantStats && (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -409,36 +427,66 @@ export default function ClassificationPage({
       )}
       <div className="mb-6">
         {(data?.relations.length ?? 0) > 0 && (
-          <section className="mb-7">
-            <div className="flex items-baseline gap-2 border-b border-line pb-2">
-              <h2>Powiązania do zatwierdzenia</h2>
-              <span className="text-xs text-muted">{data!.relations.length}</span>
+          <section className="card mb-6 overflow-hidden">
+            <h2 className="flex items-baseline gap-2 px-5 pt-4 pb-1 text-base">
+              Powiązania do zatwierdzenia
+              <span className="text-sm font-normal text-muted">
+                {data!.relations.length}
+              </span>
+            </h2>
+            <div className="divide-y divide-line/40">
+              {data!.relations.map((relation) => (
+                <RelationSuggestion
+                  key={relation.id}
+                  relation={relation}
+                  onChanged={onChanged}
+                />
+              ))}
             </div>
-            {data!.relations.map((relation) => (
-              <RelationSuggestion
-                key={relation.id}
-                relation={relation}
-                onChanged={onChanged}
-              />
-            ))}
           </section>
         )}
         {groups.map(
           (group) =>
             group.rows.length > 0 && (
-              <section className="mb-7" key={group.title}>
-                <div className="flex items-baseline gap-2 border-b border-line pb-2">
-                  <h2>{group.title}</h2>
-                  <span className="text-xs text-muted">{group.count}</span>
+              <section className="card mb-6 overflow-hidden" key={group.title}>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-1">
+                  <h2 className="flex items-baseline gap-2 text-base">
+                    {group.title}
+                    <span className="text-sm font-normal text-muted">
+                      {group.count}
+                    </span>
+                  </h2>
+                  {group.bulk && (
+                    <button
+                      className={APPROVE_BUTTON_CLASS}
+                      disabled={bulk.busy}
+                      onClick={approveConfident}
+                    >
+                      <Check size={15} />
+                      {bulk.busy
+                        ? "Zatwierdzam…"
+                        : `Zatwierdź pewne (${confident.length})`}
+                    </button>
+                  )}
                 </div>
-                {group.rows.map((row) => (
-                  <ClassificationItem
-                    key={row.key}
-                    row={row}
-                    categories={categories}
-                    onChanged={onChanged}
-                  />
-                ))}
+                <div
+                  className={`${ITEM_COLUMNS} hidden pt-2 pb-1 text-xs text-muted lg:grid`}
+                >
+                  <span>Sprzedawca</span>
+                  <span className="text-right">Kwota</span>
+                  <span>Kategoria</span>
+                  <span />
+                </div>
+                <div className="divide-y divide-line/40">
+                  {group.rows.map((row) => (
+                    <ClassificationItem
+                      key={row.key}
+                      row={row}
+                      categories={categories}
+                      onChanged={onChanged}
+                    />
+                  ))}
+                </div>
               </section>
             ),
         )}
