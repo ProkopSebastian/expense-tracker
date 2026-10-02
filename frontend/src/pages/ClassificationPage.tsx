@@ -1,7 +1,7 @@
 import { useCallback, useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, LoaderCircle, Search } from "lucide-react";
-import type { Category, ClassificationRow } from "../domain";
+import type { Category, ClassificationRow, Relation } from "../domain";
 import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
@@ -170,6 +170,57 @@ function ClassificationItem({
     </article>
   );
 }
+function RelationSuggestion({
+  relation,
+  onChanged,
+}: {
+  relation: Relation;
+  onChanged: () => void;
+}) {
+  const action = useAction(onChanged);
+  return (
+    <article className="flex flex-col justify-between gap-4 border-b border-line py-5 sm:flex-row sm:items-center">
+      <div>
+        <strong className="text-sm font-medium">{relation.payload.title}</strong>
+        <p className="my-2 max-w-3xl text-sm leading-relaxed text-muted">
+          {relation.payload.rationale}
+        </p>
+        <small className="text-xs text-muted">
+          {relation.payload.transaction_ids.length} transakcje · Twój koszt:{" "}
+          {money(relation.payload.personal_amount, relation.payload.currency)}
+        </small>
+        <Notice error={action.error} />
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <button
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft"
+          disabled={action.busy}
+          onClick={() =>
+            action.run(
+              () => request(`/suggestions/${relation.id}/reject`, "POST"),
+              "Sugestia odrzucona.",
+            )
+          }
+        >
+          Odrzuć
+        </button>
+        <button
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+          disabled={action.busy}
+          onClick={() =>
+            action.run(
+              () => request(`/suggestions/${relation.id}/approve`, "POST"),
+              "Grupa utworzona.",
+            )
+          }
+        >
+          Połącz
+        </button>
+      </div>
+    </article>
+  );
+}
+
 export default function ClassificationPage({
   categories,
   aiEnabled,
@@ -181,7 +232,7 @@ export default function ClassificationPage({
   revision: number;
   onChanged: () => void;
 }) {
-  const { data, error, loading } = useResource<{ rows: ClassificationRow[] }>(
+  const { data, error, loading } = useResource<{ rows: ClassificationRow[]; relations: Relation[] }>(
     "/classification",
     revision,
   );
@@ -221,7 +272,7 @@ export default function ClassificationPage({
         });
       } else {
         setNotice(
-          `Nowe sugestie powiązań: ${result.saved}. Znajdziesz je w Historii transakcji.`,
+          `Nowe sugestie powiązań: ${result.saved}.`,
         );
       }
     }, "Analiza zakończona.");
@@ -279,7 +330,7 @@ export default function ClassificationPage({
               Wczytuję klasyfikacje…
             </>
           ) : (
-            `${data?.rows.length ?? 0} do przejrzenia`
+            `${(data?.rows.length ?? 0) + (data?.relations.length ?? 0)} do przejrzenia`
           )}
         </span>
       </div>
@@ -323,8 +374,8 @@ export default function ClassificationPage({
             >
               <h2>Znajdź powiązania</h2>
               <p className="mt-2 leading-relaxed text-muted">
-                Wspólne zakupy, zwroty i rozliczenia. Wyniki znajdziesz w
-                Historii transakcji.
+                Wspólne zakupy, zwroty i rozliczenia. Propozycje pojawią się
+                na tej stronie do zatwierdzenia.
               </p>
               <Popover.Close asChild>
                 <button
@@ -357,6 +408,21 @@ export default function ClassificationPage({
         </div>
       )}
       <div className="mb-6">
+        {(data?.relations.length ?? 0) > 0 && (
+          <section className="mb-7">
+            <div className="flex items-baseline gap-2 border-b border-line pb-2">
+              <h2>Powiązania do zatwierdzenia</h2>
+              <span className="text-xs text-muted">{data!.relations.length}</span>
+            </div>
+            {data!.relations.map((relation) => (
+              <RelationSuggestion
+                key={relation.id}
+                relation={relation}
+                onChanged={onChanged}
+              />
+            ))}
+          </section>
+        )}
         {groups.map(
           (group) =>
             group.rows.length > 0 && (
@@ -376,7 +442,7 @@ export default function ClassificationPage({
               </section>
             ),
         )}
-        {!rows.length && !error && (
+        {!rows.length && !data?.relations.length && !error && (
           <div className="flex min-h-48 flex-col items-center justify-center gap-4 py-8 text-center text-sm text-muted">
             {loading ? (
               <LoaderCircle

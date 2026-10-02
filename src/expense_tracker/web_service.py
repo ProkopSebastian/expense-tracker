@@ -218,7 +218,6 @@ def ledger_blocks(
         "total": len(filtered),
         "currencies": sorted({row["currency"] for row in raw}),
         "cases": cases,
-        "relations": [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"],
     }
 
 

@@ -205,7 +205,10 @@ def wallet_history(wallet_id: int, db: DB):
 
 @router.get("/classification")
 def classification(db: DB):
-    return {"rows": service.classification_rows(db)}
+    return {
+        "rows": service.classification_rows(db),
+        "relations": [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"],
+    }
 
 
 @router.post("/suggestions/{sid}/approve")

@@ -58,7 +58,6 @@ export interface LedgerData {
     personal_amount: string;
     currency: string;
   }[];
-  relations: Relation[];
 }
 export interface ClassificationRow {
   key: string;
