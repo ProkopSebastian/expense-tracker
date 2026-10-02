@@ -4,7 +4,37 @@ permissions:
   contents: read
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          python-version: '3.14'
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+
+  frontend:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '10'
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend build
+
+  # Packaging breaks in ways the unit tests cannot see, so build and start the real binary on
+  # every push. The oldest supported runner keeps the binary's glibc requirement low.
+  linux-package:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.1.0
@@ -16,8 +46,32 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: '10'
-      - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run pytest -q
-      - run: pnpm --dir frontend install --frozen-lockfile
-      - run: pnpm --dir frontend build
+      - run: uv sync --group desktop --frozen
+      - run: scripts/build_linux.sh
+      - run: sudo apt-get update && sudo apt-get install -y rpm ruby-dev && sudo gem install --no-document fpm
+      - run: scripts/package_linux.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages
+          path: |
+            dist/*.deb
+            dist/*.rpm
+
+  install-check:
+    needs: linux-package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: fedora:latest
+            install: dnf install -y ./wydatki-*.rpm
+          - image: ubuntu:24.04
+            install: apt-get update && apt-get install -y ./wydatki_*.deb
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-packages
+      - run: ${{ matrix.install }}
+      - run: wydatki --smoke-test
