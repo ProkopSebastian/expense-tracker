@@ -333,13 +333,17 @@ export default function ClassificationPage({
   );
   const bulk = useAction(onChanged);
   function approveConfident() {
-    bulk.run(async () => {
-      for (const row of confident)
-        await request(`/suggestions/${row.suggestion_id}/approve`, "POST", {
-          category_key: row.category_key,
-          remember: row.remember,
-        });
-    }, `Zatwierdzono ${confident.length} sugestii.`);
+    bulk.run(
+      () =>
+        request("/suggestions/approve-all", "POST", {
+          items: confident.map((row) => ({
+            id: row.suggestion_id,
+            category_key: row.category_key,
+            remember: row.remember,
+          })),
+        }),
+      `Zatwierdzono ${confident.length} sugestii.`,
+    );
   }
   const unclassified = rows.filter((row) => !row.suggestion_id);
   const visibleRows = [...suggestions, ...unclassified].slice(
@@ -447,7 +451,12 @@ export default function ClassificationPage({
           </HelpPopover>
         </div>
       </div>
-      <Notice error={error || bulk.error} notice={bulk.notice} />
+      <Notice
+        error={error || bulk.error}
+        notice={bulk.notice}
+        undoLabel={bulk.undoLabel}
+        onUndo={bulk.undo}
+      />
       {activeKind && <Notice error={action.error} notice={notice} />}
       {merchantStats && (
         <div className="mb-6 flex flex-wrap gap-2">

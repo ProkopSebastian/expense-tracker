@@ -25,6 +25,14 @@ class Decision(BaseModel):
     remember: bool = False
 
 
+class SuggestionDecision(Decision):
+    id: int
+
+
+class BatchApproval(BaseModel):
+    items: list[SuggestionDecision]
+
+
 class ManualEntry(BaseModel):
     account: Text
     booking_date: date

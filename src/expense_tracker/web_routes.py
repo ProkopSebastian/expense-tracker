@@ -20,6 +20,7 @@ from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
 from .web_models import (
+    BatchApproval,
     CategoryEntry,
     Decision,
     GroupEntry,
@@ -209,6 +210,14 @@ def classification(db: DB):
         "rows": service.classification_rows(db),
         "relations": service.relation_suggestions(db),
     }
+
+
+# One request, so the backup taken before it lets a single undo revert the whole batch.
+@router.post("/suggestions/approve-all")
+def approve_all(entry: BatchApproval, db: DB):
+    for item in entry.items:
+        approve(item.id, db, item)
+    return {"message": f"Zatwierdzono {len(entry.items)} sugestii."}
 
 
 @router.post("/suggestions/{sid}/approve")
