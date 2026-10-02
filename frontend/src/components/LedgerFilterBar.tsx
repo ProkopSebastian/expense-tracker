@@ -70,7 +70,7 @@ export default function LedgerFilterBar({
   currencies: string[];
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-line py-4">
+    <div className="mb-4 flex flex-wrap items-center gap-3">
       <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
         <Search size={17} />
         <input

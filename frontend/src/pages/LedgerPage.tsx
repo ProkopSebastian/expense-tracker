@@ -10,7 +10,6 @@ import {
   SellWalletForm,
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
-import LedgerLinksPanel from "../components/LedgerLinksPanel";
 import LedgerTable from "../components/LedgerTable";
 import { EditCategoryModal, DissolveGroupModal } from "../components/LedgerModals";
 
@@ -28,14 +27,6 @@ export default function LedgerPage({
     [category, setCategory] = useSessionState<string[]>("ledger.category", []),
     [currency, setCurrency] = useSessionState("ledger.currency", "all"),
     [page, setPage] = useSessionState("ledger.page", 1),
-    [linksTab, setLinksTab] = useSessionState<"relations" | "groups">(
-      "ledger.linksTab",
-      "relations",
-    ),
-    [closedMonths, setClosedMonths] = useSessionState<string[]>(
-      "ledger.closedMonths",
-      [],
-    ),
     [selected, setSelected] = useState<number[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
@@ -94,7 +85,7 @@ export default function LedgerPage({
   }
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h1>Historia transakcji</h1>
         <button
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium transition hover:bg-accent-soft"
@@ -105,15 +96,7 @@ export default function LedgerPage({
         </button>
       </div>
       <Notice error={error || action.error} notice={action.notice} />
-      <LedgerLinksPanel
-        relations={data?.relations ?? []}
-        cases={data?.cases ?? []}
-        linksTab={linksTab}
-        onLinksTabChange={setLinksTab}
-        action={action}
-        onDissolve={setDissolve}
-      />
-      <section className="mb-6 border-t border-line">
+      <section className="mb-6">
         <LedgerFilterBar
           query={query}
           onQueryChange={(value) => {
@@ -152,8 +135,6 @@ export default function LedgerPage({
           canSell={canSell}
           onOpenSellModal={() => setModal("sell")}
           months={months}
-          closedMonths={closedMonths}
-          onClosedMonthsChange={setClosedMonths}
           expanded={expanded}
           onExpandedChange={setExpanded}
           onEditRow={(row) => {
