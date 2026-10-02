@@ -44,6 +44,7 @@ export default function App() {
         <Sidebar
           page={page}
           aiEnabled={Boolean(meta?.ai_enabled)}
+          revision={revision}
           onChanged={changed}
           onDataReset={(apiKeyPreserved) => {
             setAppNotice(
