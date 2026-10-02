@@ -1,5 +1,4 @@
 import {
-  Wallet,
   Banknote,
   ChartNoAxesCombined,
   ReceiptText,
@@ -78,14 +77,12 @@ export default function Sidebar({
     <>
       <aside className="sticky top-0 z-30 flex flex-col border-b border-line bg-surface/95 p-4 backdrop-blur-xl md:h-screen md:border-r md:border-b-0 xl:px-5 xl:py-8 [&_nav]:mt-4 [&_nav]:flex [&_nav]:gap-2 md:[&_nav]:grid xl:[&_nav]:mt-10">
         <a
-          className="flex items-center gap-2 text-2xl font-bold tracking-tight max-xl:justify-center md:max-xl:text-[0px]"
+          className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink max-xl:justify-center md:max-xl:text-[0px]"
           href="#summary"
           aria-label="Wydatki — strona główna"
         >
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white">
-            <Wallet size={23} />
-          </span>
-          wydatki<span className="-ml-2 text-accent md:max-xl:hidden">.</span>
+          <img src="/logo.svg" alt="" width={48} height={48} className="size-12 shrink-0" />
+          Wydatki
         </a>
         <nav aria-label="Nawigacja główna">
           {(

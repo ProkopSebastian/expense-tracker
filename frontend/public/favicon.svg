@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="11" fill="#123e35"/><path d="M10 13h19v16H10zM10 13v-3h16v3m-3 7h6v5h-6z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-labelledby="title">
+  <title id="title">Wydatki — portfel</title>
+  <rect width="16" height="16" rx="3.5" fill="#29283F"/>
+  <path d="M4 6V4.5L10 2.5 11 6Z" fill="#DDD4F0"/>
+  <rect x="2" y="6" width="12" height="8" rx="2" fill="#FCF9F2"/>
+  <path d="M3.5 6.5h8" stroke="#29283F" stroke-linecap="round"/>
+  <rect x="10" y="9" width="4" height="3" rx="1" fill="#9380CD"/>
+</svg>

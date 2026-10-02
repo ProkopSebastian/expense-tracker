@@ -18,6 +18,18 @@ fi
 install -d -m 755 "$bin_dir" "$applications_dir" "$icons_dir"
 install -m 755 "$binary" "$bin_dir/Wydatki"
 install -m 644 "$icon" "$icons_dir/wydatki.png"
+for size in 16 32 48 64; do
+  if [[ -f "$package_dir/wydatki-$size.png" ]]; then
+    sized_icons_dir="$data_home/icons/hicolor/${size}x${size}/apps"
+    install -d -m 755 "$sized_icons_dir"
+    install -m 644 "$package_dir/wydatki-$size.png" "$sized_icons_dir/wydatki.png"
+  fi
+done
+if [[ -f "$package_dir/wydatki.svg" ]]; then
+  scalable_icons_dir="$data_home/icons/hicolor/scalable/apps"
+  install -d -m 755 "$scalable_icons_dir"
+  install -m 644 "$package_dir/wydatki.svg" "$scalable_icons_dir/wydatki.svg"
+fi
 
 cat > "$applications_dir/wydatki.desktop" <<EOF
 [Desktop Entry]
