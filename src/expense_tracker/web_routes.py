@@ -207,7 +207,7 @@ def wallet_history(wallet_id: int, db: DB):
 def classification(db: DB):
     return {
         "rows": service.classification_rows(db),
-        "relations": [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"],
+        "relations": service.relation_suggestions(db),
     }
 
 

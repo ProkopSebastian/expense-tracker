@@ -44,6 +44,13 @@ export interface Relation {
     rationale: string;
     transaction_ids: number[];
   };
+  members: {
+    id: number;
+    date: string;
+    description: string;
+    amount: string;
+    currency: string;
+  }[];
 }
 export interface LedgerData {
   blocks: Block[];

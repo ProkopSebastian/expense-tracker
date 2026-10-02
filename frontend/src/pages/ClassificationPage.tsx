@@ -73,17 +73,28 @@ function ClassificationItem({
             {row.description}
           </strong>
           {row.suggestion_id && (
-            <span className="flex items-center text-xs whitespace-nowrap text-muted">
-              AI
-              {row.confidence !== null
-                ? ` · ${Math.round(row.confidence * 100)}%`
-                : ""}
-              {row.rationale && (
-                <HelpPopover label="Dlaczego ta kategoria?">
+            <Popover.Root>
+              <Popover.Trigger
+                className="inline-flex items-center gap-1 rounded text-xs whitespace-nowrap text-muted hover:text-accent disabled:hover:text-muted"
+                aria-label="Dlaczego ta kategoria?"
+                disabled={!row.rationale}
+              >
+                <Sparkles size={13} className="text-accent" />
+                {row.confidence !== null
+                  ? `${Math.round(row.confidence * 100)}%`
+                  : "AI"}
+                {row.rationale && <ChevronDown size={13} />}
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  align="start"
+                  sideOffset={6}
+                  className="z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm leading-relaxed text-muted shadow-xl"
+                >
                   {row.rationale}
-                </HelpPopover>
-              )}
-            </span>
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
           )}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs leading-relaxed text-muted">
@@ -186,18 +197,39 @@ function RelationSuggestion({
 }) {
   const action = useAction(onChanged);
   return (
-    <article className="flex flex-col justify-between gap-3 px-5 py-3 sm:flex-row sm:items-center">
+    <article className="flex flex-col justify-between gap-3 px-5 py-4 sm:flex-row sm:items-start">
       <div className="min-w-0">
-        <div className="flex items-center gap-1">
-          <strong className="text-sm font-medium">{relation.payload.title}</strong>
-          <HelpPopover label="Dlaczego to powiązanie?">
-            {relation.payload.rationale}
-          </HelpPopover>
-        </div>
-        <div className="mt-0.5 text-xs text-muted">
-          {relation.payload.transaction_ids.length} transakcje · Twój koszt{" "}
-          {money(relation.payload.personal_amount, relation.payload.currency)}
-        </div>
+        <strong className="text-sm font-medium">{relation.payload.title}</strong>
+        <ul className="mt-2 space-y-1 text-sm">
+          {relation.members.map((member) => (
+            <li
+              key={member.id}
+              className="grid grid-cols-[5.5rem_minmax(0,16rem)_7rem] justify-start gap-x-4"
+            >
+              <span className="text-muted tabular-nums">
+                {member.date.split("-").reverse().join(".")}
+              </span>
+              <span className="truncate">{member.description}</span>
+              <span
+                className={`text-right tabular-nums ${Number(member.amount) > 0 ? "text-success" : ""}`}
+              >
+                {formatSignedAmount(Number(member.amount), member.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p
+          className="mt-2 flex max-w-2xl gap-2 text-sm leading-relaxed text-muted"
+          title={relation.payload.rationale}
+        >
+          <Sparkles size={14} className="mt-1 shrink-0 text-accent" aria-label="Uzasadnienie AI" />
+          <span className="line-clamp-2">{relation.payload.rationale}</span>
+        </p>
+        <p className="mt-2 text-xs text-muted">
+          {relation.payload.kind === "own_transfer"
+            ? "Nie liczy się do wydatków ani wpływów."
+            : `W podsumowaniu jako jeden wydatek: ${money(relation.payload.personal_amount, relation.payload.currency)}.`}
+        </p>
         <Notice error={action.error} />
       </div>
       <div className="flex shrink-0 items-center gap-1">

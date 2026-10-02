@@ -221,6 +221,36 @@ def ledger_blocks(
     }
 
 
+def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
+    suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"]
+    ids = {int(i) for s in suggestions for i in s["payload"]["transaction_ids"]}
+    by_id = {
+        row["id"]: row
+        for row in db.execute(
+            f"SELECT id, booking_date, amount, currency, description, merchant FROM transactions "
+            f"WHERE id IN ({','.join('?' * len(ids))})",
+            tuple(ids),
+        )
+    } if ids else {}
+    return [
+        {
+            **s,
+            "members": [
+                {
+                    "id": row["id"],
+                    "date": row["booking_date"],
+                    "description": clean_description(str(row["merchant"] or row["description"])),
+                    "amount": row["amount"],
+                    "currency": row["currency"],
+                }
+                for i in s["payload"]["transaction_ids"]
+                if (row := by_id.get(int(i)))
+            ],
+        }
+        for s in suggestions
+    ]
+
+
 def classification_rows(db: sqlite3.Connection) -> list[dict]:
     raw = ledger.transactions(db)
     by_id = {row["id"]: row for row in raw}
