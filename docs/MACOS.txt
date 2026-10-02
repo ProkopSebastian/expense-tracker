@@ -1,0 +1,19 @@
+WYDATKI — pierwsze uruchomienie na Macu
+
+1. Wypakuj ZIP i przeciągnij Wydatki.app do folderu Programy.
+2. Kliknij Wydatki.app dwa razy. macOS zablokuje pierwsze uruchomienie, bo aplikacja
+   nie ma płatnego podpisu Apple — to nie znaczy, że jest szkodliwa.
+3. Odblokuj ją raz:
+   - nowszy macOS: Ustawienia systemowe → Prywatność i ochrona → przewiń w dół →
+     „Otwórz mimo to” przy Wydatki, potem potwierdź;
+   - starszy macOS: kliknij Wydatki.app prawym przyciskiem → Otwórz → Otwórz.
+4. Od teraz aplikacja otwiera się normalnie. Przy każdej nowej wersji odblokuj ją
+   jeszcze raz w ten sam sposób.
+
+Wersja jest dla Maców z procesorem Apple (M1 i nowsze).
+Nie trzeba instalować Pythona ani Node.js.
+
+Dane aplikacji:
+- baza, wyciągi i ustawienia: ~/Library/Application Support/Wydatki
+- log działania: ~/Library/Logs/Wydatki/app.log
+Nową wersję wystarczy podmienić w folderze Programy; dane pozostają bez zmian.

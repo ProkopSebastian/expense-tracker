@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 
 
 def run() -> None:
-    if sys.platform == "win32":
+    if sys.platform in ("win32", "darwin"):
         import webview  # noqa: F401 -- import success proves the bundled GUI backend loads
     previous = Path.cwd()
     with TemporaryDirectory() as directory:
