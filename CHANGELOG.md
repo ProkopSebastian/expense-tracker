@@ -1,3 +1,7 @@
+## v0.4.1 — 02.10.2026
+
+- fix: aplikacja na Linuksie uruchamia się na nowszych dystrybucjach (np. Fedora 44), zamiast zamykać się zaraz po starcie
+
 ## v0.4.0 — 02.10.2026
 
 - feat: portfele na gotówkę i waluty obce — wydatki w euro czy dirhamach liczą się w złotówkach po kursie Twojej wymiany
