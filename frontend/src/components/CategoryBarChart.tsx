@@ -1,5 +1,7 @@
 import { nodeColor } from "../categoryPresentation";
 import { useEffect, useMemo, useRef } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { Ellipsis } from "lucide-react";
 import * as echarts from "echarts/core";
 import { BarChart } from "echarts/charts";
 import { GridComponent, TooltipComponent } from "echarts/components";
@@ -7,11 +9,23 @@ import { SVGRenderer } from "echarts/renderers";
 import type { BreakdownNode } from "../api";
 import { money } from "../api";
 import { themeVar, useThemeSignal } from "../theme";
+import CategoryIcon from "./CategoryIcon";
 
 echarts.use([BarChart, GridComponent, TooltipComponent, SVGRenderer]);
 
 const MAX_BARS = 8;
 const OTHER_KEY = "__other__";
+const ICON_SIZE = 18;
+
+function iconImage(key: string, muted: string) {
+  const icon =
+    key === OTHER_KEY ? (
+      <Ellipsis size={ICON_SIZE} color={muted} />
+    ) : (
+      <CategoryIcon categoryKey={key} size={ICON_SIZE} />
+    );
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderToStaticMarkup(icon))}`;
+}
 
 interface Props {
   nodes: BreakdownNode[];
@@ -118,10 +132,26 @@ export default function CategoryBarChart({
       },
       xAxis: {
         type: "category",
+        // Category count changes on drill-down; animated, the icons slide in from old slots.
+        animation: false,
         data: bars.map((node) => node.label),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { show: false },
+        axisLabel: {
+          interval: 0,
+          margin: 10,
+          formatter: (_: string, index: number) => `{icon${index}|}`,
+          rich: Object.fromEntries(
+            bars.map((node, index) => [
+              `icon${index}`,
+              {
+                width: ICON_SIZE,
+                height: ICON_SIZE,
+                backgroundColor: { image: iconImage(node.key, muted) },
+              },
+            ]),
+          ),
+        },
       },
       yAxis: {
         type: "value",
