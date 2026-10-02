@@ -59,7 +59,7 @@ function RuleRow({
           </button>
           <button
             className="inline-grid size-9 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger"
-            aria-label={`Usuń przypisanie dla ${rule.name}`}
+            aria-label={`Usuń regułę dla ${rule.name}`}
             onClick={() => setRemove(true)}
           >
             <Trash2 size={16} />
@@ -110,7 +110,7 @@ function RuleRow({
       )}
       {remove && (
         <Modal
-          title="Usunąć przypisanie?"
+          title="Usunąć regułę?"
           onClose={() => setRemove(false)}
           busy={action.busy}
         >
@@ -132,7 +132,7 @@ function RuleRow({
                   action.run(() => request(`/rules/${rule.id}`, "DELETE"))
                 }
               >
-                Usuń przypisanie
+                Usuń regułę
               </button>
             </footer>
           </div>
@@ -177,7 +177,7 @@ export default function RulesPage({
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h1>Automatyczne przypisania</h1>
+          <h1>Reguły sprzedawców</h1>
           <span className="text-sm text-muted" role="status">
             {loading && !data ? "Wczytuję…" : (data?.rules.length ?? 0)}
           </span>
@@ -185,7 +185,7 @@ export default function RulesPage({
         <label className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-muted sm:w-72 [&_input]:w-full [&_input]:min-w-0 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0">
           <Search size={16} />
           <input
-            aria-label="Szukaj automatycznych przypisań"
+            aria-label="Szukaj reguł sprzedawców"
             placeholder="Szukaj sprzedawcy"
             value={query}
             onChange={(e) => {
@@ -224,7 +224,7 @@ export default function RulesPage({
                 ? "Wczytuję…"
                 : query
                   ? "Brak wyników"
-                  : "Brak automatycznych przypisań"}
+                  : "Brak reguł sprzedawców"}
             </h2>
             {!loading && !query && (
               <p>Możesz je zapisać podczas klasyfikacji transakcji.</p>
