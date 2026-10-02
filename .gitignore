@@ -37,3 +37,6 @@ node_modules/
 ai-settings.json
 ai-settings.tmp
 appearance.json
+
+# Invented data from scripts/demo_data.py
+demo/

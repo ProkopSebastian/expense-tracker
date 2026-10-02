@@ -17,7 +17,9 @@ Aplikacja do śledzenia wydatków na podstawie wyciągów z banku. Została zapr
 
 ## Podgląd aplikacji
 
-![Podgląd interfejsu Wydatków](docs/preview.png)
+![Wydatki w działaniu: podsumowanie, historia transakcji, portfele i klasyfikacja](docs/demo.gif)
+
+*Nagranie pokazuje wymyślone dane z `scripts/demo_data.py`.*
 
 ## Budowanie wersji Linux
 
@@ -28,3 +30,8 @@ scripts/build_linux.sh
 ```
 
 Wynikiem będzie `dist/Wydatki`. Skrypt wydaniowy na GitHubie używa tego samego mechanizmu i dołącza program, ikonę oraz instalator do paczki.
+
+## Dla deweloperów
+
+* **Dane pokazowe:** `uv run python scripts/demo_data.py` tworzy w `demo/` bazę z wymyślonymi transakcjami, a `uv run uvicorn --factory scripts.demo_data:demo_app --port 8001` uruchamia na niej aplikację. Prawdziwa baza zostaje nietknięta.
+* **Ikony:** `uv run scripts/export_icons.py` generuje ikony aplikacji i favicony z plików SVG.
