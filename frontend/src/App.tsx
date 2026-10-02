@@ -1,10 +1,8 @@
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
-import { ChevronRight } from "lucide-react";
 import { pages, type Page, type Meta } from "./domain";
 import { useResource } from "./hooks";
 import DataPage from "./pages/DataPage";
 import Sidebar from "./components/Sidebar";
-import ThemeToggle from "./components/ThemeToggle";
 import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
 import LedgerPage from "./pages/LedgerPage";
@@ -58,14 +56,6 @@ export default function App() {
           }}
         />
         <main>
-          <header className="flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/60 px-5 text-xs text-muted backdrop-blur md:px-8 lg:px-10 [&>span]:flex [&>span]:items-center [&>span]:gap-3 [&_strong]:font-medium [&_strong]:text-ink">
-            <span>
-              Twoje finanse
-              <ChevronRight size={14} />
-              <strong>{pages[page].title}</strong>
-            </span>
-            <ThemeToggle />
-          </header>
           <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
             <Notice error={error} notice={appNotice} />
             {!meta ? (

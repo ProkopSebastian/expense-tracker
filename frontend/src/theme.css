@@ -299,7 +299,7 @@
     @apply m-0 bg-canvas font-sans text-ink antialiased transition-colors duration-150;
   }
   h1 {
-    @apply text-3xl font-semibold tracking-tight;
+    @apply text-2xl font-semibold tracking-tight;
   }
   h2 {
     @apply text-lg font-semibold tracking-tight;
