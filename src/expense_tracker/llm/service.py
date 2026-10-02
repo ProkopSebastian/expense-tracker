@@ -21,6 +21,7 @@ from ..ledger import (
     rejected_merchant_suggestion_transaction_ids,
     transactions,
 )
+from ..ledger_view import display_title
 from .contracts import (
     MerchantInput,
     TransactionContext,
@@ -73,7 +74,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     payload = [
         MerchantInput(
             transaction_ids=[int(row["id"]) for row in group],
-            merchant=redact_text(merchant_text(group[0])),
+            merchant=redact_text(display_title(group[0])),
             counterparty=redact_text(str(group[0]["counterparty"])) if group[0]["counterparty"] else None,
             operation_types=sorted({str(row["transaction_type"] or "unknown") for row in group}),
             sample_amounts=[float(Decimal(str(row["amount"]))) for row in group[:5]],

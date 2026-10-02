@@ -19,6 +19,20 @@ def visible_counterparty(row: dict[str, object]) -> str:
     return str(counterparty).split("|")[0].strip() or "—"
 
 
+def display_title(row: dict[str, object]) -> str:
+    merchant = str(row["merchant"] or "").strip()
+    description = str(row["description"] or "")
+    counterparty = str(row["counterparty"] or "").split("|")[0].strip()
+    title = merchant or description
+    # Some banks give a transfer no merchant, so the importer stores the recipient there and the
+    # transfer's own title ("Przelew testowy") would vanish behind the name repeated twice.
+    if merchant and counterparty and merchant.casefold() == counterparty.casefold():
+        remainder = description.replace(counterparty, "").strip(" -,·")
+        if remainder:
+            title = remainder
+    return clean_description(title)
+
+
 def _standalone_row(row: dict[str, object]) -> dict[str, object]:
     amount = Decimal(str(row["amount"]))
     real = Decimal(0) if row["category_key"] == "transfer_own" else amount
@@ -29,7 +43,7 @@ def _standalone_row(row: dict[str, object]) -> dict[str, object]:
         "_group_id": f"t{row['id']}",
         "Data": row["booking_date"],
         "Konto": row["account"],
-        "Opis": clean_description(str(row["merchant"] or row["description"])),
+        "Opis": display_title(row),
         "Kontrahent": visible_counterparty(row),
         "Kwota": float(amount),
         "Waluta": row["currency"],

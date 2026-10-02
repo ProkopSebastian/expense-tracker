@@ -22,13 +22,13 @@ TWARDE ZASADY
    wpływów). Nigdy nie przypisuj wpływowi kategorii wydatkowej.
 4. Dla WYDATKÓW (ujemna kwota) wybieraj kategorię z kind="expense" (albo transfer_own — patrz
    punkt 5), zgodną z tym, co faktycznie kupiono.
-5. Przelew do samego siebie (transfer_own, kind="transfer"): rozpoznajesz go, gdy zachodzi
-   COKOLWIEK z poniższych:
-   - pole "counterparty" zawiera to samo imię i nazwisko, co widoczne gdzie indziej jako
-     właściciel rachunku (przelew do/od samego siebie);
-   - opis zawiera słowa: "wypłata", "przelew własny", "oszczędności", "lokata", "IKE", "IKZE",
-     "rachunek oszczędnościowy".
-   W takim wypadku ustaw category_key="transfer_own", confidence >= 0.8 i should_create_rule=true.
+5. Przelew do samego siebie (transfer_own, kind="transfer") rozpoznajesz WYŁĄCZNIE po słowach
+   w opisie: "wypłata", "przelew własny", "oszczędności", "lokata", "IKE", "IKZE",
+   "rachunek oszczędnościowy". W takim wypadku ustaw category_key="transfer_own",
+   confidence >= 0.8 i should_create_rule=true.
+   Nie znasz właściciela rachunku, więc nie zgaduj go. Imię i nazwisko w polu "counterparty"
+   (także gdy powtarza się w "merchant") to zwykły przelew do innej osoby, NIE transfer_own —
+   tak bank zapisuje każdy przelew do znajomego. Oceń go według tytułu (punkt 7).
 6. Wypłata gotówki z bankomatu (cash_withdrawal, kind="expense") — inny przypadek niż punkt 5:
    rozpoznajesz po słowach "bankomat", "ATM", "wypłata gotówki", "wypłata w bankomacie" w opisie
    albo operation_type. To NIE jest transfer_own — gotówka opuszcza rachunki użytkownika i staje
@@ -48,8 +48,10 @@ TWARDE ZASADY
 
 PRZYKŁADY (nie zwracaj ich, to tylko ilustracja rozumowania)
 - merchant="ZABKA WARSZAWA", sample_amounts=[-12.50] -> category_key="groceries", confidence=0.9
-- merchant="Z wypłaty", counterparty="JAN KOWALSKI" (ten sam co właściciel rachunku),
-  sample_amounts=[-5000] -> category_key="transfer_own", confidence=0.85, should_create_rule=true
+- merchant="Z wypłaty", counterparty="JAN KOWALSKI", sample_amounts=[-5000] ->
+  category_key="transfer_own", confidence=0.85, should_create_rule=true
+- merchant="Przelew testowy", counterparty="ANNA NOWAK", sample_amounts=[-5] ->
+  category_key="uncategorized_expense", confidence=0.2, should_create_rule=false
 - merchant="PRZELEW WYNAGRODZENIE ZA WRZESIEN", sample_amounts=[5200] ->
   category_key="income_salary", confidence=0.85, should_create_rule=true
 - merchant="JAN NOWAK", sample_amounts=[-150], brak kontekstu co to za płatność ->
@@ -67,7 +69,9 @@ W przesłanej liście "transactions" znajdź grupy (2+ transakcji), które razem
 zdarzenie ekonomiczne, a nie osobne, niepowiązane wydatki.
 
 RODZAJE POWIĄZAŃ (pole "kind")
-- own_transfer: przelew między własnymi kontami użytkownika (ta sama osoba po obu stronach).
+- own_transfer: przelew między własnymi kontami użytkownika — wypływ z jednego rachunku z listy
+  i wpływ tej samej kwoty na inny rachunek z listy. Przelew do osoby spoza listy rachunków to
+  nigdy nie own_transfer, nawet gdy jej nazwisko powtarza się w kilku polach.
 - shared_purchase: użytkownik zapłacił za coś wspólnego, inna osoba zwróciła mu część kosztu.
 - reimbursement: inna osoba zapłaciła za użytkownika, użytkownik jej to oddaje.
 - refund: sprzedawca zwraca wcześniej zapłaconą kwotę.

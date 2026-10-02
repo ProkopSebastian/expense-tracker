@@ -8,8 +8,7 @@ import unicodedata
 from decimal import Decimal
 
 from . import ledger
-from .ledger_view import visible_counterparty
-from .text_utils import clean_description
+from .ledger_view import display_title, visible_counterparty
 from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
 
 HOME_CURRENCY = "PLN"
@@ -147,7 +146,7 @@ def ledger_blocks(
             "bank_status": row["bank_status"],
             "date": row["booking_date"],
             "account": row["account"],
-            "description": clean_description(str(row["merchant"] or row["description"])),
+            "description": display_title(row),
             "counterparty": visible_counterparty(row),
             "amount": row["amount"],
             "currency": row["currency"],
@@ -243,7 +242,7 @@ def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
     by_id = {
         row["id"]: row
         for row in db.execute(
-            f"SELECT id, booking_date, amount, currency, description, merchant FROM transactions "
+            f"SELECT id, booking_date, amount, currency, description, merchant, counterparty FROM transactions "
             f"WHERE id IN ({','.join('?' * len(ids))})",
             tuple(ids),
         )
@@ -255,7 +254,7 @@ def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
                 {
                     "id": row["id"],
                     "date": row["booking_date"],
-                    "description": clean_description(str(row["merchant"] or row["description"])),
+                    "description": display_title(row),
                     "amount": row["amount"],
                     "currency": row["currency"],
                 }
@@ -288,7 +287,7 @@ def classification_rows(db: sqlite3.Connection) -> list[dict]:
                 "key": f"s{s['id']}",
                 "suggestion_id": s["id"],
                 "transaction_id": None,
-                "description": clean_description(str(sample["merchant"] or sample["description"])),
+                "description": display_title(sample),
                 "date": sample["booking_date"],
                 "counterparty": visible_counterparty(sample),
                 "count": len(members),
@@ -310,7 +309,7 @@ def classification_rows(db: sqlite3.Connection) -> list[dict]:
                 "key": f"t{row['id']}",
                 "suggestion_id": None,
                 "transaction_id": row["id"],
-                "description": clean_description(str(row["merchant"] or row["description"])),
+                "description": display_title(row),
                 "date": row["booking_date"],
                 "counterparty": visible_counterparty(row),
                 "count": 1,
