@@ -6,10 +6,8 @@ import {
   ListChecks,
   FolderArchive,
   Settings2,
-  Undo2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { request, useAction, useResource } from "../hooks";
 import { pages, type Page } from "../domain";
 import { changelog, releasesSince } from "../changelog";
 import SettingsDialog from "./SettingsDialog";
@@ -29,26 +27,15 @@ const icons = {
 export default function Sidebar({
   page,
   aiEnabled,
-  revision,
   onChanged,
   onDataReset,
 }: {
   page: Page;
   aiEnabled: boolean;
-  revision: number;
   onChanged: () => void;
   onDataReset: (apiKeyPreserved: boolean) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { data: recovery } = useResource<{
-    can_undo: boolean;
-    label: string | null;
-  }>("/recovery", revision);
-  const undo = useAction(onChanged);
-  const undoLabel =
-    recovery?.can_undo && recovery.label
-      ? `Cofnij: ${recovery.label}`
-      : "Nic do cofnięcia";
   const [tourOpen, setTourOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [seenVersion, setSeenVersion] = useState<string | null>(null);
@@ -118,18 +105,7 @@ export default function Sidebar({
         </nav>
         <button
           type="button"
-          className="mt-3 flex min-w-0 items-center justify-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent disabled:hover:bg-transparent disabled:hover:text-muted md:mt-auto xl:justify-start"
-          disabled={undo.busy || !recovery?.can_undo}
-          onClick={() => undo.run(() => request("/undo", "POST"), "")}
-          title={undo.error || undoLabel}
-          aria-label={undoLabel}
-        >
-          <Undo2 size={19} className="shrink-0" />
-          <span className="hidden min-w-0 truncate xl:inline">{undoLabel}</span>
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent xl:justify-start"
+          className="mt-3 flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent md:mt-auto xl:justify-start"
           onClick={() => setSettingsOpen(true)}
           title="Ustawienia aplikacji"
           aria-label="Ustawienia aplikacji"

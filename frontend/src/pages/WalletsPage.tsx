@@ -751,7 +751,12 @@ export default function WalletsPage({
           Nowy portfel
         </button>
       </div>
-      <Notice error={error || action.error} notice={action.notice} />
+      <Notice
+        error={error || action.error}
+        notice={action.notice}
+        undoLabel={action.undoLabel}
+        onUndo={action.undo}
+      />
       {!wallets.length && !error && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
           <h2>{loading ? "Wczytuję…" : "Brak portfeli"}</h2>

@@ -95,7 +95,12 @@ export default function LedgerPage({
           Dodaj transakcję
         </button>
       </div>
-      <Notice error={error || action.error} notice={action.notice} />
+      <Notice
+        error={error || action.error}
+        notice={action.notice}
+        undoLabel={action.undoLabel}
+        onUndo={action.undo}
+      />
       <section className="mb-6">
         <LedgerFilterBar
           query={query}

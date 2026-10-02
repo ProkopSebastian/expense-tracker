@@ -66,7 +66,15 @@ export default function DataPage({
   return (
     <>
       <h1 className="mb-6">Import danych</h1>
-      <Notice error={action.error || syncError} notice={message || action.notice} />
+      <Notice
+        error={action.error || syncError}
+        notice={message || action.notice}
+        undoLabel={action.undoLabel}
+        onUndo={() => {
+          setMessage("");
+          void action.undo();
+        }}
+      />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           <section className="card p-6">
