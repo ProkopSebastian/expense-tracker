@@ -89,6 +89,29 @@ def test_download_rejects_untrusted_urls(url):
         protocol.validate_url(url)
 
 
+def test_github_api_uses_json_media_type(monkeypatch):
+    requests = []
+
+    class Response:
+        def read1(self, size):
+            return b""
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class Opener:
+        def open(self, request, timeout):
+            requests.append(request)
+            return Response()
+
+    monkeypatch.setattr(protocol, "build_opener", lambda *handlers: Opener())
+    assert protocol.fetch_bytes(protocol.RELEASES_URL) == b""
+    assert requests[0].get_header("Accept") == "application/vnd.github+json"
+
+
 def test_versions_are_compared_numerically_and_only_stable():
     assert version_tuple("0.10.0") > version_tuple("0.9.9")
     for value in ("0.5.0-beta", "v0.5.0", "../0.5.0", "01.2.3", "0.5", None):

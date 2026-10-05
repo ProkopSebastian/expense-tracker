@@ -51,12 +51,10 @@ class SafeRedirectHandler(HTTPRedirectHandler):
         return super().redirect_request(request, fp, code, message, headers, newurl)
 
 
-def open_url(url: str):
+def open_url(url: str, *, accept: str = "application/octet-stream"):
     import certifi
 
-    request = Request(
-        validate_url(url), headers={"User-Agent": "Wydatki-Updater", "Accept": "application/octet-stream"},
-    )
+    request = Request(validate_url(url), headers={"User-Agent": "Wydatki-Updater", "Accept": accept})
     context = ssl.create_default_context()
     context.load_verify_locations(certifi.where())
     return build_opener(SafeRedirectHandler(), HTTPSHandler(context=context)).open(request, timeout=5)
@@ -65,7 +63,7 @@ def open_url(url: str):
 def fetch_bytes(url: str, limit: int = MAX_MANIFEST_SIZE) -> bytes:
     deadline = time.monotonic() + 15
     result = bytearray()
-    with open_url(url) as response:
+    with open_url(url, accept="application/vnd.github+json") as response:
         while chunk := response.read1(min(65536, limit + 1 - len(result))):
             result.extend(chunk)
             if len(result) > limit or time.monotonic() > deadline:
