@@ -5,9 +5,9 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 frontend_dist="$repo_root/frontend/dist"
 icon_icns="$repo_root/scripts/assets/app.icns"
 icon_png="$repo_root/scripts/assets/app.png"
-signing_options=()
+build_options=(--noconfirm)
 if [[ -n "${MACOS_CODESIGN_IDENTITY:-}" ]]; then
-  signing_options=(--codesign-identity "$MACOS_CODESIGN_IDENTITY")
+  build_options+=(--codesign-identity "$MACOS_CODESIGN_IDENTITY")
 fi
 
 pnpm --dir "$repo_root/frontend" install --frozen-lockfile
@@ -15,7 +15,7 @@ pnpm --dir "$repo_root/frontend" build
 
 # --windowed on macOS produces an .app bundle; one-file bundles are deprecated there.
 uv run --directory "$repo_root" --group desktop --with pyinstaller python -m PyInstaller \
-  --noconfirm \
+  "${build_options[@]}" \
   --clean \
   --windowed \
   --name Wydatki \
@@ -27,7 +27,6 @@ uv run --directory "$repo_root" --group desktop --with pyinstaller python -m PyI
   --add-data "$icon_png:assets" \
   --copy-metadata expense-tracker \
   --collect-submodules uvicorn \
-  "${signing_options[@]}" \
   "$repo_root/scripts/desktop_launcher.py"
 
 "$repo_root/dist/Wydatki.app/Contents/MacOS/Wydatki" --smoke-test
