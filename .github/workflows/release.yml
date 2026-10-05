@@ -1,114 +1,61 @@
 name: Release desktop apps
 on:
-  workflow_dispatch:
   push:
     tags: ['v*']
 permissions:
   contents: read
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.1.0
-        with:
-          python-version: '3.14'
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v6
-        with:
-          version: '10'
-      - run: uv sync --frozen
-      - name: Build Windows package
-        shell: pwsh
-        run: ./scripts/build_windows.ps1
-      - name: Create Windows archive
-        shell: pwsh
+      # Published assets must stay immutable; re-running an old tag would overwrite them.
+      - name: Refuse to rebuild a published release
         run: |
-          New-Item -ItemType Directory -Force -Path package/Wydatki-Windows | Out-Null
-          Copy-Item dist/Wydatki.exe package/Wydatki-Windows/
-          Copy-Item dist/START.txt package/Wydatki-Windows/
-          Copy-Item dist/CHANGES.txt package/Wydatki-Windows/
-          Compress-Archive -Path package/Wydatki-Windows -DestinationPath dist/Wydatki-Windows.zip
-      - run: uv run python scripts/release_manifest.py describe dist
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-windows
-          path: |
-            dist/Wydatki-Windows.zip
-            dist/Wydatki.exe
-            dist/assets-windows.json
+          if [ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null)" = "false" ]; then
+            echo "::error::$GITHUB_REF_NAME is already published. Release a new version instead."
+            exit 1
+          fi
+      # The tag may be pushed together with its commit, so wait for that commit's CI instead of
+      # requiring it to have finished already.
+      - name: Wait for CI on the tagged commit
+        run: |
+          for _ in 1 2 3 4 5 6; do
+            run_id=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json databaseId --jq '.[0].databaseId')
+            [ -n "$run_id" ] && break
+            sleep 20
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::No CI run for $GITHUB_SHA. Push the commit to a branch before tagging it."
+            exit 1
+          fi
+          gh run watch "$run_id" --interval 30 --exit-status
 
-  build-linux:
-    # The oldest supported runner keeps the binary's glibc requirement low enough for most distros.
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.1.0
-        with:
-          python-version: '3.14'
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v6
-        with:
-          version: '10'
-      - run: uv sync --group desktop --frozen
-      - name: Build Linux package
-        run: scripts/build_linux.sh
-      - run: sudo apt-get update && sudo apt-get install -y rpm ruby-dev && sudo gem install --no-document fpm
-      - name: Build .deb and .rpm
-        run: scripts/package_linux.sh
-      - run: uv run python scripts/release_manifest.py describe dist
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-linux
-          path: |
-            dist/Wydatki-Linux-x86_64.tar.gz
-            dist/Wydatki
-            dist/assets-linux.json
-            dist/*.deb
-            dist/*.rpm
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.1.0
-        with:
-          python-version: '3.14'
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v6
-        with:
-          version: '10'
-      - run: uv sync --group desktop --frozen
-      - name: Build macOS app
-        run: scripts/build_macos.sh
-      - run: uv run python scripts/release_manifest.py describe dist
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-macos
-          path: |
-            dist/Wydatki-macOS.zip
-            dist/assets-darwin.json
+  package:
+    needs: verify
+    uses: ./.github/workflows/package.yml
 
   publish:
     permissions:
       contents: write
-    needs: [build-windows, build-linux, build-macos]
+    needs: package
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.1.0
         with:
           python-version: '3.14'
       - run: uv sync --frozen
       - uses: actions/download-artifact@v8
         with:
+          pattern: release-*
           path: release
           merge-multiple: true
       - name: Sign the complete update manifest
@@ -129,7 +76,11 @@ jobs:
             release/*.deb
             release/*.rpm
             release/Wydatki-macOS.zip
+      # The app updates from GitHub's "latest" release, so an older tag must never take it over.
       - name: Publish only after every signed asset has been uploaded
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+        run: |
+          newest=$(git tag --list 'v*' --sort=-version:refname | head -n 1)
+          if [ "$GITHUB_REF_NAME" = "$newest" ]; then latest=true; else latest=false; fi
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest="$latest"
