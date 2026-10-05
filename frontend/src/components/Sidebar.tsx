@@ -13,6 +13,7 @@ import { changelog, releasesSince } from "../changelog";
 import SettingsDialog from "./SettingsDialog";
 import OnboardingTour from "./OnboardingTour";
 import WhatsNewModal from "./WhatsNewModal";
+import { useUpdates } from "../updates";
 
 const ONBOARDING_SEEN_KEY = "onboarding-seen";
 const CHANGELOG_SEEN_KEY = "changelog-seen-version";
@@ -36,6 +37,8 @@ export default function Sidebar({
   onDataReset: (apiKeyPreserved: boolean) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const updates = useUpdates();
+  const updateAvailable = ["available", "ready"].includes(updates.status?.state ?? "");
   const [tourOpen, setTourOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [seenVersion, setSeenVersion] = useState<string | null>(null);
@@ -106,16 +109,21 @@ export default function Sidebar({
         <button
           type="button"
           className="mt-3 flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-accent-soft hover:text-accent md:mt-auto xl:justify-start"
-          onClick={() => setSettingsOpen(true)}
-          title="Ustawienia aplikacji"
-          aria-label="Ustawienia aplikacji"
+          onClick={() => {
+            setSettingsOpen(true);
+            window.dispatchEvent(new Event("wydatki-update-refresh"));
+          }}
+          title={updateAvailable ? "Ustawienia — dostępna aktualizacja" : "Ustawienia aplikacji"}
+          aria-label={updateAvailable ? "Ustawienia — dostępna aktualizacja" : "Ustawienia aplikacji"}
         >
           <Settings2 size={19} />
           <span className="hidden xl:inline">Ustawienia</span>
+          {updateAvailable && <span className="size-2 rounded-full bg-accent" aria-hidden="true" />}
         </button>
       </aside>
       {settingsOpen && (
         <SettingsDialog
+          updates={updates}
           aiEnabled={aiEnabled}
           onChanged={onChanged}
           onClose={() => setSettingsOpen(false)}

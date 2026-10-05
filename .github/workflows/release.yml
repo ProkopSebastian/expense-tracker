@@ -4,7 +4,7 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: write
+  contents: read
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -30,11 +30,15 @@ jobs:
           Copy-Item dist/Wydatki.exe package/Wydatki-Windows/
           Copy-Item dist/START.txt package/Wydatki-Windows/
           Copy-Item dist/CHANGES.txt package/Wydatki-Windows/
-          Compress-Archive -Path package/Wydatki-Windows -DestinationPath Wydatki-Windows.zip
+          Compress-Archive -Path package/Wydatki-Windows -DestinationPath dist/Wydatki-Windows.zip
+      - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
           name: release-windows
-          path: Wydatki-Windows.zip
+          path: |
+            dist/Wydatki-Windows.zip
+            dist/Wydatki.exe
+            dist/assets-windows.json
 
   build-linux:
     # The oldest supported runner keeps the binary's glibc requirement low enough for most distros.
@@ -56,11 +60,14 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y rpm ruby-dev && sudo gem install --no-document fpm
       - name: Build .deb and .rpm
         run: scripts/package_linux.sh
+      - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
           name: release-linux
           path: |
             dist/Wydatki-Linux-x86_64.tar.gz
+            dist/Wydatki
+            dist/assets-linux.json
             dist/*.deb
             dist/*.rpm
 
@@ -80,25 +87,49 @@ jobs:
       - run: uv sync --group desktop --frozen
       - name: Build macOS app
         run: scripts/build_macos.sh
+      - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
           name: release-macos
-          path: dist/Wydatki-macOS.zip
+          path: |
+            dist/Wydatki-macOS.zip
+            dist/assets-darwin.json
 
   publish:
+    permissions:
+      contents: write
     needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          python-version: '3.14'
+      - run: uv sync --frozen
       - uses: actions/download-artifact@v8
         with:
           path: release
           merge-multiple: true
+      - name: Sign the complete update manifest
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: uv run python scripts/release_manifest.py sign release
       - uses: softprops/action-gh-release@v2
         with:
+          draft: true
+          fail_on_unmatched_files: true
           files: |
             release/Wydatki-Windows.zip
+            release/Wydatki.exe
+            release/Wydatki
+            release/update-manifest.json
+            release/update-manifest.sig
             release/Wydatki-Linux-x86_64.tar.gz
             release/*.deb
             release/*.rpm
             release/Wydatki-macOS.zip
+      - name: Publish only after every signed asset has been uploaded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest

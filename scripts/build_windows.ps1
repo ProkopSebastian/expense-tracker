@@ -10,9 +10,11 @@ $IconIco = (Resolve-Path 'scripts/assets/app.ico').Path
 $IconPng = (Resolve-Path 'scripts/assets/app.png').Path
 uv sync --group desktop --frozen
 Check-Exit
-uv run --group desktop --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onefile --name Wydatki --specpath build --paths src --icon $IconIco --add-data "${FrontendDist};frontend/dist" --add-data "${IconIco};assets" --add-data "${IconPng};assets" --collect-submodules uvicorn scripts/desktop_launcher.py
+uv run --group desktop --with pyinstaller python -m PyInstaller --noconfirm --clean --windowed --onefile --name Wydatki --specpath build --paths src --icon $IconIco --add-data "${FrontendDist};frontend/dist" --add-data "${IconIco};assets" --add-data "${IconPng};assets" --copy-metadata expense-tracker --collect-submodules uvicorn scripts/desktop_launcher.py
 Check-Exit
 $smoke = Start-Process -FilePath dist/Wydatki.exe -ArgumentList '--smoke-test' -PassThru -Wait
 if ($smoke.ExitCode -ne 0) { throw "Packaged application smoke test failed: $($smoke.ExitCode)" }
+uv run --group desktop python scripts/check_update_package.py dist/Wydatki.exe
+Check-Exit
 Copy-Item docs/WINDOWS.txt dist/START.txt -Force
 Copy-Item CHANGELOG.md dist/CHANGES.txt -Force

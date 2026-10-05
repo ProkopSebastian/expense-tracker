@@ -37,6 +37,30 @@ jobs:
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: pnpm --dir frontend build
 
+  desktop-package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: ./scripts/build_windows.ps1
+          - os: macos-latest
+            build: scripts/build_macos.sh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '10'
+      - run: uv sync --group desktop --frozen
+      - run: ${{ matrix.build }}
+
   # Packaging breaks in ways the unit tests cannot see, so build and start the real binary on
   # every push. The oldest supported runner keeps the binary's glibc requirement low.
   linux-package:

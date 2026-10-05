@@ -1,0 +1,1 @@
+UPDATE_PUBLIC_KEY = "9FK3aMtovmMljk/5NtQrcljhem/y5G4pTEFx2365RrU="

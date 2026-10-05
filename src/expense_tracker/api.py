@@ -21,6 +21,8 @@ from .api_dependencies import get_connection
 from .config import settings
 from .database import Database
 from .summary_service import PeriodMode, SummaryResponse, get_summary
+from .updates.routes import router as updates_router
+from .version import VERSION
 from .web_models import ClientError
 from .web_routes import router
 
@@ -43,7 +45,7 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
         load_preferences(preferences_directory)
         yield
 
-    app = FastAPI(title="Expense Tracker", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Expense Tracker", version=VERSION, lifespan=lifespan)
     app.state.database_path = path
     app.state.configuration_dir = preferences_directory
     from threading import Lock
@@ -59,11 +61,18 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
             if origin and origin not in allowed:
                 return JSONResponse({"detail": "Niedozwolone źródło żądania."}, status_code=403)
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path.startswith("/api/"):
+            if request.url.path.startswith("/api/updates"):
+                return await call_next(request)
             from starlette.concurrency import run_in_threadpool
 
             from .recovery import backup_database, describe_action, record_undo
 
             async with app.state.write_lock:
+                updater = getattr(app.state, "updater", None)
+                if updater is not None and updater.installing:
+                    return JSONResponse(
+                        {"detail": "Trwa przygotowanie aktualizacji. Zaczekaj na ponowny start."}, status_code=409,
+                    )
                 if request.url.path in {"/api/settings/reset-data", "/api/settings/appearance"}:
                     return await call_next(request)
                 backup = await run_in_threadpool(backup_database, path, "action")
@@ -120,6 +129,7 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
         return {"ok": True}
 
     app.include_router(router)
+    app.include_router(updates_router)
 
     # A built frontend and API can be served by one local process.
     root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]

@@ -5,7 +5,7 @@ set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 assets="$repo_root/scripts/assets"
-version="$(sed -n 's/^## v\([0-9][0-9.]*\).*/\1/p' "$repo_root/CHANGELOG.md" | head -n 1)"
+version="$(uv run --directory "$repo_root" python -c 'from expense_tracker.version import VERSION; print(VERSION)')"
 stage="$repo_root/build/linux-package"
 
 rm -rf "$stage"

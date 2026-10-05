@@ -1,7 +1,7 @@
 # PyInstaller spec for the Linux build; run through scripts/build_linux.sh.
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 
 repo_root = Path(SPECPATH).parent
 icon_png = repo_root / "scripts" / "assets" / "app.png"
@@ -16,7 +16,7 @@ a = Analysis(
     datas=[
         (str(repo_root / "frontend" / "dist"), "frontend/dist"),
         (str(icon_png), "assets"),
-    ],
+    ] + copy_metadata("expense-tracker"),
     hiddenimports=collect_submodules("uvicorn"),
 )
 a.binaries = [binary for binary in a.binaries if Path(binary[0]).name not in system_runtime]

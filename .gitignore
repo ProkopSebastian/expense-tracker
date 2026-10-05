@@ -40,3 +40,6 @@ appearance.json
 
 # Invented data from scripts/demo_data.py
 demo/
+
+# Private update signing key
+.release-keys/

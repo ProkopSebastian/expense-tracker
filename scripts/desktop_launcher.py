@@ -163,35 +163,11 @@ def _wait_until_ready(server, worker: threading.Thread, base_url: str) -> None:
     raise RuntimeError(f"Przekroczono czas oczekiwania na gotowość aplikacji.{detail}")
 
 
-def _acquire_single_instance_mutex() -> bool:
-    import ctypes
-
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
-    kernel.CreateMutexW.restype = ctypes.c_void_p
-    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
-
-    # A previous instance can take up to the 10s join timeout below to fully exit,
-    # during which the mutex is still held; retry briefly before reporting "already running".
-    deadline = time.monotonic() + 4
-    while True:
-        mutex = kernel.CreateMutexW(None, False, "Local\\WydatkiDesktop")
-        already_running = not mutex or ctypes.get_last_error() == 183
-        if not already_running:
-            return True
-        if time.monotonic() >= deadline:
-            return False
-        kernel.CloseHandle(mutex)
-        time.sleep(0.25)
-
-
 def _run_desktop(webview, log_path: Path, paths) -> None:
+    from expense_tracker.updates.manager import UpdateManager
+
     icon_path = _icon_path()
     _configure_linux_app_identity(icon_path)
-    if sys.platform == "win32" and not _acquire_single_instance_mutex():
-        logger.info("A second application instance was rejected")
-        _show_message(webview, "Wydatki", "Aplikacja jest już uruchomiona.", icon_path)
-        return
 
     closing = threading.Event()
     state: dict[str, object] = {}
@@ -205,6 +181,7 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
     window = webview.create_window(
         "Wydatki", html=_loading_page(), width=1200, height=820, min_size=(380, 500), text_select=True
     )
+    updater = UpdateManager(paths.state_dir, window.destroy) if getattr(sys, "frozen", False) else None
     window.events.closed += close_server
 
     def start_backend() -> None:
@@ -221,6 +198,8 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
             database_path=paths.data_dir / "expense-tracker.sqlite3",
             configuration_dir=paths.config_dir,
         )
+        if updater is not None:
+            app.state.updater = updater
 
         listener = _bind_backend_listener()
         port = listener.getsockname()[1]
@@ -263,6 +242,8 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
             return
 
         window.load_url(base_url)
+        if updater is not None:
+            updater.start()
 
         def monitor_server() -> None:
             worker.join()
@@ -287,6 +268,8 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
         storage_path=str(paths.state_dir / "webview"),
     )
     logger.info("WINDOW closed")
+    if updater is not None:
+        updater.stop()
 
     closing.set()
     server = state.get("server")
@@ -297,19 +280,49 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
         worker.join(timeout=10)
         if worker.is_alive():
             logger.error("BACKEND did not stop within 10 seconds")
+            return
+    if updater is not None:
+        updater.authorize_install()
 
 
 def main() -> int:
+    if "--version" in sys.argv:
+        from expense_tracker.version import VERSION
+
+        print(VERSION)
+        return 0
+    if len(sys.argv) == 3 and sys.argv[1] == "--apply-update":
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from expense_tracker.updates.installer import apply_update
+
+        plan = Path(sys.argv[2]).resolve()
+        with (
+            (plan.parent.parent.parent / "update.log").open("a", encoding="utf-8") as output,
+            redirect_stdout(output), redirect_stderr(output),
+        ):
+            return apply_update(plan)
     if "--smoke-test" in sys.argv:
         from desktop_smoke import run
 
         run()
+        if len(sys.argv) == 4 and sys.argv[2] == "--version-file":
+            from expense_tracker.version import VERSION
+
+            Path(sys.argv[3]).write_text(VERSION, encoding="utf-8")
         return 0
 
     log_path: Path | None = None
     log = None
+    instance = None
     try:
         paths, log_path, log = _prepare_runtime()
+        from expense_tracker.updates.installer import InstanceLock
+
+        instance = InstanceLock(paths.state_dir / "instance.lock")
+        if not instance.acquire():
+            _native_message("Wydatki", "Aplikacja jest już uruchomiona lub trwa jej aktualizacja.")
+            return 0
         logger.info("WEBVIEW importing")
         import webview
 
@@ -325,6 +338,8 @@ def main() -> int:
         )
         return 1
     finally:
+        if instance is not None:
+            instance.release()
         if log is not None:
             logger.info("STOP Wydatki")
             faulthandler.disable()

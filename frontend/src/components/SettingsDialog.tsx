@@ -21,6 +21,8 @@ import {
 import { changelog } from "../changelog";
 import { Modal, Notice } from "./Forms";
 import ChangelogList from "./ChangelogList";
+import UpdatesPanel from "./UpdatesPanel";
+import type { UpdateController } from "../updates";
 
 const CONFIRMATION = "USUŃ DANE";
 
@@ -30,17 +32,19 @@ export default function SettingsDialog({
   onChanged,
   onDataReset,
   onOpenTour,
+  updates,
 }: {
   aiEnabled: boolean;
   onClose: () => void;
   onChanged: () => void;
   onDataReset: (apiKeyPreserved: boolean) => void;
   onOpenTour: () => void;
+  updates: UpdateController;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [activeTab, setActiveTab] = useState<"appearance" | "data" | "help">(
-    "appearance",
+    ["available", "ready"].includes(updates.status?.state ?? "") ? "help" : "appearance",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -345,6 +349,7 @@ export default function SettingsDialog({
 
           {activeTab === "help" && (
             <div className="space-y-5">
+              <UpdatesPanel updates={updates} />
               <p className="text-sm leading-relaxed text-muted">
                 <strong className="text-ink">Jak zacząć:</strong> wgraj wyciąg na
                 stronie Import — podsumowanie i kategorie zrobią się same.

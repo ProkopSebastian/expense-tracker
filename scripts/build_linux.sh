@@ -12,6 +12,7 @@ uv run --directory "$repo_root" --group desktop --with pyinstaller python -m PyI
   "$repo_root/scripts/Wydatki-linux.spec"
 
 "$repo_root/dist/Wydatki" --smoke-test
+uv run --directory "$repo_root" --group desktop python "$repo_root/scripts/check_update_package.py" "$repo_root/dist/Wydatki"
 package_dir="$repo_root/dist/Wydatki-Linux-x86_64"
 mkdir -p "$package_dir"
 install -m 755 "$repo_root/dist/Wydatki" "$package_dir/Wydatki"

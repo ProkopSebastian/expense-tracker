@@ -1,3 +1,8 @@
+## v0.5.0 — 05.10.2026
+
+- feat: aktualizacje z poziomu aplikacji — sprawdzanie dostępności, pobieranie i instalacja po zamknięciu okna
+- feat: opcjonalne sprawdzanie aktualizacji w tle, najwyżej raz dziennie i bez blokowania startu
+
 ## v0.4.1 — 02.10.2026
 
 - fix: aplikacja na Linuksie uruchamia się na nowszych dystrybucjach (np. Fedora 44), zamiast zamykać się zaraz po starcie
