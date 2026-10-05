@@ -1,3 +1,10 @@
+## v0.6.0 — 05.10.2026
+
+- feat: nowa zakładka „Majątek” — co jakiś czas wpisujesz, ile masz na kontach, lokatach, w obligacjach czy złocie, a aplikacja rysuje wykres całego majątku
+- feat: kwoty w walutach obcych liczą się po kursie z dnia zapisu i późniejszy kurs ich nie zmienia
+- feat: historia zapisów z podziałem na rodzaje składników — każdy zapis można poprawić albo usunąć
+- feat: nieaktywne i wyzerowane składniki są zwinięte na dole listy, a ich historia zostaje
+
 ## v0.5.0 — 05.10.2026
 
 - feat: aktualizacje z poziomu aplikacji — sprawdzanie dostępności, pobieranie i instalacja po zamknięciu okna
