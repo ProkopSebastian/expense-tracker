@@ -5,6 +5,7 @@ import {
   Tags,
   ListChecks,
   FolderArchive,
+  Landmark,
   Settings2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -21,6 +22,7 @@ const icons = {
   data: FolderArchive,
   summary: ChartNoAxesCombined,
   ledger: ReceiptText,
+  wealth: Landmark,
   wallets: Banknote,
   classification: Tags,
   rules: ListChecks,
@@ -89,7 +91,7 @@ export default function Sidebar({
         </a>
         <nav aria-label="Nawigacja główna">
           {(
-            ["summary", "ledger", "wallets", "classification", "rules", "data"] as Page[]
+            ["summary", "ledger", "wealth", "wallets", "classification", "rules", "data"] as Page[]
           ).map((key) => {
             const Icon = icons[key];
             return (

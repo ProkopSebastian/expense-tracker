@@ -6,6 +6,10 @@ from pathlib import Path
 from uuid import uuid4
 
 _FINANCIAL_TABLES = (
+    "wealth_balances",
+    "wealth_rates",
+    "wealth_snapshots",
+    "wealth_assets",
     "case_members",
     "suggestions",
     "transaction_decisions",

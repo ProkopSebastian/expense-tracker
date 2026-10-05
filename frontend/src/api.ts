@@ -39,6 +39,17 @@ export function money(value: string | number, currency: string): string {
   }).format(Number(value));
 }
 
+// A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred
+// dirhams. Money stays at two places; the rate gets four.
+export const rateFormat = new Intl.NumberFormat("pl-PL", {
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
+export function dayLabel(day: string): string {
+  return day.split("-").reverse().join(".");
+}
+
 export function monthLabel(month: string): string {
   return new Intl.DateTimeFormat("pl-PL", {
     month: "long",

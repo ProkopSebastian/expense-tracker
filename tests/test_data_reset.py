@@ -6,6 +6,7 @@ import pytest
 from expense_tracker.data_reset import reset_financial_data
 from expense_tracker.database import Database
 from expense_tracker.models import Transaction
+from expense_tracker.wealth_service import create_asset, save_snapshot
 
 
 def test_reset_clears_finances_and_owned_directories(tmp_path):
@@ -23,6 +24,8 @@ def test_reset_clears_finances_and_owned_directories(tmp_path):
     database.insert_transaction(
         Transaction("cash", date(2026, 9, 1), Decimal(-10), "PLN", "Sample")
     )
+    asset_id = create_asset(database.connection, name="Konto", kind="account", currency="PLN", institution=None)
+    save_snapshot(database.connection, day=date(2026, 9, 1), balances=[(asset_id, Decimal(10))], rates={})
     database.close()
 
     reset_financial_data(database_path, data_dir)
@@ -32,6 +35,7 @@ def test_reset_clears_finances_and_owned_directories(tmp_path):
     assert preferences.read_text() == '{"api_key":"test-key"}'
     database = Database(database_path)
     assert database.connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 0
+    assert database.connection.execute("SELECT COUNT(*) FROM wealth_assets").fetchone()[0] == 0
     assert database.connection.execute("SELECT COUNT(*) FROM categories").fetchone()[0] > 0
     database.close()
 

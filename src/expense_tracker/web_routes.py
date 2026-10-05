@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
-from . import ledger, wallet_service
+from . import ledger, wallet_service, wealth_service
 from . import web_service as service
 from .api_dependencies import get_connection
 from .config import settings
@@ -20,11 +20,14 @@ from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
 from .web_models import (
+    AssetCreate,
+    AssetUpdate,
     BatchApproval,
     CategoryEntry,
     Decision,
     GroupEntry,
     ManualEntry,
+    SnapshotEntry,
     WalletConvert,
     WalletCreate,
     WalletFundEntry,
@@ -202,6 +205,54 @@ def reconcile_wallet(wallet_id: int, entry: WalletReconcile, db: DB):
 @router.get("/wallets/{wallet_id}/history")
 def wallet_history(wallet_id: int, db: DB):
     return {"history": wallet_service.wallet_history(db, wallet_id)}
+
+
+@router.get("/wealth")
+def wealth(db: DB):
+    return wealth_service.wealth_overview(db)
+
+
+@router.post("/wealth/assets", status_code=201)
+def create_asset(entry: AssetCreate, db: DB):
+    return {"id": wealth_service.create_asset(db, **entry.model_dump())}
+
+
+@router.put("/wealth/assets/{asset_id}")
+def update_asset(asset_id: int, entry: AssetUpdate, db: DB):
+    wealth_service.update_asset(db, asset_id, **entry.model_dump())
+    return {"message": "Składnik zapisany."}
+
+
+@router.delete("/wealth/assets/{asset_id}")
+def delete_asset(asset_id: int, db: DB):
+    wealth_service.delete_asset(db, asset_id)
+    return {"message": "Składnik usunięty."}
+
+
+def _save_snapshot(db: sqlite3.Connection, entry: SnapshotEntry, snapshot_id: int | None = None) -> int:
+    return wealth_service.save_snapshot(
+        db,
+        day=entry.day,
+        balances=[(balance.asset_id, balance.amount) for balance in entry.balances],
+        rates=entry.rates,
+        snapshot_id=snapshot_id,
+    )
+
+
+@router.post("/wealth/snapshots", status_code=201)
+def save_snapshot(entry: SnapshotEntry, db: DB):
+    return {"id": _save_snapshot(db, entry)}
+
+
+@router.put("/wealth/snapshots/{snapshot_id}")
+def update_snapshot(snapshot_id: int, entry: SnapshotEntry, db: DB):
+    return {"id": _save_snapshot(db, entry, snapshot_id)}
+
+
+@router.delete("/wealth/snapshots/{snapshot_id}")
+def delete_snapshot(snapshot_id: int, db: DB):
+    wealth_service.delete_snapshot(db, snapshot_id)
+    return {"message": "Stan majątku usunięty."}
 
 
 @router.get("/classification")

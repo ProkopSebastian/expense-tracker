@@ -70,6 +70,24 @@ CREATE TABLE IF NOT EXISTS wallets (
     id INTEGER PRIMARY KEY, account TEXT NOT NULL, currency TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(account, currency)
 );
+CREATE TABLE IF NOT EXISTS wealth_assets (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    kind TEXT NOT NULL, currency TEXT NOT NULL, institution TEXT, is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS wealth_snapshots (
+    id INTEGER PRIMARY KEY, day TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS wealth_balances (
+    snapshot_id INTEGER NOT NULL REFERENCES wealth_snapshots(id) ON DELETE CASCADE,
+    asset_id INTEGER NOT NULL REFERENCES wealth_assets(id), amount TEXT NOT NULL,
+    PRIMARY KEY(snapshot_id, asset_id)
+);
+CREATE TABLE IF NOT EXISTS wealth_rates (
+    snapshot_id INTEGER NOT NULL REFERENCES wealth_snapshots(id) ON DELETE CASCADE,
+    currency TEXT NOT NULL, rate TEXT NOT NULL,
+    PRIMARY KEY(snapshot_id, currency)
+);
 """
 
 CATEGORIES = (

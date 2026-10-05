@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { Wallet, WalletEvent } from "../domain";
 import { request, useResource, useAction } from "../hooks";
-import { money } from "../api";
+import { money, rateFormat } from "../api";
 import type { Category } from "../domain";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 import AppSelect from "../components/AppSelect";
@@ -20,13 +20,6 @@ import HelpPopover from "../components/HelpPopover";
 
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
-
-// A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred
-// dirhams. Money stays at two places; the rate gets four.
-const rateFormat = new Intl.NumberFormat("pl-PL", {
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
-});
 
 function rateLabel(value: string, currency: string) {
   return `${rateFormat.format(Number(value))} zł / 1 ${currency}`;

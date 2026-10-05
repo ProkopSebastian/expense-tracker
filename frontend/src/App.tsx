@@ -7,6 +7,7 @@ import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
 import LedgerPage from "./pages/LedgerPage";
 import WalletsPage from "./pages/WalletsPage";
+import WealthPage from "./pages/WealthPage";
 import ClassificationPage from "./pages/ClassificationPage";
 import RulesPage from "./pages/RulesPage";
 function currentPage(): Page {
@@ -85,6 +86,8 @@ export default function App() {
                 revision={revision}
                 onChanged={changed}
               />
+            ) : page === "wealth" ? (
+              <WealthPage revision={revision} onChanged={changed} />
             ) : page === "wallets" ? (
               <WalletsPage
                 accounts={Array.isArray(meta.accounts) ? meta.accounts : []}

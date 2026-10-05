@@ -43,6 +43,42 @@ UNSORTED = [
     ("Sklep Gamma", 37, None, None),
 ]
 
+WEALTH_ASSETS = [
+    ("Konto osobiste", "account", "PLN", "Nest Bank"),
+    ("Konto oszczędnościowe", "savings", "PLN", "Nest Bank"),
+    ("Lokata 6M", "savings", "PLN", "Bank Pekao"),
+    ("Obligacje skarbowe", "bonds", "PLN", "PKO BP"),
+    ("Revolut EUR", "account", "EUR", "Revolut"),
+    ("ETF na świat", "investments", "PLN", "XTB"),
+    ("Złoto", "gold", "PLN", None),
+    ("Pożyczka dla brata", "debt", "PLN", None),
+]
+# Uneven on purpose: three entries in one month, then months apart. The bonds are redeemed into
+# the savings account in May, the ETF only starts in June and the deposit ends in June.
+WEALTH_SNAPSHOTS = [
+    ("2025-10-31", "4.2650", {"Konto osobiste": "8200", "Konto oszczędnościowe": "31000", "Lokata 6M": "20000",
+                              "Obligacje skarbowe": "40000", "Revolut EUR": "900", "Złoto": "9500"}),
+    ("2025-11-08", "4.2480", {"Konto osobiste": "6900", "Konto oszczędnościowe": "32000", "Lokata 6M": "20000",
+                              "Obligacje skarbowe": "40100", "Revolut EUR": "900", "Złoto": "9650"}),
+    ("2025-11-19", "4.2310", {"Konto osobiste": "5400", "Konto oszczędnościowe": "33500", "Lokata 6M": "20000",
+                              "Obligacje skarbowe": "40200", "Revolut EUR": "850", "Złoto": "9600"}),
+    ("2025-11-28", "4.2200", {"Konto osobiste": "9800", "Konto oszczędnościowe": "33500", "Lokata 6M": "20000",
+                              "Obligacje skarbowe": "40300", "Revolut EUR": "850", "Złoto": "9800",
+                              "Pożyczka dla brata": "-3000"}),
+    ("2026-02-27", "4.2150", {"Konto osobiste": "7600", "Konto oszczędnościowe": "38000", "Lokata 6M": "20400",
+                              "Obligacje skarbowe": "41000", "Revolut EUR": "1200", "Złoto": "10400",
+                              "Pożyczka dla brata": "-2000"}),
+    ("2026-05-29", "4.2600", {"Konto osobiste": "8100", "Konto oszczędnościowe": "84500", "Lokata 6M": "20400",
+                              "Obligacje skarbowe": "0", "Revolut EUR": "1100", "Złoto": "11200",
+                              "Pożyczka dla brata": "-1000"}),
+    ("2026-06-30", "4.2450", {"Konto osobiste": "7300", "Konto oszczędnościowe": "75000", "Lokata 6M": "0",
+                              "Obligacje skarbowe": "0", "Revolut EUR": "1000", "ETF na świat": "30000",
+                              "Złoto": "11000", "Pożyczka dla brata": "0"}),
+    ("2026-09-30", "4.2700", {"Konto osobiste": "9100", "Konto oszczędnościowe": "56000", "Obligacje skarbowe": "0",
+                              "Revolut EUR": "1500", "ETF na świat": "52500", "Złoto": "12100",
+                              "Pożyczka dla brata": "0"}),
+]
+
 ROWS: list[dict[str, str]] = []
 
 
@@ -160,6 +196,29 @@ def main() -> None:
         cash = call("POST", "/wallets", json={"account": "Gotówka", "currency": "PLN"})["id"]
         atm = by_description["Bankomat Euronet"][0]
         call("POST", f"/wallets/{cash}/fund", json={"source_transaction_id": atm["id"], "received_amount": "200.00"})
+
+        assets = {}
+        for name, kind, currency, institution in WEALTH_ASSETS:
+            assets[name] = call(
+                "POST",
+                "/wealth/assets",
+                json={"name": name, "kind": kind, "currency": currency, "institution": institution},
+            )["id"]
+        for day, euro_rate, balances in WEALTH_SNAPSHOTS:
+            call(
+                "POST",
+                "/wealth/snapshots",
+                json={
+                    "day": day,
+                    "balances": [{"asset_id": assets[name], "amount": amount} for name, amount in balances.items()],
+                    "rates": {"EUR": euro_rate},
+                },
+            )
+        call(
+            "PUT",
+            f"/wealth/assets/{assets['Lokata 6M']}",
+            json={"name": "Lokata 6M", "kind": "savings", "institution": "Bank Pekao", "is_active": False},
+        )
 
     database = Database(DATABASE)
     with database.connection as connection:

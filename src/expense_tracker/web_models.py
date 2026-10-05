@@ -101,6 +101,36 @@ class WalletReconcile(BaseModel):
     lines: list[ReconcileLine] = Field(min_length=1, max_length=50)
 
 
+AssetKind = Literal["account", "savings", "bonds", "investments", "cash", "gold", "debt", "other"]
+Rate = Annotated[Decimal, Field(allow_inf_nan=False, gt=0, max_digits=18, decimal_places=6)]
+OptionalText = Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=500)]
+
+
+class AssetCreate(BaseModel):
+    name: Text
+    kind: AssetKind
+    currency: Currency
+    institution: OptionalText = None
+
+
+class AssetUpdate(BaseModel):
+    name: Text
+    kind: AssetKind
+    institution: OptionalText = None
+    is_active: bool
+
+
+class AssetBalance(BaseModel):
+    asset_id: int
+    amount: Money
+
+
+class SnapshotEntry(BaseModel):
+    day: date
+    balances: list[AssetBalance] = Field(max_length=500)
+    rates: dict[Currency, Rate] = Field(default_factory=dict)
+
+
 class ClientError(BaseModel):
     message: Annotated[str, StringConstraints(max_length=2000)]
     stack: Annotated[str, StringConstraints(max_length=8000)] = ""

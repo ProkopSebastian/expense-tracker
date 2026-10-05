@@ -101,6 +101,42 @@ export interface WalletEvent {
   uncovered?: string;
   rate_known?: boolean;
 }
+export type AssetKind =
+  | "account"
+  | "savings"
+  | "bonds"
+  | "investments"
+  | "cash"
+  | "gold"
+  | "debt"
+  | "other";
+export interface Asset {
+  id: number;
+  name: string;
+  kind: AssetKind;
+  currency: string;
+  institution: string | null;
+  is_active: boolean;
+  latest: {
+    day: string;
+    amount: string;
+    rate: string | null;
+    pln: string;
+  } | null;
+}
+export interface Snapshot {
+  id: number;
+  day: string;
+  total: string;
+  change: string | null;
+  by_kind: Partial<Record<AssetKind, string>>;
+  balances: { asset_id: number; amount: string; pln: string }[];
+  rates: Record<string, string>;
+}
+export interface WealthData {
+  assets: Asset[];
+  snapshots: Snapshot[];
+}
 export interface Rule {
   created_at: string;
   id: number;
@@ -112,6 +148,7 @@ export type Page =
   | "data"
   | "summary"
   | "ledger"
+  | "wealth"
   | "wallets"
   | "classification"
   | "rules";
@@ -127,6 +164,10 @@ export const pages: Record<Page, { title: string; description: string }> = {
   ledger: {
     title: "Historia transakcji",
     description: "Każda transakcja. Każda grupa. Pełny obraz.",
+  },
+  wealth: {
+    title: "Majątek",
+    description: "Ile masz na kontach, lokatach i w inwestycjach.",
   },
   wallets: {
     title: "Portfele",
