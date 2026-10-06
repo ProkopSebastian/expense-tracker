@@ -10,11 +10,13 @@ from .pdf_common import _extract_pdf_text, _pdf_lines
 _MONEY = r"(?:\d{1,3}(?:[ .]\d{3})*|\d+),\d{2}"
 _TRANSACTION = re.compile(
     rf"^(?P<booking_date>\d{{2}}\.\d{{2}}\.\d{{4}})\s+(?P<external_id>\S+)\s+(?P<type>.+?)\s+"
-    rf"(?P<amount>[+-]?{_MONEY})\s+(?P<balance>{_MONEY})$"
+    rf"(?P<amount>[+-]?{_MONEY})\s+(?P<balance>[+-]?{_MONEY})$"
 )
 _VALUE_DATE = re.compile(r"^(?P<value_date>\d{2}\.\d{2}\.\d{4})\s+(?P<rest>.+)$")
 _STOP_LINE = re.compile(r"^Saldo (do przeniesienia|końcowe)\b")
-_CLOSING_BALANCE = re.compile(rf"Saldo końcowe\s+({_MONEY})")
+_CLOSING_BALANCE = re.compile(rf"Saldo końcowe\s+([+-]?{_MONEY})")
+_OPENING_BALANCE = re.compile(rf"Saldo początkowe\s+([+-]?{_MONEY})")
+_OPERATION_LINE = re.compile(rf"^\d{{2}}\.\d{{2}}\.\d{{4}}\s+\S+\s+.+?\s+[+-]?{_MONEY}\s+")
 _CARD_MERCHANT = re.compile(r"Lokalizacja:\s*(.+?)\s+(?:[A-Z]{2}\s+)?Nr ref:", re.I)
 # A Polish account number (26 digits, sometimes grouped in 4s) or "Data dokumentu:" marks where the
 # free-text transfer title ends and the sender/recipient details begin.
@@ -32,6 +34,8 @@ def _merchant(description: str) -> str:
 
 def _parse_pko_pdf_text(text: str, account: str = "pko") -> list[Transaction]:
     lines = _pdf_lines(text)
+    if any(_OPERATION_LINE.match(line) and not _TRANSACTION.match(line) for line in lines):
+        raise ValueError("Nie udało się odczytać kwoty lub salda operacji w wyciągu PKO PDF.")
     transactions: list[Transaction] = []
     index = 0
     while index < len(lines):
@@ -76,6 +80,9 @@ def _parse_pko_pdf_text(text: str, account: str = "pko") -> list[Transaction]:
         index = cursor
     if not transactions:
         raise ValueError("Wyciąg PKO PDF nie zawiera rozpoznawalnych operacji.")
+    opening = _OPENING_BALANCE.search(text)
+    if opening and _parse_amount(opening.group(1)) + transactions[0].amount != transactions[0].balance:
+        raise ValueError("Pierwsze saldo w wyciągu PKO PDF nie zgadza się z saldem początkowym.")
     for previous, current in zip(transactions, transactions[1:], strict=False):
         if previous.balance is None or previous.balance + current.amount != current.balance:
             raise ValueError("Kolejne salda w wyciągu PKO PDF nie zgadzają się z kwotami operacji.")
