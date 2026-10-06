@@ -164,14 +164,14 @@ def pending_suggestions(connection: sqlite3.Connection) -> list[dict[str, object
     return [{**dict(row), "payload": json.loads(row["payload_json"])} for row in rows]
 
 
-def approve_suggestion(connection: sqlite3.Connection, suggestion_id: int) -> None:
+def approve_suggestion(connection: sqlite3.Connection, suggestion_id: int, *, commit: bool = True) -> None:
     row = connection.execute(
         "SELECT kind, payload_json FROM suggestions WHERE id = ? AND status = 'suggested'", (suggestion_id,)
     ).fetchone()
     if row is None:
         raise ValueError("Sugestia nie istnieje albo została już rozpatrzona.")
     payload = json.loads(row["payload_json"])
-    with connection:
+    with connection if commit else nullcontext():
         if row["kind"] == "merchant_classification":
             transaction_ids = [int(transaction_id) for transaction_id in payload["transaction_ids"]]
             for transaction_id in transaction_ids:
@@ -405,7 +405,8 @@ def add_manual_transaction(
 
 
 def approve_merchant_suggestion_with_category(
-    connection: sqlite3.Connection, suggestion_id: int, category_key: str, should_create_rule: bool
+    connection: sqlite3.Connection, suggestion_id: int, category_key: str, should_create_rule: bool,
+    *, commit: bool = True, apply_remembered_rules: bool = True,
 ) -> None:
     row = connection.execute(
         """SELECT payload_json FROM suggestions
@@ -416,7 +417,7 @@ def approve_merchant_suggestion_with_category(
         raise ValueError("Sugestia nie istnieje.")
     payload = json.loads(row["payload_json"])
     transaction_ids = [int(transaction_id) for transaction_id in payload["transaction_ids"]]
-    with connection:
+    with connection if commit else nullcontext():
         if not connection.in_transaction:
             connection.execute("BEGIN IMMEDIATE")
         # A suggestion is valid only while its input is still unclassified and ungrouped.
@@ -443,7 +444,8 @@ def approve_merchant_suggestion_with_category(
             )
         if should_create_rule and transaction_ids:
             save_merchant_rule(connection, transaction_ids[0], category_key, commit=False)
-            apply_rules(connection, commit=False)
+            if apply_remembered_rules:
+                apply_rules(connection, commit=False)
         connection.execute(
             "UPDATE suggestions SET status = 'approved', decided_at = CURRENT_TIMESTAMP WHERE id = ?",
             (suggestion_id,),

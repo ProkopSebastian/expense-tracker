@@ -279,13 +279,24 @@ def classification(db: DB):
 # One request, so the backup taken before it lets a single undo revert the whole batch.
 @router.post("/suggestions/approve-all")
 def approve_all(entry: BatchApproval, db: DB):
-    for item in entry.items:
-        approve(item.id, db, item)
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        for item in entry.items:
+            _approve(item.id, db, item, commit=False, apply_remembered_rules=False)
+        if any(item.remember for item in entry.items):
+            ledger.apply_rules(db, commit=False)
     return {"message": f"Zatwierdzono {len(entry.items)} sugestii."}
 
 
 @router.post("/suggestions/{sid}/approve")
 def approve(sid: int, db: DB, entry: Decision | None = None):
+    return _approve(sid, db, entry)
+
+
+def _approve(
+    sid: int, db: sqlite3.Connection, entry: Decision | None,
+    *, commit: bool = True, apply_remembered_rules: bool = True,
+):
     suggestion = db.execute("SELECT kind FROM suggestions WHERE id=? AND status='suggested'", (sid,)).fetchone()
     if not suggestion:
         raise ValueError("Sugestia została już rozpatrzona.")
@@ -293,9 +304,12 @@ def approve(sid: int, db: DB, entry: Decision | None = None):
         if entry is None:
             raise ValueError("Wybierz kategorię.")
         service.category_exists(db, entry.category_key)
-        ledger.approve_merchant_suggestion_with_category(db, sid, entry.category_key, entry.remember)
+        ledger.approve_merchant_suggestion_with_category(
+            db, sid, entry.category_key, entry.remember,
+            commit=commit, apply_remembered_rules=apply_remembered_rules,
+        )
     else:
-        ledger.approve_suggestion(db, sid)
+        ledger.approve_suggestion(db, sid, commit=commit)
     return {"message": "Sugestia zatwierdzona."}
 
 

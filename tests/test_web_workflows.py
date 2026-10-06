@@ -205,3 +205,33 @@ def test_pagination_never_splits_groups(client):
     assert len(first["blocks"]) == 50 and len(second["blocks"]) == 50 and len(third["blocks"]) == 1
     groups = [b for b in first["blocks"] + second["blocks"] + third["blocks"] if b["case_id"]]
     assert len(groups) == 1 and len(groups[0]["members"]) == 2
+
+
+def test_bulk_approval_defers_rules_and_rolls_back_on_error(tmp_path):
+    path = tmp_path / "batch.sqlite3"
+    database = Database(path)
+    ids = []
+    for currency in ("PLN", "EUR"):
+        tid = database.insert_transaction(Transaction(
+            account="Test", booking_date=date(2026, 1, 1), amount=Decimal(-10),
+            currency=currency, description="Test shop",
+        ))
+        _save_suggestion(database.connection, "merchant_classification", {
+            "transaction_ids": [tid], "category_key": "groceries", "confidence": 0.99,
+            "rationale": "Test", "should_create_rule": True,
+        })
+    ids = [row[0] for row in database.connection.execute("SELECT id FROM suggestions ORDER BY id")]
+    database.connection.commit()
+    database.close()
+    items = [{"id": sid, "category_key": "groceries", "remember": True} for sid in ids]
+    with TestClient(create_app(path), base_url="http://127.0.0.1") as client:
+        failed = client.post("/api/suggestions/approve-all", json={"items": items + [items[0] | {"id": 999}]})
+        assert failed.status_code == 422
+        assert client.get("/api/rules").json()["rules"] == []
+        assert all(row["category_key"] is None for row in client.get("/api/ledger").json()["blocks"])
+        assert client.post("/api/suggestions/approve-all", json={"items": items}).status_code == 200
+        assert client.get("/api/classification").json()["rows"] == []
+        assert len(client.get("/api/rules").json()["rules"]) == 1
+        assert client.post("/api/undo").status_code == 200
+        assert client.get("/api/rules").json()["rules"] == []
+        assert len(client.get("/api/classification").json()["rows"]) == 2
