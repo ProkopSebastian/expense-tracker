@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { importStatement } from "../importStatement";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, FolderOpen, RefreshCw, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
@@ -43,21 +44,7 @@ export default function DataPage({
     await action.run(async () => {
       const selectedAccount =
         account === "__new__" ? newAccount.trim() : account.trim();
-      const params = selectedAccount
-        ? `?account=${encodeURIComponent(selectedAccount)}`
-        : "";
-      const response = await fetch(`/api/import${params}`, {
-        method: "POST",
-        headers: { "X-File-Name": file.name },
-        body: file,
-      });
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(
-          typeof result.detail === "string"
-            ? result.detail
-            : "Nie udało się wczytać pliku.",
-        );
+      const result = await importStatement(file, selectedAccount);
       setMessage(result.message);
     });
   }
