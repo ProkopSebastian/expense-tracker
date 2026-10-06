@@ -577,9 +577,17 @@ export function SellWalletForm({
   const wallet = wallets.find((item) => String(item.id) === walletId);
 
   const amount = Number(given || 0);
-  const basis = wallet ? amount * Number(wallet.average_cost ?? 0) : 0;
   const received = Number(proceeds.amount ?? 0);
-  const difference = received - basis;
+  const params = new URLSearchParams({
+    proceeds_transaction_id: String(proceeds.id),
+    given_amount: given,
+  });
+  if (source?.id) params.set("source_transaction_id", String(source.id));
+  const quote = useResource<{ basis: string; difference: string }>(
+    wallet && amount > 0 ? `/wallets/${wallet.id}/sale-preview?${params}` : null,
+  );
+  const valued = !quote.loading && !quote.error && wallet && amount > 0 && quote.data;
+  const difference = valued ? Number(quote.data!.difference) : 0;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -599,7 +607,7 @@ export function SellWalletForm({
         onSubmit={submit}
         className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted"
       >
-        <Notice error={action.error} />
+        <Notice error={action.error || quote.error} />
         <p className="text-muted">
           Większość tej wpłaty to Twoje własne pieniądze wracające, więc nie jest
           przychodem. Przychodem jest tylko różnica między tym, co dostajesz, a
@@ -635,7 +643,7 @@ export function SellWalletForm({
         <div className="rounded-xl border border-line px-4 py-3 text-sm [&_div]:flex [&_div]:justify-between [&_div]:gap-4 [&_div]:py-1">
           <div>
             <span className="text-muted">Kosztowało Cię</span>
-            <strong>{wallet ? money(basis, "PLN") : "—"}</strong>
+            <strong>{valued ? money(quote.data!.basis, "PLN") : "—"}</strong>
           </div>
           <div>
             <span className="text-muted">Dostajesz</span>
@@ -646,7 +654,7 @@ export function SellWalletForm({
               {difference >= 0 ? "Zysk kursowy" : "Strata kursowa"}
             </span>
             <strong className={difference >= 0 ? "text-success" : "text-danger"}>
-              {wallet ? money(Math.abs(difference), "PLN") : "—"}
+              {valued ? money(Math.abs(difference), "PLN") : "—"}
             </strong>
           </div>
         </div>
@@ -661,7 +669,7 @@ export function SellWalletForm({
           </button>
           <button
             className="btn-primary"
-            disabled={action.busy || !wallet || amount <= 0}
+            disabled={action.busy || !valued}
           >
             {action.busy ? "Zapisuję…" : "Odsprzedaj"}
           </button>

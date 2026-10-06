@@ -142,7 +142,16 @@ def approved_cases(connection: sqlite3.Connection) -> list[dict[str, object]]:
            GROUP BY cases.id
            ORDER BY booking_date DESC"""
     ).fetchall()
-    return [dict(row) for row in rows]
+    from .wallet_service import sale_results
+
+    results = sale_results(connection)
+    cases = [dict(row) for row in rows]
+    for case in cases:
+        if case["id"] in results:
+            case["personal_amount"] = str(results[case["id"]])
+            case["category_key"] = "fx_result"
+            case["category_label"] = "Różnice kursowe"
+    return cases
 
 
 def pending_suggestions(connection: sqlite3.Connection) -> list[dict[str, object]]:

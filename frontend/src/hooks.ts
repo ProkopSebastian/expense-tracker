@@ -20,11 +20,17 @@ export async function request<T>(
     );
   return data as T;
 }
-export function useResource<T>(path: string, revision = 0) {
+export function useResource<T>(path: string | null, revision = 0) {
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (path === null) {
+      setData(null);
+      setError("");
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError("");

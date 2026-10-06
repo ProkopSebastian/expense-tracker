@@ -93,7 +93,7 @@ def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
         fields["account"] = wallet["account"]
         fields["currency"] = wallet["currency"]
         if entry.amount < 0:
-            balance = wallet_service.wallet_balance(db, entry.wallet_id)
+            balance = wallet_service.wallet_balance(db, entry.wallet_id, entry.booking_date)
             if balance + entry.amount < 0:
                 raise ValueError(f"Portfel ma {balance} {wallet['currency']}, a wydatek to {-entry.amount}.")
     return ledger.add_manual_transaction(db, **fields)

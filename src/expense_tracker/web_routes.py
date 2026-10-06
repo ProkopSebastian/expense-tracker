@@ -4,6 +4,7 @@ import json
 import logging
 import sqlite3
 from dataclasses import asdict
+from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -176,6 +177,18 @@ def fund_wallet(wallet_id: int, entry: WalletFundEntry, db: DB):
 @router.post("/wallets/{wallet_id}/convert", status_code=201)
 def convert_wallet(wallet_id: int, entry: WalletConvert, db: DB):
     return {"case_id": wallet_service.convert_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.get("/wallets/{wallet_id}/sale-preview")
+def preview_sale(
+    wallet_id: int, db: DB, proceeds_transaction_id: int,
+    given_amount: Annotated[Decimal, Query(gt=0, max_digits=18, decimal_places=2)],
+    source_transaction_id: int | None = None,
+):
+    return wallet_service.sale_preview(
+        db, wallet_id=wallet_id, proceeds_transaction_id=proceeds_transaction_id,
+        given_amount=given_amount, source_transaction_id=source_transaction_id,
+    )
 
 
 @router.post("/wallets/{wallet_id}/sell", status_code=201)

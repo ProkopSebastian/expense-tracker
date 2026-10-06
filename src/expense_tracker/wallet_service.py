@@ -7,6 +7,7 @@ import sqlite3
 import uuid
 from collections.abc import Sequence
 from contextlib import nullcontext
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -43,7 +44,10 @@ def _ordering(row: sqlite3.Row) -> tuple[str, int]:
     raw = json.loads(row["raw_json"] or "{}")
     stamp = str(raw.get("Started Date") or "")
     day = str(row["booking_date"])
-    return (stamp if stamp.startswith(day) else day, int(row["id"]))
+    if not stamp.startswith(day):
+        time = "00:00:00" if raw.get("Type") == OPENING_BALANCE else "23:59:59.999999"
+        stamp = f"{day} {time}"
+    return stamp, int(row["id"])
 
 
 def _wallets(connection: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -65,7 +69,9 @@ def _exchange_legs(connection: sqlite3.Connection) -> dict[int, list[sqlite3.Row
     return legs
 
 
-def wallet_states(connection: sqlite3.Connection) -> dict[int, dict[str, Any]]:
+def wallet_states(
+    connection: sqlite3.Connection, *, before: tuple[str, int] | None = None,
+) -> dict[int, dict[str, Any]]:
     wallets = _wallets(connection)
     by_pot = {(row["account"], row["currency"]): int(row["id"]) for row in wallets}
     state: dict[int, dict[str, Any]] = {
@@ -98,7 +104,9 @@ def wallet_states(connection: sqlite3.Connection) -> dict[int, dict[str, Any]]:
             events.append((min(_ordering(leg) for leg in group), "exchange", group))
     events.sort(key=lambda event: event[0])
 
-    for _, kind, payload in events:
+    for ordering, kind, payload in events:
+        if before is not None and ordering >= before:
+            break
         if kind == "exchange":
             _apply_exchange(state, by_pot, payload)
         else:
@@ -128,6 +136,9 @@ def _apply_exchange(state, by_pot, group) -> None:
             {
                 "transaction_id": int(source["id"]),
                 "kind": "conversion_out",
+                "case_id": int(source["case_id"]),
+                "sale_proceeds": str(target["amount"]) if target["currency"] == HOME_CURRENCY
+                and source["currency"] != HOME_CURRENCY else None,
                 "date": source["booking_date"],
                 "description": source["description"],
                 "amount": str(-given),
@@ -250,6 +261,15 @@ def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
                 continue
             values[int(event["transaction_id"])] = _decimal(event["pln"])
     return values
+
+
+def sale_results(connection: sqlite3.Connection) -> dict[int, Decimal]:
+    return {
+        event["case_id"]: -_decimal(event["pln"]) - _decimal(event["sale_proceeds"])
+        for state in wallet_states(connection).values()
+        for event in state["history"]
+        if event.get("sale_proceeds") is not None
+    }
 
 
 def currency_rates(connection: sqlite3.Connection) -> dict[str, Decimal]:
@@ -441,8 +461,9 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
     return paired
 
 
-def wallet_balance(connection: sqlite3.Connection, wallet_id: int) -> Decimal:
-    state = wallet_states(connection)
+def wallet_balance(connection: sqlite3.Connection, wallet_id: int, on_date: date | None = None) -> Decimal:
+    before = (f"{on_date}~", 0) if on_date is not None else None
+    state = wallet_states(connection, before=before)
     if wallet_id not in state:
         raise ValueError("Portfel nie istnieje.")
     return state[wallet_id]["balance"]
@@ -468,7 +489,7 @@ def reconcile_wallet(
     if remaining < 0:
         raise ValueError("Pozostała kwota nie może być ujemna.")
 
-    balance = wallet_balance(connection, wallet_id)
+    balance = wallet_balance(connection, wallet_id, booking_date)
     missing = balance - remaining
     if missing < 0:
         # More money than the wallet was ever given means a funding nobody recorded. Booking it
@@ -558,7 +579,7 @@ def convert_wallet(
         raise ValueError("Wybierz dwa różne portfele.")
     if given_amount <= 0 or received_amount <= 0:
         raise ValueError("Obie kwoty muszą być większe od zera.")
-    balance = wallet_balance(connection, wallet_id)
+    balance = wallet_balance(connection, wallet_id, booking_date)
     if given_amount > balance:
         raise ValueError(f"Portfel ma {balance} {source['currency']}, a wymieniasz {given_amount}.")
 
@@ -621,20 +642,22 @@ def _sale_source(connection, wallet, proceeds, given_amount, source_transaction_
     return matches[0]
 
 
-def sell_wallet(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    proceeds_transaction_id: int,
-    given_amount: Decimal,
-    source_transaction_id: int | None = None,
-) -> int:
-    """Sell foreign currency back, against money that actually arrived on an account.
+@dataclass(frozen=True)
+class _SaleDetails:
+    wallet: sqlite3.Row
+    proceeds: sqlite3.Row
+    source: sqlite3.Row | None
+    basis: Decimal
 
-    Most of the proceeds are the user's own money returning and must not read as income. Only
-    the difference from what the currency cost is real, and that difference is booked on its
-    own as an exchange-rate result.
-    """
+    @property
+    def difference(self) -> Decimal:
+        return _decimal(self.proceeds["amount"]) - self.basis
+
+
+def _sale_details(
+    connection: sqlite3.Connection, wallet_id: int, proceeds_transaction_id: int,
+    given_amount: Decimal, source_transaction_id: int | None,
+) -> _SaleDetails:
     wallet = _require_wallet(connection, wallet_id)
     if wallet["currency"] == HOME_CURRENCY:
         raise ValueError("Ten portfel trzyma złotówki, nie ma czego odsprzedawać.")
@@ -652,12 +675,41 @@ def sell_wallet(
         raise ValueError("Wybierz transakcję, na której pieniądze wpłynęły.")
 
     source = _sale_source(connection, wallet, proceeds, given_amount, source_transaction_id)
-    state = wallet_states(connection)[wallet_id]
-    available = state["balance"] + (given_amount if source is not None else 0)
+    ordering = min(_ordering(source), _ordering(proceeds)) if source is not None else _ordering(proceeds)
+    state = wallet_states(connection, before=ordering)[wallet_id]
+    available = state["balance"]
     if given_amount > available:
         raise ValueError(f"Portfel ma {state['balance']} {wallet['currency']}, a sprzedajesz {given_amount}.")
     basis = (given_amount * state["average_cost"]).quantize(MONEY)
-    difference = _decimal(proceeds["amount"]) - basis
+    return _SaleDetails(wallet, proceeds, source, basis)
+
+
+
+def sale_preview(
+    connection: sqlite3.Connection, *, wallet_id: int, proceeds_transaction_id: int,
+    given_amount: Decimal, source_transaction_id: int | None = None,
+) -> dict[str, str]:
+    details = _sale_details(connection, wallet_id, proceeds_transaction_id, given_amount, source_transaction_id)
+    return {"basis": str(details.basis), "difference": str(details.difference)}
+
+
+def sell_wallet(
+    connection: sqlite3.Connection,
+    *,
+    wallet_id: int,
+    proceeds_transaction_id: int,
+    given_amount: Decimal,
+    source_transaction_id: int | None = None,
+) -> int:
+    """Sell foreign currency back, against money that actually arrived on an account.
+
+    Most of the proceeds are the user's own money returning and must not read as income. Only
+    the difference from what the currency cost is real, and that difference is booked on its
+    own as an exchange-rate result.
+    """
+    details = _sale_details(connection, wallet_id, proceeds_transaction_id, given_amount, source_transaction_id)
+    wallet, proceeds, source = details.wallet, details.proceeds, details.source
+    difference = details.difference
 
     with connection:
         out_id = int(source["id"]) if source is not None else _synthetic_leg(
@@ -667,6 +719,7 @@ def sell_wallet(
             amount=-given_amount,
             currency=wallet["currency"],
             description=f"Odsprzedaż {wallet['currency']}",
+            raw={"Type": ledger.SYNTHETIC_EXCHANGE_LEG, "Started Date": _ordering(proceeds)[0]},
         )
         return ledger.create_case(
             connection,
