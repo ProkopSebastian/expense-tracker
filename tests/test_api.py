@@ -11,7 +11,7 @@ from expense_tracker.models import Transaction
 
 
 def test_frontend_crash_report_is_written_to_application_log(tmp_path, caplog):
-    with TestClient(create_app(tmp_path / "errors.sqlite3")) as client, caplog.at_level(
+    with TestClient(create_app(tmp_path / "errors.sqlite3"), base_url="http://127.0.0.1") as client, caplog.at_level(
         logging.ERROR, logger="expense_tracker.frontend"
     ):
         response = client.post(
@@ -70,7 +70,7 @@ def test_summary_keeps_group_costs_currency_and_decimal_precision(tmp_path):
     )
     save_decision(db.connection, euro, "groceries")
     db.close()
-    with TestClient(create_app(path)) as client:
+    with TestClient(create_app(path), base_url="http://127.0.0.1") as client:
         response = client.get("/api/summary")
         assert response.status_code == 200
         body = response.json()
@@ -83,7 +83,7 @@ def test_summary_keeps_group_costs_currency_and_decimal_precision(tmp_path):
 
 
 def test_api_handles_empty_database_and_invalid_filters(tmp_path):
-    with TestClient(create_app(tmp_path / "empty.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "empty.sqlite3"), base_url="http://127.0.0.1") as client:
         response = client.get("/api/summary")
         assert response.status_code == 200
         assert response.json()["breakdown"] == []
@@ -106,7 +106,7 @@ def test_periods_anchor_on_latest_available_transaction(tmp_path):
             )
         )
     db.close()
-    with TestClient(create_app(path)) as client:
+    with TestClient(create_app(path), base_url="http://127.0.0.1") as client:
         for mode, start, expected in [
             ("30days", "2026-08-12", "20"),
             ("3months", "2026-07-01", "30"),
@@ -118,3 +118,15 @@ def test_periods_anchor_on_latest_available_transaction(tmp_path):
             assert body["expenses"] == expected
         body = client.get("/api/summary?mode=custom&start=2026-08-31&end=2026-08-31").json()
         assert body["expenses"] == "10"
+
+
+def test_untrusted_hosts_cannot_read_or_write_local_data(tmp_path):
+    with TestClient(create_app(tmp_path / "hosts.sqlite3"), base_url="http://127.0.0.1") as client:
+        for host in ("attacker.invalid", "127.0.0.1.attacker.invalid"):
+            headers = {"Host": host, "Origin": f"http://{host}"}
+            assert client.get("/api/meta", headers=headers).status_code == 403
+            assert client.post("/api/undo", headers=headers).status_code == 403
+        assert client.get("/api/meta").status_code == 200
+        assert client.get("/api/meta", headers={"Host": "localhost:51837"}).status_code == 200
+        assert client.post("/api/undo", headers={"Origin": "https://attacker.invalid"}).status_code == 403
+        assert client.get("/api/recovery").json()["can_undo"] is False

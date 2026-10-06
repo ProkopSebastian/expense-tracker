@@ -306,7 +306,7 @@ def test_update_endpoints_require_desktop_token_and_local_origin(tmp_path):
 
 
 def test_development_server_does_not_expose_installer(tmp_path):
-    with TestClient(create_app(tmp_path / "expenses.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "expenses.sqlite3"), base_url="http://127.0.0.1") as client:
         assert client.get("/api/updates").json()["enabled"] is False
         assert client.post("/api/updates/install").status_code == 409
 

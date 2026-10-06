@@ -24,7 +24,7 @@ def _snapshot(client, day, balances, rates=None):
 
 
 def test_snapshots_keep_their_own_rates_gaps_zeros_and_debts(tmp_path):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         bank = _asset(client, "Konto")
         euro = _asset(client, "Revolut EUR", currency="EUR")
         debt = _asset(client, "Pożyczka", kind="debt")
@@ -49,7 +49,7 @@ def test_snapshots_keep_their_own_rates_gaps_zeros_and_debts(tmp_path):
 
 
 def test_foreign_balance_needs_the_rate_from_its_day(tmp_path):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         euro = _asset(client, "Gotówka EUR", kind="cash", currency="EUR")
         response = client.post(
             "/api/wealth/snapshots",
@@ -61,7 +61,7 @@ def test_foreign_balance_needs_the_rate_from_its_day(tmp_path):
 
 
 def test_recording_a_day_again_replaces_it_but_editing_cannot_collide(tmp_path):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         bank = _asset(client, "Konto")
         bonds = _asset(client, "Obligacje", kind="bonds")
         january = _snapshot(client, "2026-01-31", {bank: "100", bonds: "900"})
@@ -80,7 +80,7 @@ def test_recording_a_day_again_replaces_it_but_editing_cannot_collide(tmp_path):
 
 
 def test_inactive_asset_keeps_history_and_cannot_be_deleted_with_it(tmp_path):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         bonds = _asset(client, "Obligacje", kind="bonds")
         _snapshot(client, "2026-01-31", {bonds: "500"})
         _snapshot(client, "2026-02-28", {bonds: "0"})
@@ -99,7 +99,7 @@ def test_inactive_asset_keeps_history_and_cannot_be_deleted_with_it(tmp_path):
 
 @pytest.mark.parametrize("amount", ["500", "-500"])
 def test_deactivation_requires_zero_even_after_an_omitted_balance(tmp_path, amount):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         asset = _asset(client, "Składnik")
         bank = _asset(client, "Konto")
         _snapshot(client, "2026-01-31", {asset: amount, bank: "100"})
@@ -117,7 +117,7 @@ def test_deactivation_requires_zero_even_after_an_omitted_balance(tmp_path, amou
 
 
 def test_asset_without_history_can_be_deactivated(tmp_path):
-    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "wealth.sqlite3"), base_url="http://127.0.0.1") as client:
         asset = _asset(client, "Puste konto")
         response = client.put(
             f"/api/wealth/assets/{asset}",

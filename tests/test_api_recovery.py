@@ -16,7 +16,7 @@ from expense_tracker.recovery import backup_database, record_undo, undo_last
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "openai_api_key", None)
-    with TestClient(create_app(tmp_path / "test.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "test.sqlite3"), base_url="http://127.0.0.1") as client:
         yield client
 
 
@@ -75,7 +75,7 @@ def test_reset_removes_finances_and_preserves_api_key(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "data_dir", data_dir)
     monkeypatch.setattr(settings, "openai_api_key", None)
 
-    with TestClient(create_app(database_path)) as reset_client:
+    with TestClient(create_app(database_path), base_url="http://127.0.0.1") as reset_client:
         assert reset_client.put(
             "/api/settings/ai", json={"api_key": "test-local-key-not-real"}
         ).status_code == 200

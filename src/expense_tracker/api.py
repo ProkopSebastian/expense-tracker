@@ -55,6 +55,8 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
 
     @app.middleware("http")
     async def local_writes(request, call_next):
+        if request.url.hostname not in {"127.0.0.1", "localhost", "::1"}:
+            return JSONResponse({"detail": "Niedozwolony adres aplikacji."}, status_code=403)
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             origin = request.headers.get("origin")
             allowed = {str(request.base_url).rstrip("/"), "http://127.0.0.1:5173", "http://localhost:5173"}

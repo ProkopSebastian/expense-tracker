@@ -15,7 +15,7 @@ from expense_tracker.models import Transaction
 
 @pytest.fixture
 def client(tmp_path):
-    with TestClient(create_app(tmp_path / "web.sqlite3")) as client:
+    with TestClient(create_app(tmp_path / "web.sqlite3"), base_url="http://127.0.0.1") as client:
         yield client
 
 
@@ -129,7 +129,7 @@ def test_classification_suggestions_and_ai_adapter(tmp_path, monkeypatch):
     )
     db.connection.commit()
     db.close()
-    with TestClient(create_app(path)) as client:
+    with TestClient(create_app(path), base_url="http://127.0.0.1") as client:
         row = client.get("/api/classification").json()["rows"][0]
         assert row["totals"] == {"PLN": "-20"}
         assert (
