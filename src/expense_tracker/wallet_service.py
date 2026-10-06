@@ -691,6 +691,10 @@ def _sale_details(
     ).fetchone()
     if proceeds is None:
         raise ValueError("Transakcja z wpłatą nie istnieje.")
+    if proceeds["currency"] != HOME_CURRENCY:
+        raise ValueError("Odsprzedaż wymaga wpływu w PLN. Wymianę na inną walutę zapisz jako wymianę portfeli.")
+    if proceeds["bank_status"] in {"DECLINED", "REVERTED", "FAILED"}:
+        raise ValueError("Wpłata została cofnięta przez bank.")
     if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (proceeds_transaction_id,)).fetchone():
         raise ValueError("Ta transakcja należy już do grupy.")
     if _decimal(proceeds["amount"]) <= 0:

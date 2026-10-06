@@ -66,7 +66,8 @@ export default function LedgerPage({
     (selectedRows.length === 1 && outflows.length === 1) ||
     (selectedRows.length === 2 && outflows.length === 1 && inflows.length === 1);
   // Money arriving on its own is the other direction: currency sold back.
-  const canSell = inflows.length === 1 && (selectedRows.length === 1 || outflows.length === 1);
+  const canSell = inflows.length === 1 && inflows[0].currency === "PLN" &&
+    (selectedRows.length === 1 || (selectedRows.length === 2 && outflows.length === 1));
   const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {

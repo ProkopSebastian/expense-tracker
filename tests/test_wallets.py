@@ -135,3 +135,16 @@ def test_later_funding_does_not_spread_its_cost_over_an_earlier_deficit(database
     [wallet] = wallets.list_wallets(database.connection)
     assert wallet["average_cost"] == "4.000000"
     assert wallet["pln_value"] == "320.00"
+
+
+def test_sale_rejects_foreign_proceeds_without_changing_the_wallet(database):
+    import pytest
+
+    wallet_id = open_wallet(database)
+    proceeds = add(database, "100", currency="USD")
+    with pytest.raises(ValueError, match="wpływu w PLN"):
+        wallets.sell_wallet(
+            database.connection, wallet_id=wallet_id, proceeds_transaction_id=proceeds, given_amount=Decimal(10),
+        )
+    assert wallets.wallet_balance(database.connection, wallet_id) == 100
+    assert database.connection.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 0
