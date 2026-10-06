@@ -85,7 +85,7 @@ def wallet_states(connection: sqlite3.Connection) -> dict[int, dict[str, Any]]:
     placeholders = " OR ".join("(account = ? AND currency = ?)" for _ in by_pot)
     plain = connection.execute(
         f"""SELECT id, account, booking_date, amount, currency, description, raw_json
-        FROM transactions WHERE {placeholders}""",
+        FROM transactions WHERE ({placeholders}) AND bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED')""",
         [value for pot in by_pot for value in pot],
     ).fetchall()
 
@@ -398,7 +398,8 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
     rows = connection.execute(
         """SELECT t.id, t.account, t.amount, t.currency, t.raw_json
         FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id
-        WHERE t.transaction_type = 'Exchange' AND cm.transaction_id IS NULL"""
+        WHERE t.transaction_type = 'Exchange' AND cm.transaction_id IS NULL
+        AND t.bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED')"""
     ).fetchall()
 
     by_moment: dict[str, list[sqlite3.Row]] = {}
