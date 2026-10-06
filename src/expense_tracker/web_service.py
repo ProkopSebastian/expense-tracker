@@ -182,6 +182,7 @@ def ledger_blocks(
                 "counterparty": "",
                 "amount": None,
                 "real_amount": str(-Decimal(case["personal_amount"])),
+                "valuation_missing": case.get("valuation_missing"),
                 "currency": case["currency"],
                 "category_key": case["category_key"],
                 "category_label": case["category_label"] or "Do przypisania",

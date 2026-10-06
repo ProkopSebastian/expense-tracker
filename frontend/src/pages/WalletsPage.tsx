@@ -502,7 +502,7 @@ function WalletHistory({ wallet }: { wallet: Wallet }) {
                   {money(event.amount, wallet.currency)}
                 </td>
                 <td className="text-right text-muted tabular-nums">
-                  {money(event.pln, "PLN")}
+                  {event.pln === null ? "Brak wyceny" : money(event.pln, "PLN")}
                 </td>
               </tr>
             ))}
@@ -550,7 +550,7 @@ function WalletTile({
         <span className="block text-sm text-muted tabular-nums">
           {wallet.currency === "PLN"
             ? "\u00a0"
-            : `≈ ${money(wallet.pln_value, "PLN")}`}
+            : wallet.pln_value === null ? "Brak wyceny" : `≈ ${money(wallet.pln_value, "PLN")}`}
         </span>
         {wallet.currency !== "PLN" && wallet.average_cost !== null && (
           <span className="block text-xs text-muted tabular-nums">

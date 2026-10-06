@@ -77,7 +77,7 @@ def wallet_states(
     state: dict[int, dict[str, Any]] = {
         int(row["id"]): {
             "balance": Decimal(0),
-            "average_cost": Decimal(0),
+            "average_cost": Decimal(1) if row["currency"] == HOME_CURRENCY else None,
             "uncovered": Decimal(0),
             "history": [],
         }
@@ -114,6 +114,17 @@ def wallet_states(
     return state
 
 
+def _add_funding(pot, amount: Decimal, cost: Decimal | None) -> None:
+    balance, average = pot["balance"], pot["average_cost"]
+    if cost is None or (balance > 0 and average is None):
+        pot["average_cost"] = None
+    elif balance <= 0:
+        pot["average_cost"] = (cost / amount).quantize(COST_PRECISION)
+    else:
+        pot["average_cost"] = ((balance * average + cost) / (balance + amount)).quantize(COST_PRECISION)
+    pot["balance"] += amount
+
+
 def _apply_exchange(state, by_pot, group) -> None:
     incoming = [leg for leg in group if _decimal(leg["amount"]) > 0]
     outgoing = [leg for leg in group if _decimal(leg["amount"]) < 0]
@@ -130,7 +141,10 @@ def _apply_exchange(state, by_pot, group) -> None:
         # Converting one pot into another carries the złoty basis across: no złoty changed
         # hands, so no gain or loss may be invented here.
         source_state = state[source_id]
-        cost = (given * source_state["average_cost"]).quantize(MONEY)
+        average = source_state["average_cost"]
+        covered = min(given, max(source_state["balance"], Decimal(0)))
+        cost = (given * average).quantize(MONEY) if average is not None and covered == given else None
+        source_state["uncovered"] += given - covered
         source_state["balance"] -= given
         source_state["history"].append(
             {
@@ -142,11 +156,11 @@ def _apply_exchange(state, by_pot, group) -> None:
                 "date": source["booking_date"],
                 "description": source["description"],
                 "amount": str(-given),
-                "pln": str(-cost),
+                "pln": str(-cost) if cost is not None else None,
             }
         )
     else:
-        cost = given
+        cost = None
 
     if target_id is None:
         return
@@ -154,10 +168,7 @@ def _apply_exchange(state, by_pot, group) -> None:
     if target["currency"] == HOME_CURRENCY:
         cost = received
     pot = state[target_id]
-    new_balance = pot["balance"] + received
-    if new_balance > 0:
-        pot["average_cost"] = ((pot["balance"] * pot["average_cost"] + cost) / new_balance).quantize(COST_PRECISION)
-    pot["balance"] = new_balance
+    _add_funding(pot, received, cost)
     pot["history"].append(
         {
             "transaction_id": int(target["id"]),
@@ -165,8 +176,8 @@ def _apply_exchange(state, by_pot, group) -> None:
             "date": target["booking_date"],
             "description": target["description"],
             "amount": str(received),
-            "pln": str(cost),
-            "rate": str((cost / received).quantize(COST_PRECISION)) if received else None,
+            "pln": str(cost) if cost is not None else None,
+            "rate": str((cost / received).quantize(COST_PRECISION)) if cost is not None else None,
         }
     )
 
@@ -188,7 +199,8 @@ def _apply_movement(state, by_pot, row) -> None:
                 "date": row["booking_date"],
                 "description": row["description"],
                 "amount": str(amount),
-                "pln": str(-(covered * pot["average_cost"]).quantize(MONEY)),
+                "pln": str(-(covered * pot["average_cost"]).quantize(MONEY))
+                if pot["average_cost"] is not None else None,
                 "uncovered": str(spent - covered),
             }
         )
@@ -196,10 +208,7 @@ def _apply_movement(state, by_pot, row) -> None:
     opening = json.loads(row["raw_json"] or "{}")
     if opening.get("Type") == OPENING_BALANCE:
         cost = _decimal(opening.get("pln_cost", 0))
-        new_balance = pot["balance"] + amount
-        if new_balance > 0:
-            pot["average_cost"] = ((pot["balance"] * pot["average_cost"] + cost) / new_balance).quantize(COST_PRECISION)
-        pot["balance"] = new_balance
+        _add_funding(pot, amount, amount if row["currency"] == HOME_CURRENCY else cost)
         pot["history"].append(
             {
                 "transaction_id": int(row["id"]),
@@ -222,30 +231,29 @@ def _apply_movement(state, by_pot, row) -> None:
             "date": row["booking_date"],
             "description": row["description"],
             "amount": str(amount),
-            "pln": str((amount * pot["average_cost"]).quantize(MONEY)),
-            "rate_known": pot["average_cost"] > 0,
+            "pln": str((amount * pot["average_cost"]).quantize(MONEY))
+            if pot["average_cost"] is not None else None,
+            "rate_known": pot["average_cost"] is not None,
         }
     )
 
 
 def list_wallets(connection: sqlite3.Connection) -> list[dict[str, object]]:
-    state = wallet_states(connection)
-    return [
-        {
+    states = wallet_states(connection)
+    result = []
+    for row in _wallets(connection):
+        state = states[int(row["id"])]
+        average = state["average_cost"]
+        result.append({
             "id": int(row["id"]),
             "account": row["account"],
             "currency": row["currency"],
-            "balance": str(state[int(row["id"])]["balance"].quantize(MONEY)),
-            "average_cost": (
-                str(state[int(row["id"])]["average_cost"]) if state[int(row["id"])]["average_cost"] > 0 else None
-            ),
-            "pln_value": str(
-                (state[int(row["id"])]["balance"] * state[int(row["id"])]["average_cost"]).quantize(MONEY)
-            ),
-            "uncovered": str(state[int(row["id"])]["uncovered"].quantize(MONEY)),
-        }
-        for row in _wallets(connection)
-    ]
+            "balance": str(state["balance"].quantize(MONEY)),
+            "average_cost": str(average) if average is not None else None,
+            "pln_value": str((state["balance"] * average).quantize(MONEY)) if average is not None else None,
+            "uncovered": str(state["uncovered"].quantize(MONEY)),
+        })
+    return result
 
 
 def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
@@ -259,14 +267,28 @@ def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
         for event in state["history"]:
             if event["kind"] == "spend" and _decimal(event["uncovered"]) > 0:
                 continue
-            values[int(event["transaction_id"])] = _decimal(event["pln"])
+            if event["pln"] is not None:
+                values[int(event["transaction_id"])] = _decimal(event["pln"])
     return values
 
 
-def sale_results(connection: sqlite3.Connection) -> dict[int, Decimal]:
+def partial_pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal | None]:
     return {
-        event["case_id"]: -_decimal(event["pln"]) - _decimal(event["sale_proceeds"])
+        int(event["transaction_id"]): _decimal(event["pln"]) if event["pln"] is not None else None
         for state in wallet_states(connection).values()
+        for event in state["history"]
+        if event["pln"] is None or _decimal(event.get("uncovered", 0)) > 0
+    }
+
+
+def sale_results(connection: sqlite3.Connection) -> dict[int, tuple[Decimal | None, str]]:
+    currencies = {int(row["id"]): row["currency"] for row in _wallets(connection)}
+    return {
+        event["case_id"]: (
+            -_decimal(event["pln"]) - _decimal(event["sale_proceeds"]) if event["pln"] is not None else None,
+            currencies[wallet_id],
+        )
+        for wallet_id, state in wallet_states(connection).items()
         for event in state["history"]
         if event.get("sale_proceeds") is not None
     }
@@ -281,7 +303,7 @@ def currency_rates(connection: sqlite3.Connection) -> dict[str, Decimal]:
     by_currency: dict[str, list[Decimal]] = {}
     rows = {int(row["id"]): row["currency"] for row in _wallets(connection)}
     for wallet_id, state in wallet_states(connection).items():
-        if state["average_cost"] > 0:
+        if state["average_cost"] is not None:
             by_currency.setdefault(rows[wallet_id], []).append(state["average_cost"])
     return {currency: rates[0] for currency, rates in by_currency.items() if len(rates) == 1}
 
@@ -680,6 +702,8 @@ def _sale_details(
     available = state["balance"]
     if given_amount > available:
         raise ValueError(f"Portfel ma {state['balance']} {wallet['currency']}, a sprzedajesz {given_amount}.")
+    if state["average_cost"] is None:
+        raise ValueError("Brakuje kosztu zakupu sprzedawanej waluty. Uzupełnij wcześniejsze zasilenie portfela.")
     basis = (given_amount * state["average_cost"]).quantize(MONEY)
     return _SaleDetails(wallet, proceeds, source, basis)
 

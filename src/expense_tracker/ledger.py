@@ -148,7 +148,9 @@ def approved_cases(connection: sqlite3.Connection) -> list[dict[str, object]]:
     cases = [dict(row) for row in rows]
     for case in cases:
         if case["id"] in results:
-            case["personal_amount"] = str(results[case["id"]])
+            amount, currency = results[case["id"]]
+            case["personal_amount"] = str(amount if amount is not None else 0)
+            case["valuation_missing"] = currency if amount is None else None
             case["category_key"] = "fx_result"
             case["category_label"] = "Różnice kursowe"
     return cases

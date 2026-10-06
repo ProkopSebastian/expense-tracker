@@ -44,11 +44,13 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
             )
     for case in cases:
         amount = Decimal(str(case["personal_amount"]))
-        if amount == 0:
+        if amount == 0 and not case.get("valuation_missing"):
             continue
         items.append(
             {
                 "transaction_id": None,
+                "case_id": case["id"],
+                "valuation_missing": case.get("valuation_missing"),
                 "date": case["booking_date"],
                 "amount": abs(amount),
                 "currency": case["currency"],

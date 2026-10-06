@@ -30,6 +30,7 @@ export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   id: number | null;
   amount: string | null;
   real_amount: string;
+  valuation_missing?: string | null;
   case_id: number | null;
   members: TransactionRow[];
 }
@@ -87,7 +88,7 @@ export interface Wallet {
   currency: string;
   balance: string;
   average_cost: string | null;
-  pln_value: string;
+  pln_value: string | null;
   uncovered: string;
 }
 export interface WalletEvent {
@@ -96,7 +97,7 @@ export interface WalletEvent {
   date: string;
   description: string;
   amount: string;
-  pln: string;
+  pln: string | null;
   rate?: string | null;
   uncovered?: string;
   rate_known?: boolean;

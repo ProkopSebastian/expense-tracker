@@ -77,3 +77,61 @@ def test_backdated_manual_spend_cannot_use_future_funding(database):
             account="test", wallet_id=wallet_id, booking_date=date(2026, 1, 1), amount=Decimal(-20),
             currency="EUR", description="Test", category_key="groceries",
         ))
+
+
+def test_missing_cost_is_not_reported_as_zero(database):
+    from expense_tracker.summary_service import get_summary
+
+    wallets.create_wallet(database.connection, "test", "EUR")
+    add(database, "100")
+    add(database, "-20", day="2026-01-03")
+    result = get_summary(database.connection, month="2026-01")
+    assert result.untranslated == ["EUR"]
+    assert result.item_count == 0
+    assert wallets.list_wallets(database.connection)[0]["pln_value"] is None
+
+
+def test_uncovered_spending_reports_only_the_known_part(database):
+    from expense_tracker.summary_service import get_summary
+
+    open_wallet(database)
+    tid = add(database, "-150")
+    result = get_summary(database.connection, month="2026-01")
+    assert result.expenses == 400
+    assert result.untranslated == ["EUR"]
+    assert tid not in wallets.pln_equivalents(database.connection)
+
+
+def test_foreign_source_without_a_cost_does_not_invent_zlotys(database):
+    wallet_id = wallets.create_wallet(database.connection, "cash", "USD")
+    source = add(database, "-100", currency="EUR")
+    wallets.fund_wallet(
+        database.connection, wallet_id=wallet_id, source_transaction_id=source, received_amount=Decimal(110),
+    )
+    [wallet] = wallets.list_wallets(database.connection)
+    assert wallet["balance"] == "110.00"
+    assert wallet["average_cost"] is None
+    assert wallet["pln_value"] is None
+
+
+def test_explicit_zero_cost_is_distinct_from_missing_cost(database):
+    from expense_tracker.summary_service import get_summary
+
+    open_wallet(database, cost="0")
+    add(database, "-20")
+    result = get_summary(database.connection, month="2026-01")
+    assert result.untranslated == []
+    assert result.item_count == 1
+    assert result.expenses == 0
+
+
+def test_later_funding_does_not_spread_its_cost_over_an_earlier_deficit(database):
+    wallet_id = wallets.create_wallet(database.connection, "test", "EUR")
+    add(database, "-20")
+    wallets.set_opening_balance(
+        database.connection, wallet_id=wallet_id, amount=Decimal(100), pln_cost=Decimal(400),
+        booking_date=date(2026, 3, 1),
+    )
+    [wallet] = wallets.list_wallets(database.connection)
+    assert wallet["average_cost"] == "4.000000"
+    assert wallet["pln_value"] == "320.00"

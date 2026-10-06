@@ -233,7 +233,7 @@ export default function LedgerTable({
                         <td
                           className={`text-right! font-medium whitespace-nowrap tabular-nums ${Number(row.case_id ? row.real_amount : row.amount) > 0 ? "text-success" : ""}`}
                         >
-                          {money(
+                          {row.valuation_missing ? "Brak wyceny" : money(
                             row.case_id ? row.real_amount : (row.amount ?? "0"),
                             row.currency,
                           )}

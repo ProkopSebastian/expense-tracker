@@ -91,9 +91,9 @@ export default function SummaryPage({
               className="mb-5 flex items-center gap-3 rounded-xl bg-danger/10 px-4 py-3 text-sm leading-relaxed text-danger"
             >
               <CircleHelp size={17} className="shrink-0" />
-              Wydatki w {data.untranslated.join(", ")} nie wchodzą do tej sumy —
-              nie ma zapisanej wymiany, z której dałoby się wziąć kurs. Zasil ich
-              portfel albo podaj saldo otwarcia.
+              Podsumowanie jest niepełne: część operacji w {data.untranslated.join(", ")}
+              {" "}nie ma znanego kosztu w złotówkach. Uzupełnij wcześniejsze
+              zasilenia portfela albo saldo otwarcia.
             </p>
           )}
           <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
