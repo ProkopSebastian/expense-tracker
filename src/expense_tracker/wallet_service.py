@@ -591,12 +591,43 @@ def convert_wallet(
         )
 
 
+def _sale_source(connection, wallet, proceeds, given_amount, source_transaction_id):
+    if source_transaction_id is not None:
+        source = connection.execute("SELECT * FROM transactions WHERE id = ?", (source_transaction_id,)).fetchone()
+        if source is None:
+            raise ValueError("Transakcja rozchodowa nie istnieje.")
+        if (source["account"], source["currency"]) != (wallet["account"], wallet["currency"]):
+            raise ValueError("Transakcja rozchodowa nie należy do wybranego portfela.")
+        if _decimal(source["amount"]) != -given_amount:
+            raise ValueError("Kwota sprzedaży musi być zgodna z transakcją rozchodową.")
+        if source["bank_status"] in {"DECLINED", "REVERTED", "FAILED"}:
+            raise ValueError("Transakcja rozchodowa została cofnięta przez bank.")
+        if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (source["id"],)).fetchone():
+            raise ValueError("Transakcja rozchodowa należy już do grupy.")
+        return source
+    if proceeds["transaction_type"] != "Exchange":
+        return None
+    moment = json.loads(proceeds["raw_json"] or "{}").get("Started Date")
+    candidates = connection.execute(
+        """SELECT t.* FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id
+        WHERE t.account = ? AND t.currency = ? AND t.transaction_type = 'Exchange'
+        AND t.bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED') AND cm.transaction_id IS NULL""",
+        (wallet["account"], wallet["currency"]),
+    ).fetchall()
+    matches = [row for row in candidates if moment and _decimal(row["amount"]) == -given_amount
+               and json.loads(row["raw_json"] or "{}").get("Started Date") == moment]
+    if len(matches) != 1:
+        raise ValueError("Zaznacz obie strony odsprzedaży z wyciągu albo zaimportuj brakującą transakcję.")
+    return matches[0]
+
+
 def sell_wallet(
     connection: sqlite3.Connection,
     *,
     wallet_id: int,
     proceeds_transaction_id: int,
     given_amount: Decimal,
+    source_transaction_id: int | None = None,
 ) -> int:
     """Sell foreign currency back, against money that actually arrived on an account.
 
@@ -610,7 +641,7 @@ def sell_wallet(
     if given_amount <= 0:
         raise ValueError("Kwota musi być większa od zera.")
     proceeds = connection.execute(
-        "SELECT id, booking_date, amount, currency FROM transactions WHERE id = ?",
+        "SELECT * FROM transactions WHERE id = ?",
         (proceeds_transaction_id,),
     ).fetchone()
     if proceeds is None:
@@ -620,14 +651,16 @@ def sell_wallet(
     if _decimal(proceeds["amount"]) <= 0:
         raise ValueError("Wybierz transakcję, na której pieniądze wpłynęły.")
 
+    source = _sale_source(connection, wallet, proceeds, given_amount, source_transaction_id)
     state = wallet_states(connection)[wallet_id]
-    if given_amount > state["balance"]:
+    available = state["balance"] + (given_amount if source is not None else 0)
+    if given_amount > available:
         raise ValueError(f"Portfel ma {state['balance']} {wallet['currency']}, a sprzedajesz {given_amount}.")
     basis = (given_amount * state["average_cost"]).quantize(MONEY)
     difference = _decimal(proceeds["amount"]) - basis
 
     with connection:
-        out_id = _synthetic_leg(
+        out_id = int(source["id"]) if source is not None else _synthetic_leg(
             connection,
             account=wallet["account"],
             booking_date=proceeds["booking_date"],

@@ -81,6 +81,7 @@ class WalletConvert(BaseModel):
 class WalletSell(BaseModel):
     proceeds_transaction_id: int
     given_amount: Money
+    source_transaction_id: int | None = None
 
 
 class WalletOpening(BaseModel):

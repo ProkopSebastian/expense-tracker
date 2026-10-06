@@ -567,11 +567,12 @@ export function SellWalletForm({
 }) {
   const { data } = useResource<{ wallets: Wallet[] }>("/wallets");
   const wallets = (data?.wallets ?? []).filter(
-    (wallet) => wallet.currency !== "PLN" && Number(wallet.balance) > 0,
+    (wallet) => wallet.currency !== "PLN",
   );
-  const proceeds = selected[0];
+  const proceeds = selected.find((row) => Number(row.amount) > 0)!;
+  const source = selected.find((row) => Number(row.amount) < 0);
   const [walletId, setWalletId] = useState("");
-  const [given, setGiven] = useState("");
+  const [given, setGiven] = useState(source ? String(-Number(source.amount)) : "");
   const action = useAction(onSaved);
   const wallet = wallets.find((item) => String(item.id) === walletId);
 
@@ -586,6 +587,7 @@ export function SellWalletForm({
       request(`/wallets/${walletId}/sell`, "POST", {
         proceeds_transaction_id: proceeds.id,
         given_amount: given,
+        source_transaction_id: source?.id ?? null,
       }),
     );
     if (ok) onClose();
@@ -617,7 +619,7 @@ export function SellWalletForm({
               })),
             ]}
           />
-          {!wallets.length && <small>Żaden portfel nie ma salda do sprzedania.</small>}
+          {!wallets.length && <small>Najpierw utwórz portfel sprzedawanej waluty.</small>}
         </label>
         <label>
           Ile sprzedajesz {wallet ? `(${wallet.currency})` : ""}
