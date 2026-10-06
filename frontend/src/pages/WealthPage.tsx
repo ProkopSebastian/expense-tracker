@@ -7,6 +7,7 @@ import { dayLabel, money, rateFormat } from "../api";
 import { Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
 import WealthChart from "../components/WealthChart";
+import { displayedBalance } from "../wealthFormState";
 import {
   ASSET_KINDS,
   AssetForm,
@@ -26,7 +27,7 @@ function AssetRow({
   lastDay: string | undefined;
   onEdit: (asset: Asset) => void;
 }) {
-  const latest = asset.latest;
+  const latest = displayedBalance(asset, lastDay);
   const details = [
     latest?.rate &&
       `${money(latest.amount, asset.currency)} × ${rateFormat.format(Number(latest.rate))}`,
@@ -105,13 +106,17 @@ function Overview({
   const active = data.assets.filter((asset) => asset.is_active);
   // Zero is a real amount, unlike a missing one, but an emptied account would only clutter the list.
   const zero = active.filter(
-    (asset) => asset.latest && Number(asset.latest.amount) === 0,
+    (asset) => {
+      const balance = displayedBalance(asset, last?.day);
+      return balance !== null && Number(balance.amount) === 0;
+    },
   );
   const current = active
     .filter((asset) => !zero.includes(asset))
     .sort(
       (left, right) =>
-        Number(right.latest?.pln ?? 0) - Number(left.latest?.pln ?? 0),
+        Number(displayedBalance(right, last?.day)?.pln ?? 0) -
+        Number(displayedBalance(left, last?.day)?.pln ?? 0),
     );
   const inactive = data.assets
     .filter((asset) => !asset.is_active)

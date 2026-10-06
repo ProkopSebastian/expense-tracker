@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from expense_tracker.api import create_app
@@ -82,6 +83,7 @@ def test_inactive_asset_keeps_history_and_cannot_be_deleted_with_it(tmp_path):
     with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
         bonds = _asset(client, "Obligacje", kind="bonds")
         _snapshot(client, "2026-01-31", {bonds: "500"})
+        _snapshot(client, "2026-02-28", {bonds: "0"})
         deactivated = client.put(
             f"/api/wealth/assets/{bonds}", json={"name": "Obligacje", "kind": "bonds", "is_active": False}
         )
@@ -93,3 +95,33 @@ def test_inactive_asset_keeps_history_and_cannot_be_deleted_with_it(tmp_path):
     [asset] = overview["assets"]
     assert asset["is_active"] is False
     assert overview["snapshots"][0]["total"] == "500.00"
+
+
+@pytest.mark.parametrize("amount", ["500", "-500"])
+def test_deactivation_requires_zero_even_after_an_omitted_balance(tmp_path, amount):
+    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+        asset = _asset(client, "Składnik")
+        bank = _asset(client, "Konto")
+        _snapshot(client, "2026-01-31", {asset: amount, bank: "100"})
+        _snapshot(client, "2026-02-28", {bank: "100"})
+        response = client.put(
+            f"/api/wealth/assets/{asset}",
+            json={"name": "Składnik", "kind": "account", "is_active": False},
+        )
+        overview = client.get("/api/wealth").json()
+
+    assert response.status_code == 422
+    assert "zerową wartość" in response.json()["detail"]
+    assert next(item for item in overview["assets"] if item["id"] == asset)["is_active"] is True
+    assert len(overview["snapshots"]) == 2
+
+
+def test_asset_without_history_can_be_deactivated(tmp_path):
+    with TestClient(create_app(tmp_path / "wealth.sqlite3")) as client:
+        asset = _asset(client, "Puste konto")
+        response = client.put(
+            f"/api/wealth/assets/{asset}",
+            json={"name": "Puste konto", "kind": "account", "is_active": False},
+        )
+
+    assert response.status_code == 200

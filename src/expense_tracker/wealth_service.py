@@ -47,7 +47,19 @@ def update_asset(
     institution: str | None,
     is_active: bool,
 ) -> None:
-    _require_asset(connection, asset_id)
+    asset = _require_asset(connection, asset_id)
+    if asset["is_active"] and not is_active:
+        last_balance = connection.execute(
+            "SELECT b.amount FROM wealth_balances b "
+            "JOIN wealth_snapshots s ON s.id = b.snapshot_id "
+            "WHERE b.asset_id = ? ORDER BY s.day DESC LIMIT 1",
+            (asset_id,),
+        ).fetchone()
+        if last_balance is not None and Decimal(last_balance["amount"]) != 0:
+            raise ValueError(
+                "Przed dezaktywacją zapisz zerową wartość składnika w nowej wycenie. "
+                "Jeśli środki przeniesiono, zaktualizuj też składnik, który je otrzymał."
+            )
     _require_unique_name(connection, name, asset_id)
     connection.execute(
         "UPDATE wealth_assets SET name = ?, kind = ?, institution = ?, is_active = ? WHERE id = ?",

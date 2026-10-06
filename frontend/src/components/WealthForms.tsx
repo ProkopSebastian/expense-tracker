@@ -5,6 +5,7 @@ import { request, useAction } from "../hooks";
 import { dayLabel, money } from "../api";
 import { CurrencyInput, Modal, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
+import { snapshotAmounts, snapshotRate } from "../wealthFormState";
 
 export const ASSET_KINDS: Record<AssetKind, string> = {
   account: "Konto",
@@ -37,10 +38,6 @@ function normalize(text = "") {
 
 function isNumber(text = "") {
   return /^-?\d+(\.\d+)?$/.test(normalize(text));
-}
-
-function asInput(value: string) {
-  return value.replace(".", ",");
 }
 
 export function AssetForm({
@@ -152,7 +149,8 @@ export function AssetForm({
         {asset && (
           <p className="text-muted">
             Nieaktywny składnik zachowuje całą historię, tylko nie pojawia się
-            przy kolejnych aktualizacjach.
+            przy kolejnych aktualizacjach. Przed dezaktywacją zapisz jego zerową
+            wartość i uwzględnij ewentualne przeniesienie środków.
           </p>
         )}
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
@@ -183,13 +181,6 @@ export function AssetForm({
   );
 }
 
-function latestRate(assets: Asset[], currency: string) {
-  return assets
-    .filter((asset) => asset.currency === currency && asset.latest?.rate)
-    .sort((left, right) => right.latest!.day.localeCompare(left.latest!.day))[0]
-    ?.latest!.rate;
-}
-
 export function SnapshotForm({
   assets,
   snapshots,
@@ -209,13 +200,7 @@ export function SnapshotForm({
     editing?.day ?? new Date().toLocaleDateString("en-CA"),
   );
   const [amounts, setAmounts] = useState<Record<number, string>>(() =>
-    Object.fromEntries(
-      editing
-        ? editing.balances.map((item) => [item.asset_id, asInput(item.amount)])
-        : assets
-            .filter((asset) => asset.is_active && asset.latest)
-            .map((asset) => [asset.id, asInput(asset.latest!.amount)]),
-    ),
+    snapshotAmounts(assets, editing ?? snapshots.at(-1), Boolean(editing)),
   );
   const [rates, setRates] = useState<Record<string, string>>({});
   const action = useAction(onSaved);
@@ -234,13 +219,12 @@ export function SnapshotForm({
     ),
   ].sort();
   const rateOf = (currency: string) =>
-    rates[currency] ??
-    asInput(
-      (editing ? editing.rates[currency] : latestRate(assets, currency)) ?? "",
-    );
+    rates[currency] ?? snapshotRate(day, currency, editing);
   const valid =
     filled.every((asset) => isNumber(amounts[asset.id])) &&
-    currencies.every((currency) => isNumber(rateOf(currency)));
+    currencies.every((currency) =>
+      isNumber(rateOf(currency)) && Number(normalize(rateOf(currency))) > 0,
+    );
   // Each line is rounded to grosze first, as the saved total is.
   const total = filled.reduce(
     (sum, asset) =>
@@ -260,6 +244,7 @@ export function SnapshotForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!valid || !filled.length) return;
     const entry = {
       day,
       balances: filled.map((asset) => ({
@@ -291,7 +276,7 @@ export function SnapshotForm({
         <p className="text-muted">
           {editing
             ? "Puste pole znaczy, że tego dnia składnik nie miał kwoty. Zero to prawdziwe zero."
-            : "Wpisane są ostatnie kwoty — zmień te, które się zmieniły. Puste pole znaczy brak kwoty, zero to prawdziwe zero."}
+            : "Kwoty pochodzą z ostatniego zapisu majątku, razem z pustymi polami. Zaktualizuj je na wybrany dzień i wpisz kursy walut z tego dnia. Zero to prawdziwe zero."}
         </p>
         <label className={ROW_CLASS}>
           <span>
@@ -306,7 +291,10 @@ export function SnapshotForm({
             type="date"
             required
             value={day}
-            onChange={(event) => setDay(event.target.value)}
+            onChange={(event) => {
+              setDay(event.target.value);
+              setRates({});
+            }}
           />
         </label>
         <div className="flex flex-col divide-y divide-line/60">
@@ -324,11 +312,7 @@ export function SnapshotForm({
                 inputMode="decimal"
                 className={AMOUNT_CLASS}
                 aria-label={`Kwota: ${asset.name}`}
-                placeholder={
-                  asset.latest && !editing
-                    ? `było ${money(asset.latest.amount, asset.currency)}`
-                    : "brak"
-                }
+                placeholder="brak"
                 value={amounts[asset.id] ?? ""}
                 onChange={(event) =>
                   setAmounts({ ...amounts, [asset.id]: event.target.value })
@@ -341,7 +325,7 @@ export function SnapshotForm({
               <span>
                 Kurs {currency} / PLN
                 <small className="block">
-                  Z tego dnia, zapisany razem z nim.
+                  {day ? `Dla wyceny na ${dayLabel(day)}.` : "Wybierz datę wyceny."}
                 </small>
               </span>
               <input
