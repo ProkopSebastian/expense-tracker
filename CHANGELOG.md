@@ -1,3 +1,15 @@
+## v0.6.1 — 07.10.2026
+
+- fix: poprawne koszty historyczne i wyniki sprzedaży walut, bez podwójnego odejmowania zaimportowanej wymiany
+- fix: przeliczanie rzeczywistego kosztu grupy po kursie ważonym jej wydatków
+- fix: brakujące i częściowe wyceny walut są widoczne zamiast pozornie pełnych kwot w PLN
+- fix: anulowane operacje bankowe nie zmieniają salda portfela, a sprzedaż waluty wymaga wpływu w PLN
+- fix: import PKO uwzględnia operacje z ujemnym saldem; ponowny import uzupełnia pominięte operacje bez duplikatów
+- fix: import plików ze znakami narodowymi w nazwie
+- fix: zbiorcze zatwierdzanie sugestii zapisuje wszystkie zmiany albo wycofuje całą operację
+- fix: nieprawidłowe zapisane preferencje AI nie blokują uruchomienia aplikacji
+- fix: ograniczenie dostępu do lokalnego API do zaufanych adresów hosta
+
 ## v0.6.0 — 05.10.2026
 
 - feat: nowa zakładka „Majątek” — co jakiś czas wpisujesz, ile masz na kontach, lokatach, w obligacjach czy złocie, a aplikacja rysuje wykres całego majątku
