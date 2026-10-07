@@ -86,7 +86,7 @@ def _summary_row(case: dict[str, object]) -> dict[str, object]:
         "Waluta": case["currency"],
         "Kategoria": case["category_label"] or "Do przypisania",
         "Grupa": case["title"],
-        "Kwota rzeczywista": float(-personal_amount),
+        "Kwota rzeczywista": None if case.get("valuation_missing") else float(-personal_amount),
     }
 
 

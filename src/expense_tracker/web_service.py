@@ -192,9 +192,9 @@ def ledger_blocks(
     needle = query.casefold()
     filtered = []
     for block in blocks:
-        if direction == "expense" and Decimal(block["real_amount"]) >= 0:
+        if direction == "expense" and not block.get("valuation_missing") and Decimal(block["real_amount"]) >= 0:
             continue
-        if direction == "income" and Decimal(block["real_amount"]) <= 0:
+        if direction == "income" and not block.get("valuation_missing") and Decimal(block["real_amount"]) <= 0:
             continue
         if category and (block["category_key"] or "") not in category:
             continue

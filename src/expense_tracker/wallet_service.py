@@ -150,9 +150,6 @@ def _apply_exchange(state, by_pot, group) -> None:
             {
                 "transaction_id": int(source["id"]),
                 "kind": "conversion_out",
-                "case_id": int(source["case_id"]),
-                "sale_proceeds": str(target["amount"]) if target["currency"] == HOME_CURRENCY
-                and source["currency"] != HOME_CURRENCY else None,
                 "date": source["booking_date"],
                 "description": source["description"],
                 "amount": str(-given),
@@ -282,16 +279,20 @@ def partial_pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal
 
 
 def sale_results(connection: sqlite3.Connection) -> dict[int, tuple[Decimal | None, str]]:
-    currencies = {int(row["id"]): row["currency"] for row in _wallets(connection)}
-    return {
-        event["case_id"]: (
-            -_decimal(event["pln"]) - _decimal(event["sale_proceeds"]) if event["pln"] is not None else None,
-            currencies[wallet_id],
-        )
-        for wallet_id, state in wallet_states(connection).items()
-        for event in state["history"]
-        if event.get("sale_proceeds") is not None
-    }
+    values = pln_equivalents(connection)
+    results = {}
+    for case_id, group in _exchange_legs(connection).items():
+        incoming = [row for row in group if _decimal(row["amount"]) > 0]
+        outgoing = [row for row in group if _decimal(row["amount"]) < 0]
+        if len(incoming) != 1 or len(outgoing) != 1:
+            continue
+        target, source = incoming[0], outgoing[0]
+        if target["currency"] != HOME_CURRENCY or source["currency"] == HOME_CURRENCY:
+            continue
+        cost = values.get(int(source["id"]))
+        amount = -cost - _decimal(target["amount"]) if cost is not None else None
+        results[case_id] = amount, source["currency"]
+    return results
 
 
 def group_cost_rates(connection: sqlite3.Connection, values: dict[int, Decimal]) -> dict[int, Decimal]:
@@ -644,7 +645,10 @@ def convert_wallet(
         )
 
 
-def _sale_source(connection, wallet, proceeds, given_amount, source_transaction_id):
+def _sale_source(
+    connection: sqlite3.Connection, wallet: sqlite3.Row, proceeds: sqlite3.Row,
+    given_amount: Decimal, source_transaction_id: int | None,
+) -> sqlite3.Row | None:
     if source_transaction_id is not None:
         source = connection.execute("SELECT * FROM transactions WHERE id = ?", (source_transaction_id,)).fetchone()
         if source is None:
@@ -660,6 +664,8 @@ def _sale_source(connection, wallet, proceeds, given_amount, source_transaction_
         return source
     if proceeds["transaction_type"] != "Exchange":
         return None
+    if wallet["account"] != proceeds["account"]:
+        raise ValueError("Zaznacz obie strony odsprzedaży między różnymi rachunkami.")
     moment = json.loads(proceeds["raw_json"] or "{}").get("Started Date")
     candidates = connection.execute(
         """SELECT t.* FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id

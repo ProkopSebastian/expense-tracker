@@ -235,3 +235,27 @@ def test_bulk_approval_defers_rules_and_rolls_back_on_error(tmp_path):
         assert client.post("/api/undo").status_code == 200
         assert client.get("/api/rules").json()["rules"] == []
         assert len(client.get("/api/classification").json()["rows"]) == 2
+
+
+def test_sale_preview_matches_saved_historical_profit(tmp_path):
+    from expense_tracker import wallet_service
+
+    path = tmp_path / "sale.sqlite3"
+    database = Database(path)
+    wallet_id = wallet_service.create_wallet(database.connection, "EUR test", "EUR")
+    for day, cost in [(date(2026, 1, 1), Decimal(400)), (date(2026, 3, 1), Decimal(600))]:
+        wallet_service.set_opening_balance(
+            database.connection, wallet_id=wallet_id, amount=Decimal(100), pln_cost=cost, booking_date=day,
+        )
+    proceeds_id = database.insert_transaction(Transaction(
+        account="Test", booking_date=date(2026, 2, 1), amount=Decimal(450), currency="PLN", description="Test sale",
+    ))
+    database.close()
+    with TestClient(create_app(path), base_url="http://127.0.0.1") as client:
+        payload = {"proceeds_transaction_id": proceeds_id, "given_amount": "100"}
+        preview = client.get(f"/api/wallets/{wallet_id}/sale-preview", params=payload)
+        assert preview.status_code == 200
+        assert preview.json() == {"basis": "400.00", "difference": "50.00"}
+        assert client.get("/api/recovery").json()["can_undo"] is False
+        assert client.post(f"/api/wallets/{wallet_id}/sell", json=payload).status_code == 201
+        assert client.get("/api/summary?month=2026-02").json()["income"] == "50.00"

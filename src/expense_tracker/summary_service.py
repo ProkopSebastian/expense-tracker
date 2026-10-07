@@ -120,7 +120,9 @@ def get_summary(
     else:
         if currencies and selected not in currencies:
             raise ValueError("Brak danych dla wybranej waluty.")
-        items = [item for item in data["items"] if item["currency"] == selected]
+        native = [item for item in data["items"] if item["currency"] == selected]
+        untranslated = sorted({item["valuation_missing"] for item in native if item.get("valuation_missing")})
+        items = [item for item in native if not item.get("valuation_missing")]
     dates = sorted(date.fromisoformat(str(item["date"])) for item in items)
     months = sorted({value.strftime("%Y-%m") for value in dates}, reverse=True)
     first, last = (dates[0], dates[-1]) if dates else (None, None)

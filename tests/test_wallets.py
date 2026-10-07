@@ -202,3 +202,38 @@ def test_group_with_unknown_member_cost_does_not_borrow_another_wallet_rate(data
     result = get_summary(database.connection, month="2026-01")
     assert result.expenses == 0
     assert result.untranslated == ["EUR"]
+
+
+def test_unknown_sale_cost_is_visible_even_without_a_source_wallet(database):
+    from expense_tracker.ledger import approved_cases
+    from expense_tracker.summary_service import get_summary
+
+    target_wallet = wallets.create_wallet(database.connection, "cash", "PLN")
+    source = add(database, "-100", currency="EUR")
+    wallets.fund_wallet(
+        database.connection, wallet_id=target_wallet, source_transaction_id=source, received_amount=Decimal(450),
+    )
+    [case] = approved_cases(database.connection)
+    assert case["valuation_missing"] == "EUR"
+    for currency in ("ALL", "PLN"):
+        result = get_summary(database.connection, currency=currency, month="2026-01")
+        assert result.untranslated == ["EUR"]
+        assert result.income == 0
+
+
+def test_automatic_sale_matching_never_joins_different_accounts(database):
+    import pytest
+
+    wallet_id = open_wallet(database, amount="200", cost="800")
+    raw = {"Type": "Exchange", "Started Date": "2026-01-02 10:00:00"}
+    outflow = add(database, "-100", raw=raw)
+    proceeds = add(database, "450", currency="PLN", account="other", raw=raw)
+    with pytest.raises(ValueError, match="różnymi rachunkami"):
+        wallets.sell_wallet(
+            database.connection, wallet_id=wallet_id, proceeds_transaction_id=proceeds, given_amount=Decimal(100),
+        )
+    wallets.sell_wallet(
+        database.connection, wallet_id=wallet_id, proceeds_transaction_id=proceeds,
+        given_amount=Decimal(100), source_transaction_id=outflow,
+    )
+    assert wallets.wallet_balance(database.connection, wallet_id) == 100

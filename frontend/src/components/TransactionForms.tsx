@@ -466,7 +466,7 @@ export function FundWalletForm({
             <span className="text-muted">Kurs</span>
             <strong>
               {rate > 0
-                ? `${rateFormat.format(rate)} zł za 1 ${(chosen ?? target)?.currency ?? ""}`
+                ? `${rateFormat.format(rate)} ${source.currency === "PLN" ? "zł" : source.currency} za 1 ${(chosen ?? target)?.currency ?? ""}`
                 : "—"}
             </strong>
           </div>
