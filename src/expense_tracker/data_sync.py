@@ -36,7 +36,7 @@ DEFAULT_ACCOUNTS = {
     "velo_pdf": "velo",
     "pko_pdf": "pko",
 }
-PARSER_VERSION = 3
+PARSER_VERSION = 4
 
 
 @dataclass
