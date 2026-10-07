@@ -117,3 +117,13 @@ def test_backup_retention_keeps_current_undo(tmp_path):
     undo_last(path)
     assert transactions(db.connection)[0]["category_key"] is None
     db.close()
+
+
+@pytest.mark.parametrize("contents", ['[]', 'null', '"text"', '{"api_key": 42}', '{"api_key": []}', '{broken'])
+def test_invalid_ai_preferences_do_not_prevent_startup(tmp_path, monkeypatch, contents):
+    monkeypatch.setattr(settings, "openai_api_key", None)
+    (tmp_path / "ai-settings.json").write_text(contents)
+    with TestClient(create_app(tmp_path / "preferences.sqlite3"), base_url="http://127.0.0.1") as client:
+        response = client.get("/api/meta")
+        assert response.status_code == 200
+        assert response.json()["ai_enabled"] is False

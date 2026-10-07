@@ -3,13 +3,13 @@
 import json
 from pathlib import Path
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 
 from .config import settings
 
 
 class AIPreferences(BaseModel):
-    api_key: SecretStr | None = None
+    api_key: SecretStr | None = Field(default=None, max_length=500)
     clear_key: bool = False
 
 
@@ -17,10 +17,11 @@ def load_preferences(configuration_dir: Path) -> None:
     path = configuration_dir / "ai-settings.json"
     if path.exists():
         try:
-            data = json.loads(path.read_text())
+            data = AIPreferences.model_validate_json(path.read_text())
         except OSError, ValueError:
             return  # A damaged optional setting must not block access to finances.
-        settings.openai_api_key = SecretStr(data["api_key"]) if data.get("api_key") else None
+        key = data.api_key.get_secret_value().strip() if data.api_key else ""
+        settings.openai_api_key = SecretStr(key) if key else None
 
 
 def save_preferences(configuration_dir: Path, entry: AIPreferences) -> None:
