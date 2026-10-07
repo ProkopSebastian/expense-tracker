@@ -71,11 +71,11 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
     Nothing here invents a rate. An amount whose currency was never exchanged on record is
     dropped and its code reported, so the total is visibly incomplete instead of quietly wrong.
     """
-    from .wallet_service import HOME_CURRENCY, currency_rates, partial_pln_equivalents, pln_equivalents
+    from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
 
     per_transaction = pln_equivalents(connection)
     partial = partial_pln_equivalents(connection)
-    per_currency = currency_rates(connection)
+    per_group = group_cost_rates(connection, per_transaction)
     converted: list[dict] = []
     missing: set[str] = set()
     for item in items:
@@ -89,8 +89,9 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
         value = per_transaction.get(item["transaction_id"]) if item["transaction_id"] else None
         if value is not None:
             converted.append({**item, "amount": abs(value), "currency": HOME_CURRENCY})
-        elif not item["transaction_id"] and code in per_currency:
-            converted.append({**item, "amount": item["amount"] * per_currency[code], "currency": HOME_CURRENCY})
+        elif item.get("case_id") in per_group:
+            amount = (item["amount"] * per_group[item["case_id"]]).quantize(Decimal("0.01"))
+            converted.append({**item, "amount": amount, "currency": HOME_CURRENCY})
         elif item["transaction_id"] in partial:
             missing.add(code)
             value = partial[item["transaction_id"]]

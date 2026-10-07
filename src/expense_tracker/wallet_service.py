@@ -294,18 +294,28 @@ def sale_results(connection: sqlite3.Connection) -> dict[int, tuple[Decimal | No
     }
 
 
-def currency_rates(connection: sqlite3.Connection) -> dict[str, Decimal]:
-    """Average złoty cost per unit, for currencies where one rate can be named without doubt.
-
-    A currency held in several pots at different costs has no single rate, so it is left out
-    rather than averaged into something that matches none of them.
-    """
-    by_currency: dict[str, list[Decimal]] = {}
-    rows = {int(row["id"]): row["currency"] for row in _wallets(connection)}
-    for wallet_id, state in wallet_states(connection).items():
-        if state["average_cost"] is not None:
-            by_currency.setdefault(rows[wallet_id], []).append(state["average_cost"])
-    return {currency: rates[0] for currency, rates in by_currency.items() if len(rates) == 1}
+def group_cost_rates(connection: sqlite3.Connection, values: dict[int, Decimal]) -> dict[int, Decimal]:
+    rows = connection.execute(
+        """SELECT c.id AS case_id, t.id, t.amount
+        FROM cases c JOIN case_members cm ON cm.case_id = c.id JOIN transactions t ON t.id = cm.transaction_id
+        WHERE c.status = 'approved' AND c.kind != 'wallet_exchange' AND c.currency != 'PLN'
+        AND t.currency = c.currency"""
+    ).fetchall()
+    members: dict[int, list[sqlite3.Row]] = {}
+    for row in rows:
+        members.setdefault(int(row["case_id"]), []).append(row)
+    rates = {}
+    for case_id, group in members.items():
+        # Personal cost is valued at the weighted acquisition cost of this group's spending,
+        # independent of funding or spending outside the group. Income-only groups use inflows.
+        outflows = [row for row in group if _decimal(row["amount"]) < 0]
+        basis = outflows or [row for row in group if _decimal(row["amount"]) > 0]
+        if not basis or any(int(row["id"]) not in values for row in basis):
+            continue
+        amount = sum((abs(_decimal(row["amount"])) for row in basis), Decimal(0))
+        cost = sum((abs(values[int(row["id"])]) for row in basis), Decimal(0))
+        rates[case_id] = cost / amount
+    return rates
 
 
 def wallet_history(connection: sqlite3.Connection, wallet_id: int) -> list[dict[str, Any]]:

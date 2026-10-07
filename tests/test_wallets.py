@@ -148,3 +148,57 @@ def test_sale_rejects_foreign_proceeds_without_changing_the_wallet(database):
         )
     assert wallets.wallet_balance(database.connection, wallet_id) == 100
     assert database.connection.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 0
+
+
+def test_group_cost_uses_only_historical_rates_of_its_expenses(database):
+    from expense_tracker.ledger import create_case
+    from expense_tracker.summary_service import get_summary
+
+    wallet_id = open_wallet(database)
+    first = add(database, "-20")
+    second = add(database, "-20", day="2026-01-03")
+    create_case(
+        database.connection, "shared_purchase", "Test group", "groceries", Decimal(40), "EUR",
+        [(first, "purchase"), (second, "purchase")],
+    )
+    assert get_summary(database.connection, month="2026-01").expenses == 160
+    wallets.set_opening_balance(
+        database.connection, wallet_id=wallet_id, amount=Decimal(100), pln_cost=Decimal(600),
+        booking_date=date(2026, 3, 1),
+    )
+    assert get_summary(database.connection, month="2026-01").expenses == 160
+    wallets.create_wallet(database.connection, "other", "EUR")
+    assert get_summary(database.connection, month="2026-01").expenses == 160
+
+
+def test_group_cost_weights_different_historical_rates(database):
+    from expense_tracker.ledger import create_case
+    from expense_tracker.summary_service import get_summary
+
+    open_wallet(database, amount="10", cost="40")
+    open_wallet(database, amount="30", cost="180", account="other")
+    first = add(database, "-10")
+    second = add(database, "-30", account="other")
+    create_case(
+        database.connection, "shared_purchase", "Test group", "groceries", Decimal(20), "EUR",
+        [(first, "purchase"), (second, "purchase")],
+    )
+    result = get_summary(database.connection, month="2026-01")
+    assert result.expenses == 110
+    assert result.untranslated == []
+
+
+def test_group_with_unknown_member_cost_does_not_borrow_another_wallet_rate(database):
+    from expense_tracker.ledger import create_case
+    from expense_tracker.summary_service import get_summary
+
+    open_wallet(database)
+    first = add(database, "-10")
+    second = add(database, "-10", account="other")
+    create_case(
+        database.connection, "shared_purchase", "Test group", "groceries", Decimal(20), "EUR",
+        [(first, "purchase"), (second, "purchase")],
+    )
+    result = get_summary(database.connection, month="2026-01")
+    assert result.expenses == 0
+    assert result.untranslated == ["EUR"]
