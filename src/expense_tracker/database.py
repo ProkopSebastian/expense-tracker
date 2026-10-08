@@ -72,7 +72,15 @@ CREATE TABLE IF NOT EXISTS wallets (
 );
 CREATE TABLE IF NOT EXISTS cash_counts (
     id INTEGER PRIMARY KEY, currency TEXT NOT NULL, counted_on TEXT NOT NULL, amount TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(currency, counted_on)
+    start_cost TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(currency, counted_on)
+);
+CREATE TABLE IF NOT EXISTS cash_foreign_withdrawals (
+    transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+    currency TEXT NOT NULL, amount TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cash_exchanges (
+    id INTEGER PRIMARY KEY, exchanged_on TEXT NOT NULL, given_currency TEXT NOT NULL, given_amount TEXT NOT NULL,
+    received_currency TEXT NOT NULL, received_amount TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS cash_count_lines (
     id INTEGER PRIMARY KEY, count_id INTEGER NOT NULL REFERENCES cash_counts(id) ON DELETE CASCADE,
@@ -333,6 +341,12 @@ def _migrate_drop_legacy_wallet_records(connection: sqlite3.Connection) -> None:
     categorize_cash_flows(connection)
 
 
+def _migrate_cash_count_start_cost(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(cash_counts)")}
+    if "start_cost" not in columns:
+        connection.execute("ALTER TABLE cash_counts ADD COLUMN start_cost TEXT")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -344,6 +358,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_wallet_opening_rate,
     _migrate_cash_flows_off_balance,
     _migrate_drop_legacy_wallet_records,
+    _migrate_cash_count_start_cost,
 )
 
 

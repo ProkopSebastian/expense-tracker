@@ -1,60 +1,88 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Banknote, HandCoins, Plus } from "lucide-react";
-import type { CashCount, CashData, CashFlow, Category } from "../domain";
+import { ArrowLeftRight, Banknote, HandCoins, Plus } from "lucide-react";
+import type { CashCount, CashData, CashFlow, CashPot, Category } from "../domain";
 import { request, useAction, useResource } from "../hooks";
 import { money } from "../api";
-import { CategorySelect, Modal, Notice } from "../components/Forms";
+import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
-import { WALLET_GRID_CLASS } from "../components/WalletParts";
+import { WALLET_GRID_CLASS, rateLabel } from "../components/WalletParts";
+import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
 
 const CASH_ACCOUNT = "Gotówka";
+const HOME = "PLN";
+const FORM_CLASS =
+  "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm";
+const today = () => new Date().toLocaleDateString("en-CA");
 
 function dayLabel(value: string) {
   return value.split("-").reverse().join(".");
 }
 
-const FLOW_LABELS: Record<CashFlow["kind"], string> = {
-  withdrawal: "Wypłata z bankomatu",
-  deposit: "Wpłata do wpłatomatu",
-  entry: "",
-};
+function FormFooter({ busy, onClose, disabled, onDelete }: {
+  busy: boolean;
+  onClose: () => void;
+  disabled?: boolean;
+  onDelete?: () => void;
+}) {
+  return (
+    <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
+      {onDelete && (
+        <button type="button" className="btn-danger mr-auto" disabled={busy} onClick={onDelete}>
+          Usuń
+        </button>
+      )}
+      <button type="button" className="btn ml-auto" onClick={onClose} disabled={busy}>
+        Anuluj
+      </button>
+      <button className="btn-primary" disabled={busy || disabled}>
+        {busy ? "Zapisuję…" : "Zapisz"}
+      </button>
+    </footer>
+  );
+}
 
 type Split = { amount: string; category: string };
+type Preview = { first: boolean; spent: string; correction: string };
 
 function CountForm({
+  currency: initialCurrency,
   categories,
   onClose,
   onSaved,
 }: {
+  currency: string;
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [currency, setCurrency] = useState(initialCurrency);
   const [amount, setAmount] = useState("");
-  const [day, setDay] = useState(new Date().toLocaleDateString("en-CA"));
+  const [startCost, setStartCost] = useState("");
+  const [day, setDay] = useState(today());
   const [splits, setSplits] = useState<Split[]>([{ amount: "", category: "" }]);
-  const [preview, setPreview] = useState<{ start: boolean; spent: string; correction: string } | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const action = useAction(onSaved);
 
   useEffect(() => {
-    if (amount === "" || Number(amount) < 0 || !day) {
+    if (amount === "" || Number(amount) < 0 || !day || currency.length !== 3) {
       setPreview(null);
       return;
     }
-    const params = new URLSearchParams({ counted_on: day, amount: Number(amount).toFixed(2) });
+    const params = new URLSearchParams({ counted_on: day, currency, amount: Number(amount).toFixed(2) });
     let current = true;
-    request<{ start: boolean; spent: string; correction: string }>(`/cash/count-preview?${params}`)
+    request<Preview>(`/cash/count-preview?${params}`)
       .then((value) => current && setPreview(value))
       .catch(() => current && setPreview(null));
     return () => {
       current = false;
     };
-  }, [amount, day]);
+  }, [amount, day, currency]);
 
   const spent = Number(preview?.spent ?? 0);
+  const correction = Number(preview?.correction ?? 0);
+  const asksCost = Boolean(preview?.first) && correction > 0 && currency !== HOME;
   const filled = splits.filter((split) => Number(split.amount) > 0);
-  const assigned = filled.reduce((sum, split) => sum + Number(split.amount), 0);
-  const unassigned = spent - assigned;
+  const unassigned = spent - filled.reduce((sum, split) => sum + Number(split.amount), 0);
   const update = (index: number, change: Partial<Split>) =>
     setSplits(splits.map((split, at) => (at === index ? { ...split, ...change } : split)));
 
@@ -62,8 +90,10 @@ function CountForm({
     event.preventDefault();
     const ok = await action.run(() =>
       request("/cash/counts", "POST", {
+        currency,
         counted_on: day,
         amount,
+        start_cost: asksCost && startCost !== "" ? startCost : null,
         lines: spent > 0
           ? filled.map((split) => ({ amount: split.amount, category_key: split.category }))
           : [],
@@ -74,14 +104,11 @@ function CountForm({
 
   return (
     <Modal title="Policz gotówkę" onClose={onClose} busy={action.busy}>
-      <form
-        onSubmit={submit}
-        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm"
-      >
+      <form onSubmit={submit} className={FORM_CLASS}>
         <Notice error={action.error} />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
           <label>
-            Ile masz (zł)
+            Ile masz
             <input
               type="number"
               min="0"
@@ -93,24 +120,38 @@ function CountForm({
             />
           </label>
           <label>
+            Waluta
+            <CurrencyInput ariaLabel="Waluta" value={currency} onChange={setCurrency} />
+          </label>
+          <label>
             Dzień
             <input type="date" required value={day} onChange={(event) => setDay(event.target.value)} />
           </label>
         </div>
-        {preview?.start && <p className="text-muted">To będzie stan na start.</p>}
-        {preview && Number(preview.correction) > 0 && (
+        {preview?.first && correction > 0 && <p className="text-muted">To będzie stan na start.</p>}
+        {asksCost && (
+          <label>
+            Ile to kosztowało w złotówkach
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={startCost}
+              onChange={(event) => setStartCost(event.target.value)}
+            />
+          </label>
+        )}
+        {preview && !preview.first && correction > 0 && (
           <p className="text-muted">
-            Masz o {money(preview.correction, "PLN")} więcej, niż wynika z zapisów. Zapiszę to
-            jako korektę stanu.
+            Masz o {money(correction, currency)} więcej, niż wynika z zapisów. Zapiszę to jako
+            korektę stanu.
           </p>
         )}
-        {preview && !preview.start && spent === 0 && Number(preview.correction) === 0 && (
-          <p className="text-muted">Zgadza się z zapisami.</p>
-        )}
+        {preview && spent === 0 && correction === 0 && <p className="text-muted">Zgadza się z zapisami.</p>}
         {spent > 0 && (
           <>
             <p>
-              Wydane: <strong>{money(spent, "PLN")}</strong>. Rozdziel z grubsza albo zostaw bez
+              Wydane: <strong>{money(spent, currency)}</strong>. Rozdziel z grubsza albo zostaw bez
               kategorii.
             </p>
             {splits.map((split, index) => (
@@ -144,28 +185,17 @@ function CountForm({
               </button>
               <span className={unassigned < 0 ? "text-danger" : "text-muted"}>
                 {unassigned < 0
-                  ? `Przypisane o ${money(-unassigned, "PLN")} za dużo`
-                  : `Bez kategorii: ${money(unassigned, "PLN")}`}
+                  ? `Przypisane o ${money(-unassigned, currency)} za dużo`
+                  : `Bez kategorii: ${money(unassigned, currency)}`}
               </span>
             </div>
           </>
         )}
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-          <button type="button" className="btn" onClick={onClose} disabled={action.busy}>
-            Anuluj
-          </button>
-          <button
-            className="btn-primary"
-            disabled={
-              action.busy ||
-              !preview ||
-              unassigned < -0.004 ||
-              filled.some((split) => !split.category)
-            }
-          >
-            {action.busy ? "Zapisuję…" : "Zapisz"}
-          </button>
-        </footer>
+        <FormFooter
+          busy={action.busy}
+          onClose={onClose}
+          disabled={!preview || unassigned < -0.004 || filled.some((split) => !split.category)}
+        />
       </form>
     </Modal>
   );
@@ -191,7 +221,7 @@ function ReceivedForm({
         account: CASH_ACCOUNT,
         booking_date: fields.get("date"),
         amount: fields.get("amount"),
-        currency: "PLN",
+        currency: HOME,
         description: fields.get("description"),
         category_key: category,
       }),
@@ -201,10 +231,7 @@ function ReceivedForm({
 
   return (
     <Modal title="Otrzymana gotówka" onClose={onClose} busy={action.busy}>
-      <form
-        onSubmit={submit}
-        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm"
-      >
+      <form onSubmit={submit} className={FORM_CLASS}>
         <Notice error={action.error} />
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
@@ -213,7 +240,7 @@ function ReceivedForm({
           </label>
           <label>
             Dzień
-            <input name="date" type="date" required defaultValue={new Date().toLocaleDateString("en-CA")} />
+            <input name="date" type="date" required defaultValue={today()} />
           </label>
           <label>
             Od kogo albo za co
@@ -226,63 +253,183 @@ function ReceivedForm({
           />
         </div>
         <p className="text-muted">Wypłat z bankomatu tu nie wpisuj — dodają się same z wyciągu.</p>
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-          <button type="button" className="btn" onClick={onClose} disabled={action.busy}>
-            Anuluj
-          </button>
-          <button className="btn-primary" disabled={action.busy || !category}>
-            {action.busy ? "Zapisuję…" : "Zapisz"}
-          </button>
-        </footer>
+        <FormFooter busy={action.busy} onClose={onClose} disabled={!category} />
       </form>
     </Modal>
   );
 }
 
+function ExchangeForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [givenCurrency, setGivenCurrency] = useState(HOME);
+  const [receivedCurrency, setReceivedCurrency] = useState("");
+  const action = useAction(onSaved);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    const ok = await action.run(() =>
+      request("/cash/exchanges", "POST", {
+        exchanged_on: fields.get("date"),
+        given_currency: givenCurrency,
+        given_amount: fields.get("given"),
+        received_currency: receivedCurrency,
+        received_amount: fields.get("received"),
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal title="Wymiana w kantorze" onClose={onClose} busy={action.busy}>
+      <form onSubmit={submit} className={FORM_CLASS}>
+        <Notice error={action.error} />
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
+          <label>
+            Oddane
+            <input name="given" type="number" min="0.01" step="0.01" required autoFocus />
+          </label>
+          <label>
+            Waluta
+            <CurrencyInput ariaLabel="Waluta oddana" value={givenCurrency} onChange={setGivenCurrency} />
+          </label>
+          <label>
+            Otrzymane
+            <input name="received" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            Waluta
+            <CurrencyInput ariaLabel="Waluta otrzymana" value={receivedCurrency} onChange={setReceivedCurrency} />
+          </label>
+          <label>
+            Dzień
+            <input name="date" type="date" required defaultValue={today()} />
+          </label>
+        </div>
+        <FormFooter busy={action.busy} onClose={onClose} />
+      </form>
+    </Modal>
+  );
+}
+
+function withdrawalOf(flow: CashFlow): Withdrawal {
+  const mapped = flow.bank_currency !== flow.currency;
+  return {
+    transactionId: flow.transaction_id,
+    date: flow.date,
+    account: flow.account,
+    bankAmount: flow.bank_amount!,
+    bankCurrency: flow.bank_currency!,
+    cashAmount: mapped ? flow.amount : null,
+    cashCurrency: mapped ? flow.currency : null,
+  };
+}
+
 function countDetails(count: CashCount) {
-  if (count.start) return "stan na start";
   const parts: string[] = [];
   if (Number(count.spent) > 0) {
-    parts.push(`wydane ${money(count.spent, "PLN")}`);
-    for (const line of count.lines) parts.push(`${line.label} ${money(line.amount, "PLN")}`);
+    parts.push(`wydane ${money(count.spent, count.currency)}`);
+    for (const line of count.lines) parts.push(`${line.label} ${money(line.amount, count.currency)}`);
     const unassigned = Number(count.unassigned);
-    if (unassigned > 0 && count.lines.length) parts.push(`bez kategorii ${money(unassigned, "PLN")}`);
-    if (unassigned < 0) parts.push(`przypisane o ${money(-unassigned, "PLN")} za dużo`);
+    if (unassigned > 0 && count.lines.length) parts.push(`bez kategorii ${money(unassigned, count.currency)}`);
+    if (unassigned < 0) parts.push(`przypisane o ${money(-unassigned, count.currency)} za dużo`);
   }
-  if (Number(count.correction) > 0) parts.push(`korekta stanu +${money(count.correction, "PLN")}`);
+  if (Number(count.correction) > 0) {
+    parts.push(count.first ? "stan na start" : `korekta stanu +${money(count.correction, count.currency)}`);
+  }
   return parts.length ? parts.join(" · ") : "zgadza się";
 }
 
 type HistoryRow = {
   key: string;
   date: string;
+  order: number;
   description: string;
   details?: string;
   amount: number | null;
-  order: number;
+  flow?: CashFlow;
 };
 
-function historyRows(data: CashData): HistoryRow[] {
+function historyRows(data: CashData, currency: string): HistoryRow[] {
   const rows: HistoryRow[] = [
-    ...data.flows.map((flow) => ({
-      key: `t${flow.transaction_id}`,
-      date: flow.date,
-      description:
-        flow.kind === "entry" ? flow.description : `${FLOW_LABELS[flow.kind]} · ${flow.account}`,
-      amount: Number(flow.amount),
-      order: 0,
-    })),
-    ...data.counts.map((count) => ({
-      key: `c${count.id}`,
-      date: count.counted_on,
-      description: `Policzone: ${money(count.amount, "PLN")}`,
-      details: countDetails(count),
-      amount: count.start ? null : Number(count.correction) - Number(count.spent) || null,
-      order: 1,
-    })),
+    ...data.flows
+      .filter((flow) => flow.currency === currency)
+      .map((flow) => ({
+        key: `t${flow.transaction_id}`,
+        date: flow.date,
+        order: 0,
+        description: flow.description,
+        details: flow.kind === "entry"
+          ? undefined
+          : flow.bank_currency !== flow.currency
+            ? `${flow.account} · ${money(flow.bank_amount!, flow.bank_currency!)} z konta`
+            : flow.account,
+        amount: Number(flow.amount),
+        flow: flow.kind === "withdrawal" ? flow : undefined,
+      })),
+    ...data.exchanges
+      .filter((exchange) => [exchange.given_currency, exchange.received_currency].includes(currency))
+      .map((exchange) => ({
+        key: `e${exchange.id}`,
+        date: exchange.date,
+        order: 0,
+        description: "Wymiana w kantorze",
+        details: [
+          `${money(exchange.given_amount, exchange.given_currency)} → ${money(exchange.received_amount, exchange.received_currency)}`,
+          exchange.fx_result && Number(exchange.fx_result) !== 0
+            ? `różnica kursowa ${Number(exchange.fx_result) > 0 ? "+" : ""}${money(exchange.fx_result, HOME)}`
+            : "",
+        ].filter(Boolean).join(" · "),
+        amount: exchange.given_currency === currency
+          ? -Number(exchange.given_amount)
+          : Number(exchange.received_amount),
+      })),
+    ...data.counts
+      .filter((count) => count.currency === currency)
+      .map((count) => ({
+        key: `c${count.id}`,
+        date: count.counted_on,
+        order: 1,
+        description: `Policzone: ${money(count.amount, count.currency)}`,
+        details: countDetails(count),
+        amount: Number(count.correction) - Number(count.spent) || null,
+      })),
   ];
   // A count closes its day, so it sits above that day's movements in a newest-first list.
   return rows.sort((a, b) => b.date.localeCompare(a.date) || b.order - a.order);
+}
+
+function PotTile({ pot, selected, onSelect }: { pot: CashPot; selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      className={`card flex flex-col gap-5 p-5 text-left transition hover:ring-accent/50 ${selected ? "ring-2! ring-accent!" : ""}`}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span className="flex w-full items-center gap-3">
+        <span className="grid h-8 shrink-0 place-items-center rounded-lg bg-accent-soft px-2 text-xs font-semibold tracking-wide text-accent ring-1 ring-accent/30">
+          {pot.currency}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm text-muted">{CASH_ACCOUNT}</span>
+        <Banknote size={18} className="shrink-0 text-muted" aria-hidden />
+      </span>
+      <span>
+        <strong className="block text-2xl font-semibold tracking-tight tabular-nums">
+          {money(pot.balance, pot.currency)}
+        </strong>
+        {pot.currency !== HOME && (
+          <span className="block text-sm text-muted tabular-nums">
+            {pot.pln_value === null ? "Brak kursu" : `≈ ${money(pot.pln_value, HOME)}`}
+          </span>
+        )}
+        {pot.currency !== HOME && pot.average_cost !== null && (
+          <span className="block text-xs text-muted tabular-nums">{rateLabel(pot.average_cost, pot.currency)}</span>
+        )}
+        <span className="block text-xs text-muted">
+          {pot.counted_on ? `policzone ${dayLabel(pot.counted_on)}` : "jeszcze nie policzone"}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 export default function CashPage({
@@ -295,12 +442,15 @@ export default function CashPage({
   onChanged: () => void;
 }) {
   const { data, error, loading } = useResource<CashData>("/cash", revision);
-  const [counting, setCounting] = useState(false);
-  const [receiving, setReceiving] = useState(false);
-  const rows = data ? historyRows(data) : [];
-  const lastCount = data?.counts.at(-1);
+  const [selected, setSelected] = useState(HOME);
+  const [modal, setModal] = useState<"count" | "received" | "exchange" | null>(null);
+  const [foreign, setForeign] = useState<Withdrawal | null>(null);
+  const pots = data?.pots ?? [];
+  const currency = pots.some((pot) => pot.currency === selected) ? selected : HOME;
+  const rows = data ? historyRows(data, currency) : [];
+  const hasAnything = Boolean(data && (data.flows.length || data.counts.length || data.exchanges.length));
   const countButton = (
-    <button className="btn" onClick={() => setCounting(true)}>
+    <button className="btn" onClick={() => setModal("count")}>
       <HandCoins size={17} />
       Policz gotówkę
     </button>
@@ -318,15 +468,19 @@ export default function CashPage({
           </HelpPopover>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn" onClick={() => setReceiving(true)}>
+          <button className="btn" onClick={() => setModal("received")}>
             <Plus size={17} />
             Otrzymana gotówka
+          </button>
+          <button className="btn" onClick={() => setModal("exchange")}>
+            <ArrowLeftRight size={17} />
+            Wymiana w kantorze
           </button>
           {countButton}
         </div>
       </div>
       <Notice error={error} />
-      {data && !rows.length && (
+      {data && !hasAnything && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">
           <p className="max-w-md leading-relaxed">
             Wypłaty z bankomatu pojawią się tu same po imporcie wyciągu. Masz już gotówkę? Policz
@@ -336,60 +490,68 @@ export default function CashPage({
         </div>
       )}
       {!data && loading && <p className="text-sm text-muted">Wczytuję…</p>}
-      {data && rows.length > 0 && (
+      {hasAnything && (
         <>
           <div className={WALLET_GRID_CLASS}>
-            <div className="card flex flex-col gap-5 p-5">
-              <span className="flex w-full items-center gap-3">
-                <span className="grid h-8 shrink-0 place-items-center rounded-lg bg-accent-soft px-2 text-xs font-semibold tracking-wide text-accent ring-1 ring-accent/30">
-                  PLN
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-muted">{CASH_ACCOUNT}</span>
-                <Banknote size={18} className="shrink-0 text-muted" aria-hidden />
-              </span>
-              <span>
-                <strong className="block text-2xl font-semibold tracking-tight tabular-nums">
-                  {money(data.balance, "PLN")}
-                </strong>
-                <span className="block text-sm text-muted">
-                  {lastCount ? `policzone ${dayLabel(lastCount.counted_on)}` : "jeszcze nie policzone"}
-                </span>
-              </span>
-            </div>
+            {pots.map((pot) => (
+              <PotTile
+                key={pot.currency}
+                pot={pot}
+                selected={pot.currency === currency}
+                onSelect={() => setSelected(pot.currency)}
+              />
+            ))}
           </div>
           <section className="card overflow-x-auto p-6">
-            <table className="w-full text-sm [&_td]:border-t [&_td]:border-line/40 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:pr-4 [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-normal [&_th]:text-muted">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Opis</th>
-                  <th className="text-right!">Kwota</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.key}>
-                    <td className="whitespace-nowrap text-muted tabular-nums">{dayLabel(row.date)}</td>
-                    <td className="w-full">
-                      {row.description}
-                      {row.details && <span className="block text-xs text-muted">{row.details}</span>}
-                    </td>
-                    <td className="whitespace-nowrap text-right tabular-nums">
-                      {row.amount === null ? "" : money(row.amount, "PLN")}
-                    </td>
+            {!rows.length && <p className="text-sm text-muted">Pusto.</p>}
+            {rows.length > 0 && (
+              <table className="w-full text-sm [&_td]:border-t [&_td]:border-line/40 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:pr-4 [&_th]:pb-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-normal [&_th]:text-muted">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Opis</th>
+                    <th className="text-right!">Kwota</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.key}>
+                      <td className="whitespace-nowrap text-muted tabular-nums">{dayLabel(row.date)}</td>
+                      <td className="w-full">
+                        {row.description}
+                        {(row.details || row.flow) && (
+                          <span className="block text-xs text-muted">
+                            {row.details}
+                            {row.flow && (
+                              <button
+                                className="underline-offset-2 hover:text-accent hover:underline"
+                                onClick={() => setForeign(withdrawalOf(row.flow!))}
+                              >
+                                {row.flow.bank_currency !== row.flow.currency ? " · zmień" : " · inna waluta?"}
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap text-right tabular-nums">
+                        {row.amount === null ? "" : money(row.amount, currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         </>
       )}
-      {receiving && (
-        <ReceivedForm categories={categories} onClose={() => setReceiving(false)} onSaved={onChanged} />
+      {modal === "count" && (
+        <CountForm currency={currency} categories={categories} onClose={() => setModal(null)} onSaved={onChanged} />
       )}
-      {counting && (
-        <CountForm categories={categories} onClose={() => setCounting(false)} onSaved={onChanged} />
+      {modal === "received" && (
+        <ReceivedForm categories={categories} onClose={() => setModal(null)} onSaved={onChanged} />
       )}
+      {modal === "exchange" && <ExchangeForm onClose={() => setModal(null)} onSaved={onChanged} />}
+      {foreign && <ForeignWithdrawalForm withdrawal={foreign} onClose={() => setForeign(null)} onSaved={onChanged} />}
     </>
   );
 }

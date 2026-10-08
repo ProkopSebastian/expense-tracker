@@ -10,6 +10,7 @@ export function EditCategoryModal({
   categories,
   action,
   onClose,
+  onForeignCash,
 }: {
   editing: Block;
   editCategory: string;
@@ -17,6 +18,7 @@ export function EditCategoryModal({
   categories: Category[];
   action: ReturnType<typeof useAction>;
   onClose: () => void;
+  onForeignCash: () => void;
 }) {
   return (
     <Modal title="Zmień kategorię" onClose={onClose} busy={action.busy}>
@@ -39,6 +41,18 @@ export function EditCategoryModal({
         <p className="text-sm leading-relaxed text-muted">
           {editing.date} · {money(editing.amount!, editing.currency)}
         </p>
+        {editing.category_key === "cash_withdrawal" && (
+          <p className="text-sm text-muted">
+            {editing.cash_currency && `W gotówce: ${money(editing.cash_amount!, editing.cash_currency)} · `}
+            <button
+              type="button"
+              className="underline-offset-2 hover:text-accent hover:underline"
+              onClick={onForeignCash}
+            >
+              {editing.cash_currency ? "zmień" : "Wypłacone w innej walucie?"}
+            </button>
+          </p>
+        )}
         <label>
           Kategoria
           <CategorySelect

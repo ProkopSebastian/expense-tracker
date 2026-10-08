@@ -16,6 +16,8 @@ _FINANCIAL_TABLES = (
     "merchant_rules",
     "cash_count_lines",
     "cash_counts",
+    "cash_foreign_withdrawals",
+    "cash_exchanges",
     "cases",
     "wallets",
     "import_batches",

@@ -36,6 +36,8 @@ from .web_models import (
     WalletOpening,
     WalletOpeningRate,
     CashCount,
+    CashExchange,
+    CashForeignWithdrawal,
     WalletReconcile,
     WalletSell,
 )
@@ -235,17 +237,36 @@ def wallet_history(wallet_id: int, db: DB):
     return {"history": wallet_service.wallet_history(db, wallet_id)}
 
 
+def _money(value):
+    return str(value) if value is not None else None
+
+
 @router.get("/cash")
 def cash(db: DB):
     state = cash_service.cash_state(db)
     return {
-        "balance": str(state.balance),
-        "flows": [{**flow, "amount": str(flow["amount"])} for flow in state.flows],
+        "pots": [
+            {
+                "currency": currency, "balance": str(pot.balance),
+                "average_cost": _money(pot.average_cost.quantize(Decimal("0.000001")) if pot.average_cost is not None else None),
+                "pln_value": _money(pot.value(pot.balance) if pot.balance > 0 else Decimal(0)),
+                "counted_on": pot.counted_on,
+            }
+            for currency, pot in sorted(state.pots.items(), key=lambda item: (item[0] != "PLN", item[0]))
+        ],
+        "flows": [{**flow, "amount": str(flow["amount"]), "cost": _money(flow["cost"])} for flow in state.flows],
+        "exchanges": [
+            {
+                **exchange, "given_amount": str(exchange["given_amount"]),
+                "received_amount": str(exchange["received_amount"]), "fx_result": _money(exchange.get("fx_result")),
+            }
+            for exchange in state.exchanges
+        ],
         "counts": [
             {
-                "id": count.id, "counted_on": count.counted_on, "amount": str(count.amount),
-                "start": count.start, "spent": str(count.spent), "correction": str(count.correction),
-                "unassigned": str(count.unassigned),
+                "id": count.id, "currency": count.currency, "counted_on": count.counted_on,
+                "amount": str(count.amount), "first": count.first, "spent": str(count.spent),
+                "correction": str(count.correction), "unassigned": str(count.unassigned),
                 "lines": [{**line, "amount": str(line["amount"])} for line in count.lines],
             }
             for count in state.counts
@@ -255,11 +276,11 @@ def cash(db: DB):
 
 @router.get("/cash/count-preview")
 def cash_count_preview(
-    db: DB, counted_on: date,
+    db: DB, counted_on: date, currency: Annotated[str, Query(pattern=r"^[A-Z]{3}$")],
     amount: Annotated[Decimal, Query(ge=0, max_digits=18, decimal_places=2)],
 ):
-    count = cash_service.count_preview(db, currency="PLN", counted_on=counted_on, amount=amount)
-    return {"start": count.start, "spent": str(count.spent), "correction": str(count.correction)}
+    count = cash_service.count_preview(db, currency=currency, counted_on=counted_on, amount=amount)
+    return {"first": count.first, "spent": str(count.spent), "correction": str(count.correction)}
 
 
 @router.post("/cash/counts", status_code=201)
@@ -267,9 +288,26 @@ def add_cash_count(entry: CashCount, db: DB):
     for line in entry.lines:
         service.category_exists(db, line.category_key)
     return {"id": cash_service.add_count(
-        db, currency=entry.currency, counted_on=entry.counted_on, amount=entry.amount,
+        db, currency=entry.currency, counted_on=entry.counted_on, amount=entry.amount, start_cost=entry.start_cost,
         lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
     )}
+
+
+@router.put("/cash/withdrawals/{transaction_id}/currency")
+def set_withdrawal_currency(transaction_id: int, entry: CashForeignWithdrawal, db: DB):
+    cash_service.set_withdrawal_currency(db, transaction_id, entry.currency, entry.amount)
+    return {"message": "Zapisano."}
+
+
+@router.delete("/cash/withdrawals/{transaction_id}/currency")
+def clear_withdrawal_currency(transaction_id: int, db: DB):
+    cash_service.clear_withdrawal_currency(db, transaction_id)
+    return {"message": "Zapisano."}
+
+
+@router.post("/cash/exchanges", status_code=201)
+def add_cash_exchange(entry: CashExchange, db: DB):
+    return {"id": cash_service.add_exchange(db, **entry.model_dump())}
 
 
 @router.get("/wealth")

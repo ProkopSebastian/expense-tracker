@@ -105,7 +105,21 @@ class CashCount(BaseModel):
     currency: Currency = "PLN"
     counted_on: date
     amount: Money
+    start_cost: Money | None = None
     lines: list[CashCountLine] = Field(default_factory=list, max_length=50)
+
+
+class CashForeignWithdrawal(BaseModel):
+    currency: Currency
+    amount: Money
+
+
+class CashExchange(BaseModel):
+    exchanged_on: date
+    given_currency: Currency
+    given_amount: Money
+    received_currency: Currency
+    received_amount: Money
 
 
 class ReconcileLine(BaseModel):

@@ -73,7 +73,9 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
     """
     from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
 
-    per_transaction = pln_equivalents(connection)
+    from .cash_service import cash_state
+
+    per_transaction = pln_equivalents(connection) | cash_state(connection).values
     partial = partial_pln_equivalents(connection)
     per_group = group_cost_rates(connection, per_transaction)
     converted: list[dict] = []
@@ -85,6 +87,12 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
             continue
         if code == HOME_CURRENCY:
             converted.append(item)
+            continue
+        if "pln" in item:
+            if item["pln"] is None:
+                missing.add(code)
+            else:
+                converted.append({**item, "amount": item["pln"], "currency": HOME_CURRENCY})
             continue
         value = per_transaction.get(item["transaction_id"]) if item["transaction_id"] else None
         if value is not None:

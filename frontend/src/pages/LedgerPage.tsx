@@ -10,6 +10,7 @@ import {
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerTable from "../components/LedgerTable";
 import { EditCategoryModal, DissolveGroupModal } from "../components/LedgerModals";
+import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
 
 export default function LedgerPage({
   accounts,
@@ -34,7 +35,8 @@ export default function LedgerPage({
     [modal, setModal] = useState<"manual" | "group" | null>(
       null,
     ),
-    [dissolve, setDissolve] = useState<number | null>(null);
+    [dissolve, setDissolve] = useState<number | null>(null),
+    [foreign, setForeign] = useState<Withdrawal | null>(null);
   const params = new URLSearchParams({
     q: query,
     direction,
@@ -144,7 +146,22 @@ export default function LedgerPage({
           categories={categories}
           action={action}
           onClose={() => setEditing(null)}
+          onForeignCash={() => {
+            setForeign({
+              transactionId: editing.id!,
+              date: editing.date,
+              account: editing.account,
+              bankAmount: String(-Number(editing.amount)),
+              bankCurrency: editing.currency,
+              cashAmount: editing.cash_amount ?? null,
+              cashCurrency: editing.cash_currency ?? null,
+            });
+            setEditing(null);
+          }}
         />
+      )}
+      {foreign && (
+        <ForeignWithdrawalForm withdrawal={foreign} onClose={() => setForeign(null)} onSaved={onChanged} />
       )}
       {modal === "manual" && (
         <ManualForm

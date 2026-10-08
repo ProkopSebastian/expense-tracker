@@ -6,23 +6,29 @@ from datetime import date
 from decimal import Decimal
 
 from .cash_flows import CASH_DEPOSIT, CASH_WITHDRAWAL
+from .ledger_view import display_title
 
-# Only facts are stored: cash movements come from statements, counts and their split from the
-# user. Spending and corrections are recomputed on every read, so a statement imported late
-# changes what a period means without ever doubling money.
+# Only facts are stored: cash movements come from statements, counts, kantor exchanges and the
+# foreign amount of a withdrawal come from the user. Spending, corrections and rates are
+# recomputed on every read, so a statement imported late changes what a period means without
+# ever doubling money.
 CASH_ACCOUNT = "Gotówka"
 HOME_CURRENCY = "PLN"
 INACTIVE = ("DECLINED", "REVERTED", "FAILED")
+MONEY = Decimal("0.01")
 
 
 @dataclass
 class Count:
     id: int
+    currency: str
     counted_on: str
     amount: Decimal
+    start_cost: Decimal | None
     lines: list[dict]
-    start: bool = False
+    first: bool = False
     spent: Decimal = Decimal(0)
+    spent_pln: Decimal | None = None
     correction: Decimal = Decimal(0)
 
     @property
@@ -31,46 +37,77 @@ class Count:
 
 
 @dataclass
+class Pot:
+    balance: Decimal = Decimal(0)
+    average_cost: Decimal | None = None
+    counted_on: str | None = None
+
+    def add(self, amount: Decimal, cost: Decimal | None) -> None:
+        if self.balance <= 0:
+            self.average_cost = cost / amount if cost is not None else None
+        elif cost is None or self.average_cost is None:
+            self.average_cost = None
+        else:
+            self.average_cost = (self.balance * self.average_cost + cost) / (self.balance + amount)
+        self.balance += amount
+
+    def value(self, amount: Decimal) -> Decimal | None:
+        return (amount * self.average_cost).quantize(MONEY) if self.average_cost is not None else None
+
+
+@dataclass
 class CashState:
-    balance: Decimal
+    pots: dict[str, Pot] = field(default_factory=dict)
     flows: list[dict] = field(default_factory=list)
     counts: list[Count] = field(default_factory=list)
+    exchanges: list[dict] = field(default_factory=list)
+    values: dict[int, Decimal] = field(default_factory=dict)
 
 
-def _flows(connection: sqlite3.Connection, currency: str) -> list[dict]:
+def _flows(connection: sqlite3.Connection) -> list[dict]:
     rows = connection.execute(
-        f"""SELECT t.id, t.account, t.booking_date, t.amount, t.description, d.category_key
-        FROM transactions t LEFT JOIN transaction_decisions d ON d.transaction_id = t.id
-        WHERE t.currency = ? AND t.bank_status NOT IN ({",".join("?" * len(INACTIVE))})
+        f"""SELECT t.id, t.account, t.booking_date, t.amount, t.currency, t.description, t.merchant,
+                   t.counterparty, d.category_key,
+                   f.currency AS cash_currency, f.amount AS cash_amount
+        FROM transactions t
+        LEFT JOIN transaction_decisions d ON d.transaction_id = t.id
+        LEFT JOIN cash_foreign_withdrawals f ON f.transaction_id = t.id
+        WHERE t.bank_status NOT IN ({",".join("?" * len(INACTIVE))})
         AND t.id NOT IN (SELECT transaction_id FROM case_members)
         AND (d.category_key IN (?, ?) OR t.account = ?)
         ORDER BY t.booking_date, t.id""",
-        (currency, *INACTIVE, CASH_WITHDRAWAL, CASH_DEPOSIT, CASH_ACCOUNT),
+        (*INACTIVE, CASH_WITHDRAWAL, CASH_DEPOSIT, CASH_ACCOUNT),
     ).fetchall()
     flows = []
     for row in rows:
         amount = Decimal(str(row["amount"]))
-        if row["account"] != CASH_ACCOUNT:
-            # A bank withdrawal leaves the account as a negative amount and arrives in the hand.
-            amount = -amount
-        kind = (
-            "withdrawal" if row["category_key"] == CASH_WITHDRAWAL and row["account"] != CASH_ACCOUNT
-            else "deposit" if row["category_key"] == CASH_DEPOSIT and row["account"] != CASH_ACCOUNT
-            else "entry"
-        )
+        bank = row["account"] != CASH_ACCOUNT
+        kind = "entry"
+        currency = row["currency"]
+        cost = amount if currency == HOME_CURRENCY else None
+        if bank:
+            kind = "withdrawal" if row["category_key"] == CASH_WITHDRAWAL else "deposit"
+            # Money leaving the account arrives in the hand, and the other way round.
+            amount, cost = -amount, -amount if currency == HOME_CURRENCY else None
+            if row["cash_currency"]:
+                currency, amount = row["cash_currency"], Decimal(row["cash_amount"])
         flows.append({
-            "transaction_id": row["id"], "date": row["booking_date"], "amount": amount,
-            "kind": kind, "description": row["description"], "account": row["account"],
+            "transaction_id": row["id"], "date": row["booking_date"], "currency": currency,
+            "amount": amount, "cost": cost, "kind": kind, "description": display_title(dict(row)),
+            "account": row["account"], "bank_amount": str(-Decimal(str(row["amount"]))) if bank else None,
+            "bank_currency": row["currency"] if bank else None,
         })
     return flows
 
 
-def _counts(connection: sqlite3.Connection, currency: str) -> list[Count]:
+def _counts(connection: sqlite3.Connection) -> list[Count]:
     counts = [
-        Count(id=row["id"], counted_on=row["counted_on"], amount=Decimal(row["amount"]), lines=[])
+        Count(
+            id=row["id"], currency=row["currency"], counted_on=row["counted_on"], amount=Decimal(row["amount"]),
+            start_cost=Decimal(row["start_cost"]) if row["start_cost"] is not None else None, lines=[],
+        )
         for row in connection.execute(
-            "SELECT id, counted_on, amount FROM cash_counts WHERE currency = ? ORDER BY counted_on",
-            (currency,),
+            "SELECT id, currency, counted_on, amount, start_cost FROM cash_counts ORDER BY counted_on, id"
         )
     ]
     by_id = {count.id: count for count in counts}
@@ -86,38 +123,78 @@ def _counts(connection: sqlite3.Connection, currency: str) -> list[Count]:
     return counts
 
 
-def _replay(flows: list[dict], counts: list[Count]) -> Decimal:
-    # A count is the truth at the end of its day: everything dated on or before it is
-    # already reflected in the counted amount.
-    balance = Decimal(0)
-    remaining = list(flows)
-    for index, count in enumerate(counts):
-        before = [flow for flow in remaining if flow["date"] <= count.counted_on]
-        remaining = [flow for flow in remaining if flow["date"] > count.counted_on]
-        expected = balance + sum((flow["amount"] for flow in before), Decimal(0))
-        count.start = index == 0
-        if not count.start:
-            difference = expected - count.amount
-            count.spent = max(difference, Decimal(0))
-            count.correction = max(-difference, Decimal(0))
-        balance = count.amount
-    return balance + sum((flow["amount"] for flow in remaining), Decimal(0))
+def _exchanges(connection: sqlite3.Connection) -> list[dict]:
+    return [
+        {
+            "id": row["id"], "date": row["exchanged_on"],
+            "given_currency": row["given_currency"], "given_amount": Decimal(row["given_amount"]),
+            "received_currency": row["received_currency"], "received_amount": Decimal(row["received_amount"]),
+        }
+        for row in connection.execute("SELECT * FROM cash_exchanges ORDER BY exchanged_on, id")
+    ]
 
 
-def cash_state(connection: sqlite3.Connection, currency: str = HOME_CURRENCY) -> CashState:
-    flows = _flows(connection, currency)
-    counts = _counts(connection, currency)
-    return CashState(balance=_replay(flows, counts), flows=flows, counts=counts)
+def _pot(pots: dict[str, Pot], currency: str) -> Pot:
+    if currency not in pots:
+        pots[currency] = Pot(average_cost=Decimal(1) if currency == HOME_CURRENCY else None)
+    return pots[currency]
 
 
-def count_preview(
-    connection: sqlite3.Connection, *, currency: str, counted_on: date, amount: Decimal
-) -> Count:
-    flows = _flows(connection, currency)
-    counts = [count for count in _counts(connection, currency) if count.counted_on != str(counted_on)]
-    candidate = Count(id=0, counted_on=str(counted_on), amount=amount, lines=[])
-    counts = sorted([*counts, candidate], key=lambda count: count.counted_on)
-    _replay(flows, counts)
+def _replay(state: CashState) -> None:
+    # A count is the truth at the end of its day, so it comes after that day's movements.
+    events = [(flow["date"], 0, flow["transaction_id"], "flow", flow) for flow in state.flows]
+    events += [(exchange["date"], 0, -exchange["id"], "exchange", exchange) for exchange in state.exchanges]
+    events += [(count.counted_on, 1, count.id, "count", count) for count in state.counts]
+    for _, _, _, kind, payload in sorted(events, key=lambda event: event[:3]):
+        if kind == "flow":
+            pot = _pot(state.pots, payload["currency"])
+            if payload["amount"] >= 0:
+                pot.add(payload["amount"], payload["cost"])
+            else:
+                value = pot.value(-payload["amount"])
+                if value is not None and payload["kind"] == "entry":
+                    state.values[payload["transaction_id"]] = -value
+                pot.balance += payload["amount"]
+        elif kind == "exchange":
+            given = _pot(state.pots, payload["given_currency"])
+            cost = given.value(payload["given_amount"])
+            given.balance -= payload["given_amount"]
+            received = payload["received_amount"]
+            if payload["received_currency"] == HOME_CURRENCY:
+                # Złoty is held at face value; what it differs from the sold currency's cost is a
+                # realised exchange-rate result, not a change in the złoty's worth.
+                payload["fx_result"] = received - cost if cost is not None else None
+                cost = received
+            _pot(state.pots, payload["received_currency"]).add(received, cost)
+        else:
+            pot = _pot(state.pots, payload.currency)
+            payload.first = pot.counted_on is None
+            difference = pot.balance - payload.amount
+            payload.spent = max(difference, Decimal(0))
+            payload.spent_pln = pot.value(payload.spent)
+            payload.correction = max(-difference, Decimal(0))
+            if payload.correction:
+                cost = payload.correction if payload.currency == HOME_CURRENCY else payload.start_cost
+                pot.add(payload.correction, cost)
+            pot.balance = payload.amount
+            pot.counted_on = payload.counted_on
+
+
+def cash_state(connection: sqlite3.Connection) -> CashState:
+    state = CashState(flows=_flows(connection), counts=_counts(connection), exchanges=_exchanges(connection))
+    _pot(state.pots, HOME_CURRENCY)
+    _replay(state)
+    return state
+
+
+def count_preview(connection: sqlite3.Connection, *, currency: str, counted_on: date, amount: Decimal) -> Count:
+    state = cash_state(connection)
+    candidate = Count(id=0, currency=currency, counted_on=str(counted_on), amount=amount, start_cost=None, lines=[])
+    state = CashState(
+        flows=state.flows, exchanges=state.exchanges,
+        counts=[*(count for count in _counts(connection) if (count.currency, count.counted_on) != (currency, str(counted_on))), candidate],
+    )
+    _replay(state)
     return candidate
 
 
@@ -127,6 +204,7 @@ def add_count(
     currency: str,
     counted_on: date,
     amount: Decimal,
+    start_cost: Decimal | None,
     lines: list[tuple[Decimal, str, str | None]],
 ) -> int:
     if amount < 0:
@@ -134,17 +212,19 @@ def add_count(
     if connection.execute(
         "SELECT 1 FROM cash_counts WHERE currency = ? AND counted_on = ?", (currency, str(counted_on))
     ).fetchone():
-        raise ValueError("Na ten dzień gotówka jest już policzona.")
+        raise ValueError("Na ten dzień ta waluta jest już policzona.")
     preview = count_preview(connection, currency=currency, counted_on=counted_on, amount=amount)
     if any(line_amount <= 0 for line_amount, _, _ in lines):
         raise ValueError("Każda kwota musi być większa od zera.")
     assigned = sum((line_amount for line_amount, _, _ in lines), Decimal(0))
     if assigned > preview.spent:
         raise ValueError(f"Wydano {preview.spent} {currency}, a przypisujesz {assigned}.")
+    if start_cost is not None and start_cost < 0:
+        raise ValueError("Koszt nie może być ujemny.")
     with connection:
         cursor = connection.execute(
-            "INSERT INTO cash_counts(currency, counted_on, amount) VALUES (?, ?, ?)",
-            (currency, str(counted_on), str(amount)),
+            "INSERT INTO cash_counts(currency, counted_on, amount, start_cost) VALUES (?, ?, ?, ?)",
+            (currency, str(counted_on), str(amount), str(start_cost) if start_cost is not None else None),
         )
         count_id = int(cursor.lastrowid)
         connection.executemany(
@@ -154,18 +234,74 @@ def add_count(
     return count_id
 
 
+def set_withdrawal_currency(connection: sqlite3.Connection, transaction_id: int, currency: str, amount: Decimal) -> None:
+    row = connection.execute(
+        """SELECT t.currency FROM transactions t JOIN transaction_decisions d ON d.transaction_id = t.id
+        WHERE t.id = ? AND d.category_key = ?""",
+        (transaction_id, CASH_WITHDRAWAL),
+    ).fetchone()
+    if row is None:
+        raise ValueError("To nie jest wypłata z bankomatu.")
+    if amount <= 0:
+        raise ValueError("Kwota musi być większa od zera.")
+    if currency == row["currency"]:
+        raise ValueError("Wybierz walutę, w której bankomat wydał gotówkę.")
+    with connection:
+        connection.execute(
+            """INSERT INTO cash_foreign_withdrawals(transaction_id, currency, amount) VALUES (?, ?, ?)
+            ON CONFLICT(transaction_id) DO UPDATE SET currency = excluded.currency, amount = excluded.amount""",
+            (transaction_id, currency, str(amount)),
+        )
+
+
+def clear_withdrawal_currency(connection: sqlite3.Connection, transaction_id: int) -> None:
+    with connection:
+        connection.execute("DELETE FROM cash_foreign_withdrawals WHERE transaction_id = ?", (transaction_id,))
+
+
+def add_exchange(
+    connection: sqlite3.Connection, *, exchanged_on: date, given_currency: str, given_amount: Decimal,
+    received_currency: str, received_amount: Decimal,
+) -> int:
+    if given_currency == received_currency:
+        raise ValueError("Wybierz dwie różne waluty.")
+    if given_amount <= 0 or received_amount <= 0:
+        raise ValueError("Obie kwoty muszą być większe od zera.")
+    with connection:
+        cursor = connection.execute(
+            """INSERT INTO cash_exchanges(exchanged_on, given_currency, given_amount, received_currency, received_amount)
+            VALUES (?, ?, ?, ?, ?)""",
+            (str(exchanged_on), given_currency, str(given_amount), received_currency, str(received_amount)),
+        )
+    return int(cursor.lastrowid)
+
+
 def spending_items(connection: sqlite3.Connection) -> list[dict[str, object]]:
     items: list[dict[str, object]] = []
-    for count in cash_state(connection).counts:
+    state = cash_state(connection)
+    for exchange in state.exchanges:
+        result = exchange.get("fx_result")
+        if result:
+            items.append({
+                "transaction_id": None, "date": exchange["date"], "amount": abs(result),
+                "currency": HOME_CURRENCY, "kind": "income" if result > 0 else "expense",
+                "category": "fx_result", "label": "Różnice kursowe", "merchant": "Wymiana w kantorze",
+            })
+    for count in state.counts:
+        rate = count.spent_pln / count.spent if count.spent and count.spent_pln is not None else None
         for line in count.lines:
-            items.append(_item(count, line["amount"], line["category_key"], line["label"], line["description"]))
+            items.append(_item(count, line["amount"], rate, line["category_key"], line["label"], line["description"]))
         if count.unassigned > 0:
-            items.append(_item(count, count.unassigned, "uncategorized_expense", "Niesklasyfikowane wydatki", None))
+            items.append(_item(count, count.unassigned, rate, "uncategorized_expense", "Niesklasyfikowane wydatki", None))
     return items
 
 
-def _item(count: Count, amount: Decimal, category: str, label: str, description: str | None) -> dict[str, object]:
+def _item(
+    count: Count, amount: Decimal, rate: Decimal | None, category: str, label: str, description: str | None,
+) -> dict[str, object]:
+    pln = amount if count.currency == HOME_CURRENCY else (amount * rate).quantize(MONEY) if rate is not None else None
     return {
-        "transaction_id": None, "date": count.counted_on, "amount": amount, "currency": HOME_CURRENCY,
-        "kind": "expense", "category": category, "label": label, "merchant": description or CASH_ACCOUNT,
+        "transaction_id": None, "date": count.counted_on, "amount": amount, "currency": count.currency,
+        "pln": pln, "kind": "expense", "category": category, "label": label,
+        "merchant": description or CASH_ACCOUNT,
     }

@@ -139,8 +139,15 @@ def ledger_blocks(
     cases = ledger.approved_cases(db)
     in_pln = wallet_service.pln_equivalents(db)
 
+    foreign_cash = {
+        row["transaction_id"]: (row["currency"], row["amount"])
+        for row in db.execute("SELECT transaction_id, currency, amount FROM cash_foreign_withdrawals")
+    }
+
     def item(row):
         return {
+            "cash_currency": foreign_cash.get(row["id"], (None, None))[0],
+            "cash_amount": foreign_cash.get(row["id"], (None, None))[1],
             # Absent when nothing can value this row honestly, so the UI can say so.
             "pln_amount": str(in_pln[row["id"]]) if row["id"] in in_pln else None,
             "id": row["id"],
@@ -193,7 +200,7 @@ def ledger_blocks(
             }
         )
     for index, item in enumerate(cash_service.spending_items(db)):
-        amount = str(-item["amount"])
+        amount = str(item["amount"] if item["kind"] == "income" else -item["amount"])
         blocks.append(
             {
                 "key": f"cash{index}",
@@ -204,6 +211,7 @@ def ledger_blocks(
                 "account": cash_service.CASH_ACCOUNT,
                 "description": item["merchant"] if item["merchant"] != cash_service.CASH_ACCOUNT
                 else "Wydatki z gotówki",
+                "pln_amount": str(item["pln"]) if item.get("pln") is not None else None,
                 "counterparty": "",
                 "amount": amount,
                 "real_amount": amount,
@@ -211,7 +219,6 @@ def ledger_blocks(
                 "category_key": item["category"] if item["category"] != "uncategorized_expense" else None,
                 "category_label": item["label"] if item["category"] != "uncategorized_expense" else "Bez kategorii",
                 "members": [],
-                "pln_amount": None,
                 "bank_status": None,
             }
         )

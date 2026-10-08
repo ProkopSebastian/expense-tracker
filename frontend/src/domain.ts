@@ -24,6 +24,8 @@ export interface TransactionRow {
   currency: string;
   category_key: string | null;
   category_label: string;
+  cash_currency?: string | null;
+  cash_amount?: string | null;
 }
 export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   key: string;
@@ -99,24 +101,46 @@ export interface Wallet {
 export interface CashFlow {
   transaction_id: number;
   date: string;
+  currency: string;
   amount: string;
+  cost: string | null;
   kind: "withdrawal" | "deposit" | "entry";
   description: string;
   account: string;
+  bank_amount: string | null;
+  bank_currency: string | null;
 }
 export interface CashCount {
   id: number;
+  currency: string;
   counted_on: string;
   amount: string;
-  start: boolean;
+  first: boolean;
   spent: string;
   correction: string;
   unassigned: string;
   lines: { category_key: string; label: string; amount: string; description: string | null }[];
 }
-export interface CashData {
+export interface CashExchange {
+  id: number;
+  date: string;
+  given_currency: string;
+  given_amount: string;
+  received_currency: string;
+  received_amount: string;
+  fx_result: string | null;
+}
+export interface CashPot {
+  currency: string;
   balance: string;
+  average_cost: string | null;
+  pln_value: string | null;
+  counted_on: string | null;
+}
+export interface CashData {
+  pots: CashPot[];
   flows: CashFlow[];
+  exchanges: CashExchange[];
   counts: CashCount[];
 }
 export interface WalletEvent {
