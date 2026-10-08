@@ -16,7 +16,7 @@ from .importers import (
     import_revolut_csv,
     import_velo_pdf,
 )
-from .ledger import apply_rules
+from .ledger import apply_rules, categorize_bank_fees
 from .wallet_service import pair_exchanges
 
 IMPORTERS = {
@@ -36,7 +36,7 @@ DEFAULT_ACCOUNTS = {
     "velo_pdf": "velo",
     "pko_pdf": "pko",
 }
-PARSER_VERSION = 4
+PARSER_VERSION = 5
 
 
 @dataclass
@@ -114,6 +114,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
             identities[key] = signature
     with database.connection:
         inserted, skipped = database.insert_transactions(found, commit=False)
+        categorize_bank_fees(database.connection)
         apply_rules(database.connection, commit=False)
         paired = pair_exchanges(database.connection)
         database.connection.execute(

@@ -290,6 +290,14 @@ def save_merchant_rule(
         connection.commit()
 
 
+def categorize_bank_fees(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """INSERT INTO transaction_decisions (transaction_id, category_key, source, status, confidence, explanation)
+        SELECT id, 'fees_fx', 'rule', 'approved', 1, 'Opłata pobrana przez bank' FROM transactions
+        WHERE transaction_type = 'Fee' AND id NOT IN (SELECT transaction_id FROM transaction_decisions)"""
+    )
+
+
 def apply_rules(connection: sqlite3.Connection, *, commit: bool = True) -> int:
     rules = connection.execute(
         "SELECT merchant_key, category_key FROM merchant_rules WHERE is_active = 1 ORDER BY priority"

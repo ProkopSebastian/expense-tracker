@@ -6,6 +6,7 @@ from ..csv_utils import read_csv
 from ..models import Transaction
 from .common import _column, _key, _parse_amount, _parse_date
 
+FEE = "Fee"
 INACTIVE_STATES = {"DECLINED", "REVERTED", "FAILED"}
 STATE_ALIASES = {
     "zakonczono": "COMPLETED",
@@ -66,6 +67,7 @@ def import_revolut_csv(path: Path, account: str = "revolut", *, include_inactive
                 }
             )
             transaction_type = raw["Type"] or None
+            external_id = _column(row, "transaction id", "id transakcji", "id", required=False) or None
             transactions.append(
                 Transaction(
                     account=account,
@@ -75,13 +77,29 @@ def import_revolut_csv(path: Path, account: str = "revolut", *, include_inactive
                     currency=currency,
                     description=description,
                     counterparty=None,
-                    external_id=_column(row, "transaction id", "id transakcji", "id", required=False) or None,
+                    external_id=external_id,
                     balance=_parse_amount(balance) if balance else None,
                     raw=raw,
                     merchant=description,
                     transaction_type=transaction_type,
                 )
             )
+            fee = _parse_amount(_column(row, "fee", "opłata", required=False) or "0")
+            if fee:
+                transactions.append(
+                    Transaction(
+                        account=account,
+                        booking_date=_parse_date(started),
+                        value_date=_parse_date(completed) if completed else None,
+                        amount=-abs(fee),
+                        currency=currency,
+                        description=f"Opłata · {description}",
+                        counterparty=None,
+                        external_id=f"{external_id}:fee" if external_id else None,
+                        raw={**raw, "Type": FEE},
+                        transaction_type=FEE,
+                    )
+                )
         except ValueError as exc:
             raise ValueError(f"Błąd w wierszu {number}: {exc}") from exc
     return transactions
