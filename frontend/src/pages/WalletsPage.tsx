@@ -453,9 +453,10 @@ function OpeningForm({
   );
 }
 
-function WalletHistory({ wallet }: { wallet: Wallet }) {
+function WalletHistory({ wallet, revision }: { wallet: Wallet; revision: number }) {
   const { data, error, loading } = useResource<{ history: WalletEvent[] }>(
     `/wallets/${wallet.id}/history`,
+    revision,
   );
   const events = [...(data?.history ?? [])].reverse();
   if (loading && !data) {
@@ -591,6 +592,7 @@ function WalletAction({
 
 function WalletDetail({
   wallet,
+  revision,
   canConvert,
   onDelete,
   onReconcile,
@@ -598,6 +600,7 @@ function WalletDetail({
   onOpening,
 }: {
   wallet: Wallet;
+  revision: number;
   canConvert: boolean;
   onDelete: (wallet: Wallet) => void;
   onReconcile: (wallet: Wallet) => void;
@@ -616,7 +619,7 @@ function WalletDetail({
       )}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0 overflow-x-auto">
-          <WalletHistory wallet={wallet} />
+          <WalletHistory wallet={wallet} revision={revision} />
         </div>
         <div>
           <ul className="flex flex-col gap-0.5">
@@ -736,8 +739,6 @@ export default function WalletsPage({
       <Notice
         error={error || action.error}
         notice={action.notice}
-        undoLabel={action.undoLabel}
-        onUndo={action.undo}
       />
       {!wallets.length && !error && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">
@@ -774,6 +775,7 @@ export default function WalletsPage({
           <WalletDetail
             key={selected.id}
             wallet={selected}
+            revision={revision}
             canConvert={wallets.length > 1 && Number(selected.balance) > 0}
             onDelete={setRemoving}
             onReconcile={setReconciling}

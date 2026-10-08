@@ -454,8 +454,6 @@ export default function ClassificationPage({
       <Notice
         error={error || bulk.error}
         notice={bulk.notice}
-        undoLabel={bulk.undoLabel}
-        onUndo={bulk.undo}
       />
       {activeKind && <Notice error={action.error} notice={notice} />}
       {merchantStats && (

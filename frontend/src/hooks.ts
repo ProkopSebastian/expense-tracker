@@ -51,8 +51,7 @@ export function useResource<T>(path: string | null, revision = 0) {
 export function useAction(onSuccess?: () => void) {
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
-    [error, setError] = useState(""),
-    [undoLabel, setUndoLabel] = useState<string | null>(null);
+    [error, setError] = useState("");
   async function run(
     action: () => Promise<unknown>,
     message = "Zmiany zapisane.",
@@ -60,14 +59,9 @@ export function useAction(onSuccess?: () => void) {
     setBusy(true);
     setError("");
     setNotice("");
-    setUndoLabel(null);
     try {
       await action();
       setNotice(message);
-      const recovery = await request<{ can_undo: boolean; label: string | null }>(
-        "/recovery",
-      ).catch(() => null);
-      if (recovery?.can_undo) setUndoLabel(recovery.label ?? "ostatnią zmianę");
       onSuccess?.();
       return true;
     } catch (error) {
@@ -79,12 +73,7 @@ export function useAction(onSuccess?: () => void) {
       setBusy(false);
     }
   }
-  // Restores the backup taken before the last data-writing request, whatever made it.
-  const undo = async () => {
-    await run(() => request("/undo", "POST"), "Ostatnia zmiana została cofnięta.");
-    setUndoLabel(null);
-  };
-  return { busy, notice, error, run, undo, undoLabel };
+  return { busy, notice, error, run };
 }
 
 export function useLoadMoreSentinel(onReachEnd: () => void, enabled: boolean) {

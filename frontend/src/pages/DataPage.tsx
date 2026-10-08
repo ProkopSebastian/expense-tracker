@@ -56,11 +56,6 @@ export default function DataPage({
       <Notice
         error={action.error || syncError}
         notice={message || action.notice}
-        undoLabel={action.undoLabel}
-        onUndo={() => {
-          setMessage("");
-          void action.undo();
-        }}
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
