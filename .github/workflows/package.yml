@@ -21,6 +21,8 @@ permissions:
   contents: read
 jobs:
   build-windows:
+    # The release workflow builds the tagged release commit itself.
+    if: "github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release')"
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -47,6 +49,7 @@ jobs:
             dist/assets-windows.json
 
   build-linux:
+    if: "github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release')"
     # The oldest supported runner keeps the binary's glibc requirement low enough for most distros.
     runs-on: ubuntu-22.04
     steps:
@@ -78,6 +81,7 @@ jobs:
             dist/*.rpm
 
   build-macos:
+    if: "github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release')"
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
