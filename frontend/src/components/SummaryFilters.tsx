@@ -40,7 +40,7 @@ export default function SummaryFilters({
   loading,
   setFilters,
 }: Props) {
-  const currentMonth = filters.month ?? data?.months[0] ?? "";
+  const currentMonth = filters.month ?? data?.start?.slice(0, 7) ?? data?.months[0] ?? "";
   const monthIndex = data?.months.indexOf(currentMonth) ?? -1;
   const changeMode = (mode: PeriodMode) =>
     setFilters((previous) => ({

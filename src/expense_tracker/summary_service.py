@@ -65,11 +65,12 @@ def _nodes(level: dict) -> list[BreakdownNode]:
     ]
 
 
-def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[str]]:
+def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[tuple[str, str]]]:
     """Restate every item in złoty, leaving out what no real transaction can value.
 
     Nothing here invents a rate. An amount whose currency was never exchanged on record is
-    dropped and its code reported, so the total is visibly incomplete instead of quietly wrong.
+    dropped and reported with its date and code, so the total is visibly incomplete instead of
+    quietly wrong.
     """
     from .cash_service import cash_state
     from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
@@ -78,18 +79,18 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
     partial = partial_pln_equivalents(connection)
     per_group = group_cost_rates(connection, per_transaction)
     converted: list[dict] = []
-    missing: set[str] = set()
+    missing: list[tuple[str, str]] = []
     for item in items:
         code = str(item["currency"])
         if item.get("valuation_missing"):
-            missing.add(item["valuation_missing"])
+            missing.append((str(item["date"]), item["valuation_missing"]))
             continue
         if code == HOME_CURRENCY:
             converted.append(item)
             continue
         if "pln" in item:
             if item["pln"] is None:
-                missing.add(code)
+                missing.append((str(item["date"]), code))
             else:
                 converted.append({**item, "amount": item["pln"], "currency": HOME_CURRENCY})
             continue
@@ -100,13 +101,13 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
             amount = (item["amount"] * per_group[item["case_id"]]).quantize(Decimal("0.01"))
             converted.append({**item, "amount": amount, "currency": HOME_CURRENCY})
         elif item["transaction_id"] in partial:
-            missing.add(code)
+            missing.append((str(item["date"]), code))
             value = partial[item["transaction_id"]]
             if value is not None:
                 converted.append({**item, "amount": abs(value), "currency": HOME_CURRENCY})
         else:
-            missing.add(code)
-    return converted, sorted(missing)
+            missing.append((str(item["date"]), code))
+    return converted, missing
 
 
 def get_summary(
@@ -121,25 +122,31 @@ def get_summary(
     data = summary_data(connection)
     currencies = sorted({str(item["currency"]) for item in data["items"]}, key=lambda code: (code != "PLN", code))
     selected = currency or ALL_CURRENCIES
-    untranslated: list[str] = []
     if selected == ALL_CURRENCIES:
-        items, untranslated = _converted_to_home(connection, data["items"])
+        relevant = data["items"]
+        items, missing = _converted_to_home(connection, relevant)
     else:
         if currencies and selected not in currencies:
             raise ValueError("Brak danych dla wybranej waluty.")
-        native = [item for item in data["items"] if item["currency"] == selected]
-        untranslated = sorted({item["valuation_missing"] for item in native if item.get("valuation_missing")})
-        items = [item for item in native if not item.get("valuation_missing")]
-    dates = sorted(date.fromisoformat(str(item["date"])) for item in items)
+        relevant = [item for item in data["items"] if item["currency"] == selected]
+        missing = [(str(item["date"]), item["valuation_missing"]) for item in relevant if item.get("valuation_missing")]
+        items = [item for item in relevant if not item.get("valuation_missing")]
+    today = date.today()
+    # Periods come from every original operation, valued or not, so a month whose spending
+    # still lacks a rate stays selectable instead of looking empty.
+    dates = sorted(date.fromisoformat(str(item["date"])) for item in relevant)
     months = sorted({value.strftime("%Y-%m") for value in dates}, reverse=True)
-    first, last = (dates[0], dates[-1]) if dates else (None, None)
+    first = dates[0] if dates else None
+    # A single future-dated entry, usually a year typo, must not pull the default period away
+    # from the data that has already happened.
+    last = max((value for value in dates if value <= today), default=dates[-1]) if dates else None
     if mode == "custom":
         if start is None or end is None or start > end:
             raise ValueError("Podaj poprawną datę początkową i końcową.")
     elif last is not None:
         end = last
         if mode == "month":
-            chosen = month or months[0]
+            chosen = month or last.strftime("%Y-%m")
             start = date.fromisoformat(f"{chosen}-01")
             end = date(start.year, start.month, calendar.monthrange(start.year, start.month)[1])
         elif mode == "30days":
@@ -149,7 +156,6 @@ def get_summary(
             start = max(first, date(index // 12, index % 12 + 1, 1))
         else:
             start = max(first, date(last.year, 1, 1))
-    today = date.today()
     # Capped at today so a future-dated transaction (typo or planning ahead) doesn't
     # inflate the header totals for a period the daily chart below hasn't reached yet.
     filtered = (
@@ -186,6 +192,11 @@ def get_summary(
         if cursor_month == 0:
             cursor_month, cursor_year = 12, cursor_year - 1
     monthly = [MonthlyPoint(month=key, change=monthly_totals.get(key, Decimal(0))) for key in reversed(month_keys)]
+    period_end = min(end, today) if end is not None else None
+    untranslated = sorted({
+        code for day, code in missing
+        if start is None or period_end is None or start <= date.fromisoformat(day) <= period_end
+    })
     return SummaryResponse(
         daily=daily,
         monthly=monthly,
