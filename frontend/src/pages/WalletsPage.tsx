@@ -764,7 +764,7 @@ export default function WalletsPage({
       )}
       {selected && (
         <>
-          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-4">
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {wallets.map((wallet) => (
               <WalletTile
                 key={wallet.id}
