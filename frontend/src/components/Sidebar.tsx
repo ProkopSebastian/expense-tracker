@@ -1,5 +1,6 @@
 import {
   Banknote,
+  Coins,
   ChartNoAxesCombined,
   ReceiptText,
   Tags,
@@ -23,6 +24,7 @@ const icons = {
   summary: ChartNoAxesCombined,
   ledger: ReceiptText,
   wealth: Landmark,
+  currencies: Coins,
   wallets: Banknote,
   classification: Tags,
   rules: ListChecks,
@@ -91,7 +93,7 @@ export default function Sidebar({
         </a>
         <nav aria-label="Nawigacja główna">
           {(
-            ["summary", "ledger", "wealth", "wallets", "classification", "rules", "data"] as Page[]
+            ["summary", "ledger", "wealth", "currencies", "wallets", "classification", "rules", "data"] as Page[]
           ).map((key) => {
             const Icon = icons[key];
             return (

@@ -19,6 +19,7 @@ CaseKind = Literal[
     "own_transfer", "shared_purchase", "reimbursement", "refund", "payment_dispute", "wallet_exchange"
 ]
 SYNTHETIC_EXCHANGE_LEG = "wallet_exchange_leg"
+MANUAL_ENTRY = "manual_entry"
 CaseRole = Literal["purchase", "received_reimbursement", "paid_settlement", "received_refund", "account_transfer"]
 DecisionSource = Literal["manual", "rule", "llm"]
 
@@ -406,7 +407,7 @@ def add_manual_transaction(
         description=description,
         counterparty=counterparty,
         external_id=uuid.uuid4().hex,
-        raw={"Type": "manual_entry", "entered_at": datetime.now(UTC).isoformat()},
+        raw={"Type": MANUAL_ENTRY, "entered_at": datetime.now(UTC).isoformat()},
     )
     with connection if commit else nullcontext():
         transaction_id = insert_transaction(connection, transaction, commit=False)

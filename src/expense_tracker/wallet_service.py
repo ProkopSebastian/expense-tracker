@@ -52,8 +52,48 @@ def _ordering(row: sqlite3.Row) -> tuple[str, int]:
 
 def _wallets(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     return connection.execute(
-        "SELECT id, account, currency FROM wallets ORDER BY currency, account COLLATE NOCASE"
+        "SELECT id, account, currency, opening_rate FROM wallets ORDER BY currency, account COLLATE NOCASE"
     ).fetchall()
+
+
+def _bank_accounts(connection: sqlite3.Connection) -> set[str]:
+    rows = connection.execute(
+        "SELECT DISTINCT account FROM transactions WHERE transaction_type IS NOT NULL AND transaction_type NOT IN (?, ?, ?)",
+        (ledger.SYNTHETIC_EXCHANGE_LEG, OPENING_BALANCE, ledger.MANUAL_ENTRY),
+    ).fetchall()
+    return {row["account"] for row in rows}
+
+
+def _held_before_statements(connection: sqlite3.Connection, account: str, currency: str) -> tuple[Decimal, str] | None:
+    """What the account already held before its earliest imported row, and that row's date.
+
+    A statement's running balance reveals money that predates the imported history. Without a
+    balance, the smallest starting amount that never lets the account go below zero is used.
+    It is recomputed on every read, so importing older statements shrinks it on its own.
+    """
+    rows = sorted(
+        connection.execute(
+            """SELECT id, booking_date, amount, balance, raw_json FROM transactions
+            WHERE account = ? AND currency = ? AND bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED')""",
+            (account, currency),
+        ).fetchall(),
+        key=_ordering,
+    )
+    if not rows:
+        return None
+    anchor = next((row for row in rows if row["balance"] is not None), None)
+    if anchor is not None:
+        stamp = _ordering(anchor)[0]
+        moved = sum((_decimal(row["amount"]) for row in rows if _ordering(row)[0] <= stamp), Decimal(0))
+        held = _decimal(anchor["balance"]) - moved
+    else:
+        running = lowest = Decimal(0)
+        for row in rows:
+            running += _decimal(row["amount"])
+            lowest = min(lowest, running)
+        held = -lowest
+    held = held.quantize(MONEY)
+    return (held, str(rows[0]["booking_date"])) if held > 0 else None
 
 
 def _exchange_legs(connection: sqlite3.Connection) -> dict[int, list[sqlite3.Row]]:
@@ -85,6 +125,34 @@ def wallet_states(
     }
     if not by_pot:
         return state
+
+    banks = _bank_accounts(connection)
+    for row in wallets:
+        if row["account"] not in banks or row["currency"] == HOME_CURRENCY:
+            continue
+        held = _held_before_statements(connection, row["account"], row["currency"])
+        if held is None:
+            continue
+        amount, day = held
+        rate = _decimal(row["opening_rate"]) if row["opening_rate"] is not None else None
+        pot = state[int(row["id"])]
+        cost = (amount * rate).quantize(MONEY) if rate is not None else None
+        _add_funding(pot, amount, cost)
+        pot["held_before"] = {
+            "amount": str(amount), "date": day, "rate_known": rate is not None,
+            "pln": str(cost) if cost is not None else None,
+        }
+        pot["history"].append(
+            {
+                "transaction_id": -int(row["id"]),
+                "kind": "held_before",
+                "date": day,
+                "description": "Saldo sprzed pierwszego wyciągu",
+                "amount": str(amount),
+                "pln": str(cost) if cost is not None else None,
+                "rate": str(rate) if rate is not None else None,
+            }
+        )
 
     legs = _exchange_legs(connection)
     member_ids = {int(leg["id"]) for group in legs.values() for leg in group}
@@ -238,6 +306,7 @@ def _apply_movement(state, by_pot, row) -> None:
 def list_wallets(connection: sqlite3.Connection) -> list[dict[str, object]]:
     states = wallet_states(connection)
     result = []
+    banks = _bank_accounts(connection)
     for row in _wallets(connection):
         state = states[int(row["id"])]
         average = state["average_cost"]
@@ -245,6 +314,8 @@ def list_wallets(connection: sqlite3.Connection) -> list[dict[str, object]]:
             "id": int(row["id"]),
             "account": row["account"],
             "currency": row["currency"],
+            "kind": "bank" if row["account"] in banks else "cash",
+            "held_before": state.get("held_before"),
             "balance": str(state["balance"].quantize(MONEY)),
             "average_cost": str(average) if average is not None else None,
             "pln_value": str((state["balance"] * average).quantize(MONEY)) if average is not None else None,
@@ -499,6 +570,15 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
             )
         paired += 1
     return paired
+
+
+def track_imported_currencies(connection: sqlite3.Connection) -> None:
+    for row in connection.execute(
+        """SELECT DISTINCT account, currency FROM transactions
+        WHERE currency != ? AND transaction_type IS NOT NULL AND transaction_type NOT IN (?, ?, ?)""",
+        (HOME_CURRENCY, ledger.SYNTHETIC_EXCHANGE_LEG, OPENING_BALANCE, ledger.MANUAL_ENTRY),
+    ).fetchall():
+        _ensure_wallet(connection, row["account"], row["currency"])
 
 
 def _ensure_wallet(connection: sqlite3.Connection, account: str, currency: str) -> int:
@@ -790,6 +870,24 @@ def sell_wallet(
             [(proceeds_transaction_id, "account_transfer"), (out_id, "account_transfer")],
             commit=False,
         )
+
+
+def set_opening_rate(connection: sqlite3.Connection, *, wallet_id: int, pln_cost: Decimal) -> None:
+    wallet = _require_wallet(connection, wallet_id)
+    held = _held_before_statements(connection, wallet["account"], wallet["currency"])
+    if held is None:
+        raise ValueError("Ta waluta nie ma salda sprzed wyciągów.")
+    if pln_cost <= 0:
+        raise ValueError("Kwota musi być większa od zera.")
+    rate = (pln_cost / held[0]).quantize(COST_PRECISION)
+    with connection:
+        connection.execute("UPDATE wallets SET opening_rate = ? WHERE id = ?", (str(rate), wallet_id))
+
+
+def clear_opening_rate(connection: sqlite3.Connection, wallet_id: int) -> None:
+    _require_wallet(connection, wallet_id)
+    with connection:
+        connection.execute("UPDATE wallets SET opening_rate = NULL WHERE id = ?", (wallet_id,))
 
 
 def set_opening_balance(

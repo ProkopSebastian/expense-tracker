@@ -90,6 +90,10 @@ class WalletOpening(BaseModel):
     booking_date: date
 
 
+class WalletOpeningRate(BaseModel):
+    pln_cost: Money
+
+
 class ReconcileLine(BaseModel):
     amount: Money
     category_key: Text

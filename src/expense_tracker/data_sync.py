@@ -17,7 +17,7 @@ from .importers import (
     import_velo_pdf,
 )
 from .ledger import apply_rules, categorize_bank_fees
-from .wallet_service import pair_exchanges
+from .wallet_service import pair_exchanges, track_imported_currencies
 
 IMPORTERS = {
     "nest": import_nest_csv,
@@ -117,6 +117,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
         categorize_bank_fees(database.connection)
         apply_rules(database.connection, commit=False)
         paired = pair_exchanges(database.connection)
+        track_imported_currencies(database.connection)
         database.connection.execute(
             """INSERT INTO import_batches
             (file_name,file_hash,importer,rows_found,rows_inserted,rows_skipped_duplicate,parser_version)

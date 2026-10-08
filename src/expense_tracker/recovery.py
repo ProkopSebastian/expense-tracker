@@ -77,6 +77,8 @@ ACTION_LABELS: dict[tuple[str, str], str] = {
     ("POST", "/api/wallets/{}/convert"): "Wymiana między portfelami",
     ("POST", "/api/wallets/{}/sell"): "Odsprzedaż waluty",
     ("POST", "/api/wallets/{}/opening"): "Saldo otwarcia portfela",
+    ("PUT", "/api/wallets/{}/opening-rate"): "Kurs waluty sprzed wyciągów",
+    ("DELETE", "/api/wallets/{}/opening-rate"): "Usunięcie kursu waluty",
     ("POST", "/api/wealth/assets"): "Dodanie składnika majątku",
     ("PUT", "/api/wealth/assets/{}"): "Zmiana składnika majątku",
     ("DELETE", "/api/wealth/assets/{}"): "Usunięcie składnika majątku",

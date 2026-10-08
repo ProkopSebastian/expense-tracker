@@ -33,6 +33,7 @@ from .web_models import (
     WalletCreate,
     WalletFundEntry,
     WalletOpening,
+    WalletOpeningRate,
     WalletReconcile,
     WalletSell,
 )
@@ -199,6 +200,18 @@ def sell_wallet(wallet_id: int, entry: WalletSell, db: DB):
 @router.post("/wallets/{wallet_id}/opening", status_code=201)
 def wallet_opening(wallet_id: int, entry: WalletOpening, db: DB):
     return {"id": wallet_service.set_opening_balance(db, wallet_id=wallet_id, **entry.model_dump())}
+
+
+@router.put("/wallets/{wallet_id}/opening-rate")
+def set_opening_rate(wallet_id: int, entry: WalletOpeningRate, db: DB):
+    wallet_service.set_opening_rate(db, wallet_id=wallet_id, pln_cost=entry.pln_cost)
+    return {"message": "Kurs zapisany."}
+
+
+@router.delete("/wallets/{wallet_id}/opening-rate")
+def clear_opening_rate(wallet_id: int, db: DB):
+    wallet_service.clear_opening_rate(db, wallet_id)
+    return {"message": "Kurs usunięty."}
 
 
 @router.post("/wallets/{wallet_id}/reconcile", status_code=201)

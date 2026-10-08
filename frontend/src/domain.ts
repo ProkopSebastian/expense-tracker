@@ -91,10 +91,12 @@ export interface Wallet {
   average_cost: string | null;
   pln_value: string | null;
   uncovered: string;
+  kind: "bank" | "cash";
+  held_before: { amount: string; date: string; rate_known: boolean; pln: string | null } | null;
 }
 export interface WalletEvent {
   transaction_id: number;
-  kind: "topup" | "spend" | "inflow" | "conversion_out";
+  kind: "topup" | "spend" | "inflow" | "conversion_out" | "held_before";
   date: string;
   description: string;
   amount: string;
@@ -151,6 +153,7 @@ export type Page =
   | "summary"
   | "ledger"
   | "wealth"
+  | "currencies"
   | "wallets"
   | "classification"
   | "rules";
@@ -171,9 +174,13 @@ export const pages: Record<Page, { title: string; description: string }> = {
     title: "Majątek",
     description: "Ile masz na kontach, lokatach i w inwestycjach.",
   },
+  currencies: {
+    title: "Waluty",
+    description: "Waluty na kontach, ile ich masz i po jakim kursie je kupiłeś.",
+  },
   wallets: {
     title: "Portfele",
-    description: "Waluty obce, ile masz i ile Cię kosztowały.",
+    description: "Gotówka, ile masz i na co poszła.",
   },
   classification: {
     title: "Do klasyfikacji",

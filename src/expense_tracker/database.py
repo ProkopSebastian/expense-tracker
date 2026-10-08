@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS import_batches (
 );
 CREATE TABLE IF NOT EXISTS wallets (
     id INTEGER PRIMARY KEY, account TEXT NOT NULL, currency TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(account, currency)
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, opening_rate TEXT, UNIQUE(account, currency)
 );
 CREATE TABLE IF NOT EXISTS wealth_assets (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -288,6 +288,12 @@ def _migrate_wallet_exchange_case_kind(connection: sqlite3.Connection) -> None:
         connection.execute("PRAGMA foreign_keys=ON")
 
 
+def _migrate_wallet_opening_rate(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(wallets)")}
+    if "opening_rate" not in columns:
+        connection.execute("ALTER TABLE wallets ADD COLUMN opening_rate TEXT")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -296,6 +302,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_nest_external_id,
     _migrate_category_presentation,
     _migrate_wallet_exchange_case_kind,
+    _migrate_wallet_opening_rate,
 )
 
 
