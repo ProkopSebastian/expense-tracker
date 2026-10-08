@@ -71,9 +71,8 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
     Nothing here invents a rate. An amount whose currency was never exchanged on record is
     dropped and its code reported, so the total is visibly incomplete instead of quietly wrong.
     """
-    from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
-
     from .cash_service import cash_state
+    from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
 
     per_transaction = pln_equivalents(connection) | cash_state(connection).values
     partial = partial_pln_equivalents(connection)

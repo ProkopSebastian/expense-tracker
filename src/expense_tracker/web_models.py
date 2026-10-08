@@ -42,20 +42,6 @@ class ManualEntry(BaseModel):
     description: Text
     counterparty: str | None = None
     category_key: Text
-    wallet_id: int | None = None
-
-
-class WalletCreate(BaseModel):
-    account: Text
-    currency: Currency
-
-
-class WalletFundEntry(BaseModel):
-    source_transaction_id: int
-    received_amount: Money | None = None
-    target_transaction_id: int | None = None
-    fee_amount: Money = Decimal(0)
-    fee_category_key: str | None = None
 
 
 class Member(BaseModel):
@@ -70,25 +56,6 @@ class GroupEntry(BaseModel):
     currency: Currency
     category_key: Text
     members: list[Member] = Field(min_length=2, max_length=1000)
-
-
-class WalletConvert(BaseModel):
-    target_wallet_id: int
-    given_amount: Money
-    received_amount: Money
-    booking_date: date
-
-
-class WalletSell(BaseModel):
-    proceeds_transaction_id: int
-    given_amount: Money
-    source_transaction_id: int | None = None
-
-
-class WalletOpening(BaseModel):
-    amount: Money
-    pln_cost: Money
-    booking_date: date
 
 
 class WalletOpeningRate(BaseModel):
@@ -120,18 +87,6 @@ class CashExchange(BaseModel):
     given_amount: Money
     received_currency: Currency
     received_amount: Money
-
-
-class ReconcileLine(BaseModel):
-    amount: Money
-    category_key: Text
-    description: Text
-
-
-class WalletReconcile(BaseModel):
-    remaining: Money
-    booking_date: date
-    lines: list[ReconcileLine] = Field(min_length=1, max_length=50)
 
 
 AssetKind = Literal["account", "savings", "bonds", "investments", "cash", "gold", "debt", "other"]

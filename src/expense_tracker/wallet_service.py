@@ -4,26 +4,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import uuid
-from collections.abc import Sequence
-from contextlib import nullcontext
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any
 
 from . import ledger
-from .database import insert_transaction
-from .models import Transaction
 
 HOME_CURRENCY = "PLN"
-OPENING_BALANCE = ledger.WALLET_OPENING
 COST_PRECISION = Decimal("0.000001")
 MONEY = Decimal("0.01")
-
-
-def wallet_account(currency: str) -> str:
-    return f"Portfel {currency}"
 
 
 def _transfer_label(source_currency: str, wallet_account_name: str, wallet_currency: str) -> str:
@@ -45,8 +34,7 @@ def _ordering(row: sqlite3.Row) -> tuple[str, int]:
     stamp = str(raw.get("Started Date") or "")
     day = str(row["booking_date"])
     if not stamp.startswith(day):
-        time = "00:00:00" if raw.get("Type") == OPENING_BALANCE else "23:59:59.999999"
-        stamp = f"{day} {time}"
+        stamp = f"{day} 23:59:59.999999"
     return stamp, int(row["id"])
 
 
@@ -120,6 +108,7 @@ def wallet_states(
             "balance": Decimal(0),
             "average_cost": Decimal(1) if row["currency"] == HOME_CURRENCY else None,
             "uncovered": Decimal(0),
+            "unknown": Decimal(0),
             "history": [],
         }
         for row in wallets
@@ -138,7 +127,11 @@ def wallet_states(
         rate = _decimal(row["opening_rate"]) if row["opening_rate"] is not None else None
         pot = state[int(row["id"])]
         cost = (amount * rate).quantize(MONEY) if rate is not None else None
-        _add_funding(pot, amount, cost)
+        if cost is None:
+            pot["unknown"] += amount
+            pot["balance"] += amount
+        else:
+            _add_funding(pot, amount, cost)
         pot["held_before"] = {
             "amount": str(amount), "date": day, "rate_known": rate is not None,
             "pln": str(cost) if cost is not None else None,
@@ -184,7 +177,7 @@ def wallet_states(
 
 
 def _add_funding(pot, amount: Decimal, cost: Decimal | None) -> None:
-    balance, average = pot["balance"], pot["average_cost"]
+    balance, average = pot["balance"] - pot["unknown"], pot["average_cost"]
     if cost is None or (balance > 0 and average is None):
         pot["average_cost"] = None
     elif balance <= 0:
@@ -192,6 +185,18 @@ def _add_funding(pot, amount: Decimal, cost: Decimal | None) -> None:
     else:
         pot["average_cost"] = ((balance * average + cost) / (balance + amount)).quantize(COST_PRECISION)
     pot["balance"] += amount
+
+
+def _take(pot, amount: Decimal) -> tuple[Decimal, Decimal]:
+    # Money held before the first statement is the oldest, so it is spent first. Whatever goes
+    # beyond everything held is a deficit the statements do not explain.
+    from_unknown = min(amount, pot["unknown"])
+    known = pot["balance"] - pot["unknown"]
+    pot["unknown"] -= from_unknown
+    covered = min(amount - from_unknown, max(known, Decimal(0)))
+    pot["uncovered"] += amount - from_unknown - covered
+    pot["balance"] -= amount
+    return covered, amount - covered
 
 
 def _apply_exchange(state, by_pot, group) -> None:
@@ -211,10 +216,8 @@ def _apply_exchange(state, by_pot, group) -> None:
         # hands, so no gain or loss may be invented here.
         source_state = state[source_id]
         average = source_state["average_cost"]
-        covered = min(given, max(source_state["balance"], Decimal(0)))
-        cost = (given * average).quantize(MONEY) if average is not None and covered == given else None
-        source_state["uncovered"] += given - covered
-        source_state["balance"] -= given
+        _, unvalued = _take(source_state, given)
+        cost = (given * average).quantize(MONEY) if average is not None and not unvalued else None
         source_state["history"].append(
             {
                 "transaction_id": int(source["id"]),
@@ -252,12 +255,9 @@ def _apply_movement(state, by_pot, row) -> None:
     pot = state[by_pot[(row["account"], row["currency"])]]
     amount = _decimal(row["amount"])
     if amount < 0:
-        spent = -amount
         # An import can outrun the recorded funding. The bank is right, so the row stands and
         # only the part with a known cost is valued; the rest is reported as uncovered.
-        covered = min(spent, pot["balance"]) if pot["balance"] > 0 else Decimal(0)
-        pot["uncovered"] += spent - covered
-        pot["balance"] -= spent
+        covered, unvalued = _take(pot, -amount)
         pot["history"].append(
             {
                 "transaction_id": int(row["id"]),
@@ -267,23 +267,7 @@ def _apply_movement(state, by_pot, row) -> None:
                 "amount": str(amount),
                 "pln": str(-(covered * pot["average_cost"]).quantize(MONEY))
                 if pot["average_cost"] is not None else None,
-                "uncovered": str(spent - covered),
-            }
-        )
-        return
-    opening = json.loads(row["raw_json"] or "{}")
-    if opening.get("Type") == OPENING_BALANCE:
-        cost = _decimal(opening.get("pln_cost", 0))
-        _add_funding(pot, amount, amount if row["currency"] == HOME_CURRENCY else cost)
-        pot["history"].append(
-            {
-                "transaction_id": int(row["id"]),
-                "kind": "topup",
-                "date": row["booking_date"],
-                "description": row["description"],
-                "amount": str(amount),
-                "pln": str(cost),
-                "rate": str((cost / amount).quantize(COST_PRECISION)) if amount else None,
+                "uncovered": str(unvalued),
             }
         )
         return
@@ -407,114 +391,19 @@ def create_wallet(connection: sqlite3.Connection, account: str, currency: str, *
     return int(cursor.lastrowid)
 
 
-def delete_wallet(connection: sqlite3.Connection, wallet_id: int) -> None:
-    row = connection.execute("SELECT account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
-    if row is None:
-        raise ValueError("Portfel nie istnieje.")
-    if connection.execute(
-        "SELECT 1 FROM transactions WHERE account = ? AND currency = ? LIMIT 1", (row["account"], row["currency"])
-    ).fetchone():
-        raise ValueError("Portfel ma transakcje i nie można go usunąć. Najpierw rozwiąż jego wymiany.")
-    connection.execute("DELETE FROM wallets WHERE id = ?", (wallet_id,))
-    connection.commit()
-
-
-def fund_wallet(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    source_transaction_id: int,
-    received_amount: Decimal | None = None,
-    target_transaction_id: int | None = None,
-    fee_amount: Decimal = Decimal(0),
-    fee_category_key: str | None = None,
-    commit: bool = True,
-) -> int:
-    """Link an outflow to the money it became.
-
-    A kantor or ATM leaves no record of the receiving side, so it is created here. A Revolut
-    conversion exports both sides, and then `target_transaction_id` names the row that already
-    exists — inventing a second one would double the wallet's balance.
-    """
-    wallet = connection.execute("SELECT account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
-    if wallet is None:
-        raise ValueError("Portfel nie istnieje.")
-    if target_transaction_id is None and (received_amount is None or received_amount <= 0):
-        raise ValueError("Otrzymana kwota musi być większa od zera.")
-    source = connection.execute(
-        "SELECT id, account, booking_date, amount, currency, transaction_type FROM transactions WHERE id = ?",
-        (source_transaction_id,),
-    ).fetchone()
-    if source is None:
-        raise ValueError("Transakcja nie istnieje.")
-    if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (source_transaction_id,)).fetchone():
-        raise ValueError("Transakcja należy do grupy. Najpierw rozwiąż grupę.")
-    if _decimal(source["amount"]) >= 0:
-        raise ValueError("Zasilenie musi wychodzić z transakcji pomniejszającej saldo.")
-    if source["account"] == wallet["account"] and source["currency"] == wallet["currency"]:
-        raise ValueError("Transakcja źródłowa należy do tego samego portfela.")
-    if target_transaction_id is None and source["transaction_type"] == "Exchange":
-        raise ValueError(
-            f"Drugą stronę tej wymiany ma wyciąg {wallet['currency']} z tego samego konta. "
-            "Wgraj go, a wymiana połączy się sama."
-        )
-
+def _link_exchange(connection: sqlite3.Connection, *, wallet_id: int, source: sqlite3.Row, target: sqlite3.Row) -> int:
+    wallet = _require_wallet(connection, wallet_id)
     label = _transfer_label(source["currency"], wallet["account"], wallet["currency"])
-    if target_transaction_id is not None:
-        target = connection.execute(
-            "SELECT id, account, amount, currency FROM transactions WHERE id = ?", (target_transaction_id,)
-        ).fetchone()
-        if target is None:
-            raise ValueError("Transakcja docelowa nie istnieje.")
-        if target_transaction_id == source_transaction_id:
-            raise ValueError("Wymiana potrzebuje dwóch różnych transakcji.")
-        if connection.execute(
-            "SELECT 1 FROM case_members WHERE transaction_id = ?", (target_transaction_id,)
-        ).fetchone():
-            raise ValueError("Transakcja docelowa należy już do grupy.")
-        if _decimal(target["amount"]) <= 0:
-            raise ValueError("Transakcja docelowa musi powiększać saldo.")
-        if target["account"] != wallet["account"] or target["currency"] != wallet["currency"]:
-            raise ValueError("Transakcja docelowa nie należy do tego portfela.")
-
-    with connection if commit else nullcontext():
-        if target_transaction_id is not None:
-            leg_id = target_transaction_id
-        else:
-            leg = Transaction(
-                account=wallet["account"],
-                booking_date=source["booking_date"],
-                amount=received_amount,
-                currency=wallet["currency"],
-                description=label,
-                external_id=uuid.uuid4().hex,
-                raw={"Type": ledger.SYNTHETIC_EXCHANGE_LEG},
-            )
-            leg_id = insert_transaction(connection, leg, commit=False)
-            if leg_id is None:
-                raise ValueError("Nie udało się zapisać zasilenia portfela.")
-        if fee_amount > 0:
-            ledger.add_manual_transaction(
-                connection,
-                account=source["account"],
-                booking_date=source["booking_date"],
-                amount=-fee_amount,
-                currency=source["currency"],
-                description="Opłata za wymianę walut",
-                counterparty=None,
-                category_key=fee_category_key or "fees_fx",
-                commit=False,
-            )
-        return ledger.create_case(
-            connection,
-            "wallet_exchange",
-            label,
-            "transfer_own",
-            Decimal(0),
-            wallet["currency"],
-            [(source_transaction_id, "account_transfer"), (leg_id, "account_transfer")],
-            commit=False,
-        )
+    return ledger.create_case(
+        connection,
+        "wallet_exchange",
+        label,
+        "transfer_own",
+        Decimal(0),
+        wallet["currency"],
+        [(int(source["id"]), "account_transfer"), (int(target["id"]), "account_transfer")],
+        commit=False,
+    )
 
 
 def pair_exchanges(connection: sqlite3.Connection) -> int:
@@ -562,12 +451,11 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
                 commit=False,
             )
         else:
-            fund_wallet(
+            _link_exchange(
                 connection,
                 wallet_id=_ensure_wallet(connection, target["account"], target["currency"]),
-                source_transaction_id=int(source["id"]),
-                target_transaction_id=int(target["id"]),
-                commit=False,
+                source=source,
+                target=target,
             )
         paired += 1
     return paired
@@ -597,280 +485,11 @@ def wallet_balance(connection: sqlite3.Connection, wallet_id: int, on_date: date
     return state[wallet_id]["balance"]
 
 
-def reconcile_wallet(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    remaining: Decimal,
-    booking_date: date,
-    lines: Sequence[tuple[Decimal, str, str]],
-) -> list[int]:
-    """Turn "this much is left" into the spending that must have happened.
-
-    Cash carries no statement, so the amount that disappeared is known exactly while its
-    purpose is not. The total is therefore taken from the balance and only the split across
-    categories comes from the user.
-    """
-    wallet = connection.execute("SELECT account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
-    if wallet is None:
-        raise ValueError("Portfel nie istnieje.")
-    if remaining < 0:
-        raise ValueError("Pozostała kwota nie może być ujemna.")
-
-    balance = wallet_balance(connection, wallet_id, booking_date)
-    missing = balance - remaining
-    if missing < 0:
-        # More money than the wallet was ever given means a funding nobody recorded. Booking it
-        # as an inflow would assign it a cost of nothing and drag the average cost down.
-        raise ValueError(
-            f"W portfelu jest {balance} {wallet['currency']}, a podajesz {remaining}. "
-            "Brakuje zapisanego zasilenia — dodaj je najpierw."
-        )
-    if missing == 0:
-        raise ValueError("Saldo już się zgadza, nie ma czego rozliczać.")
-    if not lines:
-        raise ValueError("Podaj, na co poszły pieniądze.")
-    if sum((amount for amount, _, _ in lines), Decimal(0)) != missing:
-        raise ValueError(f"Kwoty muszą sumować się do {missing} {wallet['currency']}.")
-
-    if any(amount <= 0 for amount, _, _ in lines):
-        raise ValueError("Każda kwota musi być większa od zera.")
-
-    created: list[int] = []
-    with connection:
-        for amount, category_key, description in lines:
-            created.append(
-                ledger.add_manual_transaction(
-                    connection,
-                    account=wallet["account"],
-                    booking_date=booking_date,
-                    amount=-amount,
-                    currency=wallet["currency"],
-                    description=description,
-                    counterparty=None,
-                    category_key=category_key,
-                    commit=False,
-                )
-            )
-    return created
-
-
-def _synthetic_leg(
-    connection: sqlite3.Connection,
-    *,
-    account: str,
-    booking_date: date,
-    amount: Decimal,
-    currency: str,
-    description: str,
-    raw: dict[str, str] | None = None,
-) -> int:
-    leg = Transaction(
-        account=account,
-        booking_date=booking_date,
-        amount=amount,
-        currency=currency,
-        description=description,
-        external_id=uuid.uuid4().hex,
-        raw=raw or {"Type": ledger.SYNTHETIC_EXCHANGE_LEG},
-    )
-    leg_id = insert_transaction(connection, leg, commit=False)
-    if leg_id is None:
-        raise ValueError("Nie udało się zapisać operacji portfela.")
-    return leg_id
-
-
 def _require_wallet(connection: sqlite3.Connection, wallet_id: int) -> sqlite3.Row:
     wallet = connection.execute("SELECT id, account, currency FROM wallets WHERE id = ?", (wallet_id,)).fetchone()
     if wallet is None:
         raise ValueError("Portfel nie istnieje.")
     return wallet
-
-
-def convert_wallet(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    target_wallet_id: int,
-    given_amount: Decimal,
-    received_amount: Decimal,
-    booking_date: date,
-) -> int:
-    """Exchange one pot straight into another, as a kantor abroad does with cash.
-
-    No złoty changes hands, so no new rate is invented: the dirhams inherit exactly what the
-    euro spent on them had cost, and no gain or loss can appear out of the conversion itself.
-    """
-    source = _require_wallet(connection, wallet_id)
-    target = _require_wallet(connection, target_wallet_id)
-    if wallet_id == target_wallet_id:
-        raise ValueError("Wybierz dwa różne portfele.")
-    if given_amount <= 0 or received_amount <= 0:
-        raise ValueError("Obie kwoty muszą być większe od zera.")
-    balance = wallet_balance(connection, wallet_id, booking_date)
-    if given_amount > balance:
-        raise ValueError(f"Portfel ma {balance} {source['currency']}, a wymieniasz {given_amount}.")
-
-    with connection:
-        out_id = _synthetic_leg(
-            connection,
-            account=source["account"],
-            booking_date=booking_date,
-            amount=-given_amount,
-            currency=source["currency"],
-            description=f"Wymiana na {target['currency']}",
-        )
-        in_id = _synthetic_leg(
-            connection,
-            account=target["account"],
-            booking_date=booking_date,
-            amount=received_amount,
-            currency=target["currency"],
-            description=f"Wymiana na {target['currency']}",
-        )
-        return ledger.create_case(
-            connection,
-            "wallet_exchange",
-            f"Wymiana {source['currency']} na {target['currency']}",
-            "transfer_own",
-            Decimal(0),
-            target["currency"],
-            [(out_id, "account_transfer"), (in_id, "account_transfer")],
-            commit=False,
-        )
-
-
-def _sale_source(
-    connection: sqlite3.Connection, wallet: sqlite3.Row, proceeds: sqlite3.Row,
-    given_amount: Decimal, source_transaction_id: int | None,
-) -> sqlite3.Row | None:
-    if source_transaction_id is not None:
-        source = connection.execute("SELECT * FROM transactions WHERE id = ?", (source_transaction_id,)).fetchone()
-        if source is None:
-            raise ValueError("Transakcja rozchodowa nie istnieje.")
-        if (source["account"], source["currency"]) != (wallet["account"], wallet["currency"]):
-            raise ValueError("Transakcja rozchodowa nie należy do wybranego portfela.")
-        if _decimal(source["amount"]) != -given_amount:
-            raise ValueError("Kwota sprzedaży musi być zgodna z transakcją rozchodową.")
-        if source["bank_status"] in {"DECLINED", "REVERTED", "FAILED"}:
-            raise ValueError("Transakcja rozchodowa została cofnięta przez bank.")
-        if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (source["id"],)).fetchone():
-            raise ValueError("Transakcja rozchodowa należy już do grupy.")
-        return source
-    if proceeds["transaction_type"] != "Exchange":
-        return None
-    if wallet["account"] != proceeds["account"]:
-        raise ValueError("Zaznacz obie strony odsprzedaży między różnymi rachunkami.")
-    moment = json.loads(proceeds["raw_json"] or "{}").get("Started Date")
-    candidates = connection.execute(
-        """SELECT t.* FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id
-        WHERE t.account = ? AND t.currency = ? AND t.transaction_type = 'Exchange'
-        AND t.bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED') AND cm.transaction_id IS NULL""",
-        (wallet["account"], wallet["currency"]),
-    ).fetchall()
-    matches = [row for row in candidates if moment and _decimal(row["amount"]) == -given_amount
-               and json.loads(row["raw_json"] or "{}").get("Started Date") == moment]
-    if len(matches) != 1:
-        raise ValueError("Zaznacz obie strony odsprzedaży z wyciągu albo zaimportuj brakującą transakcję.")
-    return matches[0]
-
-
-@dataclass(frozen=True)
-class _SaleDetails:
-    wallet: sqlite3.Row
-    proceeds: sqlite3.Row
-    source: sqlite3.Row | None
-    basis: Decimal
-
-    @property
-    def difference(self) -> Decimal:
-        return _decimal(self.proceeds["amount"]) - self.basis
-
-
-def _sale_details(
-    connection: sqlite3.Connection, wallet_id: int, proceeds_transaction_id: int,
-    given_amount: Decimal, source_transaction_id: int | None,
-) -> _SaleDetails:
-    wallet = _require_wallet(connection, wallet_id)
-    if wallet["currency"] == HOME_CURRENCY:
-        raise ValueError("Ten portfel trzyma złotówki, nie ma czego odsprzedawać.")
-    if given_amount <= 0:
-        raise ValueError("Kwota musi być większa od zera.")
-    proceeds = connection.execute(
-        "SELECT * FROM transactions WHERE id = ?",
-        (proceeds_transaction_id,),
-    ).fetchone()
-    if proceeds is None:
-        raise ValueError("Transakcja z wpłatą nie istnieje.")
-    if proceeds["currency"] != HOME_CURRENCY:
-        raise ValueError("Odsprzedaż wymaga wpływu w PLN. Wymianę na inną walutę zapisz jako wymianę portfeli.")
-    if proceeds["bank_status"] in {"DECLINED", "REVERTED", "FAILED"}:
-        raise ValueError("Wpłata została cofnięta przez bank.")
-    if connection.execute("SELECT 1 FROM case_members WHERE transaction_id = ?", (proceeds_transaction_id,)).fetchone():
-        raise ValueError("Ta transakcja należy już do grupy.")
-    if _decimal(proceeds["amount"]) <= 0:
-        raise ValueError("Wybierz transakcję, na której pieniądze wpłynęły.")
-
-    source = _sale_source(connection, wallet, proceeds, given_amount, source_transaction_id)
-    ordering = min(_ordering(source), _ordering(proceeds)) if source is not None else _ordering(proceeds)
-    state = wallet_states(connection, before=ordering)[wallet_id]
-    available = state["balance"]
-    if given_amount > available:
-        raise ValueError(f"Portfel ma {state['balance']} {wallet['currency']}, a sprzedajesz {given_amount}.")
-    if state["average_cost"] is None:
-        raise ValueError("Brakuje kosztu zakupu sprzedawanej waluty. Uzupełnij wcześniejsze zasilenie portfela.")
-    basis = (given_amount * state["average_cost"]).quantize(MONEY)
-    return _SaleDetails(wallet, proceeds, source, basis)
-
-
-
-def sale_preview(
-    connection: sqlite3.Connection, *, wallet_id: int, proceeds_transaction_id: int,
-    given_amount: Decimal, source_transaction_id: int | None = None,
-) -> dict[str, str]:
-    details = _sale_details(connection, wallet_id, proceeds_transaction_id, given_amount, source_transaction_id)
-    return {"basis": str(details.basis), "difference": str(details.difference)}
-
-
-def sell_wallet(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    proceeds_transaction_id: int,
-    given_amount: Decimal,
-    source_transaction_id: int | None = None,
-) -> int:
-    """Sell foreign currency back, against money that actually arrived on an account.
-
-    Most of the proceeds are the user's own money returning and must not read as income. Only
-    the difference from what the currency cost is real, and that difference is booked on its
-    own as an exchange-rate result.
-    """
-    details = _sale_details(connection, wallet_id, proceeds_transaction_id, given_amount, source_transaction_id)
-    wallet, proceeds, source = details.wallet, details.proceeds, details.source
-    difference = details.difference
-
-    with connection:
-        out_id = int(source["id"]) if source is not None else _synthetic_leg(
-            connection,
-            account=wallet["account"],
-            booking_date=proceeds["booking_date"],
-            amount=-given_amount,
-            currency=wallet["currency"],
-            description=f"Odsprzedaż {wallet['currency']}",
-            raw={"Type": ledger.SYNTHETIC_EXCHANGE_LEG, "Started Date": _ordering(proceeds)[0]},
-        )
-        return ledger.create_case(
-            connection,
-            "wallet_exchange",
-            f"Odsprzedaż {wallet['currency']}",
-            "fx_result" if difference else "transfer_own",
-            # A positive personal_amount reads as an expense, so a gain is carried negative.
-            -difference,
-            HOME_CURRENCY,
-            [(proceeds_transaction_id, "account_transfer"), (out_id, "account_transfer")],
-            commit=False,
-        )
 
 
 def set_opening_rate(connection: sqlite3.Connection, *, wallet_id: int, pln_cost: Decimal) -> None:
@@ -889,32 +508,3 @@ def clear_opening_rate(connection: sqlite3.Connection, wallet_id: int) -> None:
     _require_wallet(connection, wallet_id)
     with connection:
         connection.execute("UPDATE wallets SET opening_rate = NULL WHERE id = ?", (wallet_id,))
-
-
-def set_opening_balance(
-    connection: sqlite3.Connection,
-    *,
-    wallet_id: int,
-    amount: Decimal,
-    pln_cost: Decimal,
-    booking_date: date,
-) -> int:
-    """Record money already held, with what it cost, when no exchange was ever captured."""
-    wallet = _require_wallet(connection, wallet_id)
-    if amount <= 0:
-        raise ValueError("Kwota musi być większa od zera.")
-    if pln_cost < 0:
-        raise ValueError("Koszt nie może być ujemny.")
-    with connection:
-        leg_id = _synthetic_leg(
-            connection,
-            account=wallet["account"],
-            booking_date=booking_date,
-            amount=amount,
-            currency=wallet["currency"],
-            description="Saldo otwarcia",
-            raw={"Type": OPENING_BALANCE, "pln_cost": str(pln_cost)},
-        )
-        # Marked as a transfer so money that was already the user's does not read as income.
-        ledger.save_decision(connection, leg_id, "transfer_own", "Saldo otwarcia portfela", commit=False)
-    return leg_id

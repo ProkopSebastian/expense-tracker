@@ -96,7 +96,8 @@ def _flows(connection: sqlite3.Connection) -> list[dict]:
         flows.append({
             "transaction_id": row["id"], "date": row["booking_date"], "currency": currency,
             "amount": amount, "cost": cost, "kind": kind, "description": display_title(dict(row)),
-            "account": row["account"], "category_key": row["category_key"], "bank_amount": str(-Decimal(str(row["amount"]))) if bank else None,
+            "account": row["account"], "category_key": row["category_key"],
+            "bank_amount": str(-Decimal(str(row["amount"]))) if bank else None,
             "bank_currency": row["currency"] if bank else None,
         })
     return flows
@@ -294,7 +295,9 @@ def delete_count(connection: sqlite3.Connection, count_id: int) -> None:
         connection.execute("DELETE FROM cash_counts WHERE id = ?", (count_id,))
 
 
-def set_withdrawal_currency(connection: sqlite3.Connection, transaction_id: int, currency: str, amount: Decimal) -> None:
+def set_withdrawal_currency(
+    connection: sqlite3.Connection, transaction_id: int, currency: str, amount: Decimal,
+) -> None:
     row = connection.execute(
         """SELECT t.currency FROM transactions t JOIN transaction_decisions d ON d.transaction_id = t.id
         WHERE t.id = ? AND d.category_key = ?""",
@@ -331,7 +334,8 @@ def save_exchange(
     with connection:
         if exchange_id is None:
             return int(connection.execute(
-                """INSERT INTO cash_exchanges(exchanged_on, given_currency, given_amount, received_currency, received_amount)
+                """INSERT INTO cash_exchanges
+                (exchanged_on, given_currency, given_amount, received_currency, received_amount)
                 VALUES (?, ?, ?, ?, ?)""",
                 values,
             ).lastrowid)
@@ -363,7 +367,9 @@ def spending_items(connection: sqlite3.Connection) -> list[dict[str, object]]:
     for count in state.counts:
         rate = count.spent_pln / count.spent if count.spent and count.spent_pln is not None else None
         if count.unassigned > 0:
-            items.append(_item(count, count.unassigned, rate, "uncategorized_expense", "Niesklasyfikowane wydatki", None))
+            items.append(
+                _item(count, count.unassigned, rate, "uncategorized_expense", "Niesklasyfikowane wydatki", None)
+            )
     return items
 
 

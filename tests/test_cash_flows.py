@@ -8,7 +8,7 @@ from expense_tracker.cash_flows import CASH_DEPOSIT, CASH_WITHDRAWAL, cash_flow
 @pytest.mark.parametrize(
     ("description", "transaction_type", "amount", "expected"),
     [
-        ("Wypłata BLIK z bankomatu|Bankomat Euronet UL BELGRADZKA 44 WARSZAWA", "Płatności Blik", "-50", CASH_WITHDRAWAL),
+        ("Wypłata BLIK z bankomatu|Bankomat Euronet UL BELGRADZKA 44", "Płatności Blik", "-50", CASH_WITHDRAWAL),
         ("Wypłata gotówki — Nakagyo-ku  Kyoto-shi", "Cash Withdrawal", "-234.77", CASH_WITHDRAWAL),
         ("WYPŁATA W BANKOMACIE PKO BP", "Card Payment", "-200", CASH_WITHDRAWAL),
         ("Wpłata BLIK we wpłatomacie", "Płatności Blik", "300", CASH_DEPOSIT),

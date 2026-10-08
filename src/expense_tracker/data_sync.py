@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
+from .cash_flows import categorize_cash_flows
 from .database import Database, fingerprint
 from .import_identity import source_key
 from .importers import (
@@ -16,7 +17,6 @@ from .importers import (
     import_revolut_csv,
     import_velo_pdf,
 )
-from .cash_flows import categorize_cash_flows
 from .ledger import apply_rules, categorize_bank_fees
 from .wallet_service import pair_exchanges, track_imported_currencies
 

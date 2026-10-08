@@ -25,21 +25,15 @@ from .web_models import (
     AssetCreate,
     AssetUpdate,
     BatchApproval,
+    CashCount,
+    CashExchange,
+    CashForeignWithdrawal,
     CategoryEntry,
     Decision,
     GroupEntry,
     ManualEntry,
     SnapshotEntry,
-    WalletConvert,
-    WalletCreate,
-    WalletFundEntry,
-    WalletOpening,
     WalletOpeningRate,
-    CashCount,
-    CashExchange,
-    CashForeignWithdrawal,
-    WalletReconcile,
-    WalletSell,
 )
 
 router = APIRouter(prefix="/api")
@@ -173,51 +167,6 @@ def wallets(db: DB):
     return {"wallets": wallet_service.list_wallets(db)}
 
 
-@router.post("/wallets", status_code=201)
-def create_wallet(entry: WalletCreate, db: DB):
-    return {"id": wallet_service.create_wallet(db, entry.account, entry.currency)}
-
-
-@router.delete("/wallets/{wallet_id}")
-def delete_wallet(wallet_id: int, db: DB):
-    wallet_service.delete_wallet(db, wallet_id)
-    return {"message": "Portfel usunięty."}
-
-
-@router.post("/wallets/{wallet_id}/fund", status_code=201)
-def fund_wallet(wallet_id: int, entry: WalletFundEntry, db: DB):
-    if entry.fee_amount > 0 and entry.fee_category_key:
-        service.category_exists(db, entry.fee_category_key)
-    return {"case_id": wallet_service.fund_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
-
-
-@router.post("/wallets/{wallet_id}/convert", status_code=201)
-def convert_wallet(wallet_id: int, entry: WalletConvert, db: DB):
-    return {"case_id": wallet_service.convert_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
-
-
-@router.get("/wallets/{wallet_id}/sale-preview")
-def preview_sale(
-    wallet_id: int, db: DB, proceeds_transaction_id: int,
-    given_amount: Annotated[Decimal, Query(gt=0, max_digits=18, decimal_places=2)],
-    source_transaction_id: int | None = None,
-):
-    return wallet_service.sale_preview(
-        db, wallet_id=wallet_id, proceeds_transaction_id=proceeds_transaction_id,
-        given_amount=given_amount, source_transaction_id=source_transaction_id,
-    )
-
-
-@router.post("/wallets/{wallet_id}/sell", status_code=201)
-def sell_wallet(wallet_id: int, entry: WalletSell, db: DB):
-    return {"case_id": wallet_service.sell_wallet(db, wallet_id=wallet_id, **entry.model_dump())}
-
-
-@router.post("/wallets/{wallet_id}/opening", status_code=201)
-def wallet_opening(wallet_id: int, entry: WalletOpening, db: DB):
-    return {"id": wallet_service.set_opening_balance(db, wallet_id=wallet_id, **entry.model_dump())}
-
-
 @router.put("/wallets/{wallet_id}/opening-rate")
 def set_opening_rate(wallet_id: int, entry: WalletOpeningRate, db: DB):
     wallet_service.set_opening_rate(db, wallet_id=wallet_id, pln_cost=entry.pln_cost)
@@ -228,20 +177,6 @@ def set_opening_rate(wallet_id: int, entry: WalletOpeningRate, db: DB):
 def clear_opening_rate(wallet_id: int, db: DB):
     wallet_service.clear_opening_rate(db, wallet_id)
     return {"message": "Kurs usunięty."}
-
-
-@router.post("/wallets/{wallet_id}/reconcile", status_code=201)
-def reconcile_wallet(wallet_id: int, entry: WalletReconcile, db: DB):
-    for line in entry.lines:
-        service.category_exists(db, line.category_key)
-    created = wallet_service.reconcile_wallet(
-        db,
-        wallet_id=wallet_id,
-        remaining=entry.remaining,
-        booking_date=entry.booking_date,
-        lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
-    )
-    return {"created": created}
 
 
 @router.get("/wallets/{wallet_id}/history")
@@ -260,7 +195,9 @@ def cash(db: DB):
         "pots": [
             {
                 "currency": currency, "balance": str(pot.balance),
-                "average_cost": _money(pot.average_cost.quantize(Decimal("0.000001")) if pot.average_cost is not None else None),
+                "average_cost": _money(
+                    pot.average_cost.quantize(Decimal("0.000001")) if pot.average_cost is not None else None
+                ),
                 "pln_value": _money(pot.value(pot.balance) if pot.balance > 0 else Decimal(0)),
                 "counted_on": pot.counted_on,
             }

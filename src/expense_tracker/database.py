@@ -317,7 +317,8 @@ def _migrate_cash_flows_off_balance(connection: sqlite3.Connection) -> None:
 
     connection.execute("UPDATE categories SET kind = 'transfer' WHERE key = 'cash_withdrawal'")
     connection.execute(
-        "INSERT OR IGNORE INTO categories(key, label, parent_key, kind) VALUES ('cash_deposit', 'Wpłata gotówki', NULL, 'transfer')"
+        """INSERT OR IGNORE INTO categories(key, label, parent_key, kind)
+        VALUES ('cash_deposit', 'Wpłata gotówki', NULL, 'transfer')"""
     )
     categorize_cash_flows(connection)
 
@@ -334,7 +335,9 @@ def _migrate_drop_legacy_wallet_records(connection: sqlite3.Connection) -> None:
             AND account NOT IN ({bank_accounts}))"""
     cases = f"SELECT case_id FROM case_members WHERE transaction_id IN ({invented})"
     connection.execute(f"DELETE FROM case_members WHERE case_id IN ({cases})")
-    connection.execute("DELETE FROM cases WHERE kind = 'wallet_exchange' AND id NOT IN (SELECT case_id FROM case_members)")
+    connection.execute(
+        "DELETE FROM cases WHERE kind = 'wallet_exchange' AND id NOT IN (SELECT case_id FROM case_members)"
+    )
     connection.execute(f"DELETE FROM transaction_decisions WHERE transaction_id IN ({invented})")
     connection.execute(f"DELETE FROM transactions WHERE id IN ({invented})")
     connection.execute(f"DELETE FROM wallets WHERE account NOT IN ({bank_accounts})")

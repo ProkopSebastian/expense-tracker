@@ -360,23 +360,11 @@ def create_case(
 
 
 def dissolve_case(connection: sqlite3.Connection, case_id: int) -> None:
-    # One leg of a wallet exchange is created by the app, not imported. Left behind it would
-    # become an orphan inflow and a wallet balance nothing can account for.
-    invented = [
-        row["transaction_id"]
-        for row in connection.execute(
-            """SELECT cm.transaction_id FROM case_members cm JOIN transactions t ON t.id = cm.transaction_id
-            WHERE cm.case_id = ? AND t.transaction_type = ?""",
-            (case_id, SYNTHETIC_EXCHANGE_LEG),
-        ).fetchall()
-    ]
     if any(case["id"] == case_id and case["from_statement"] for case in approved_cases(connection)):
         raise ValueError("Tę wymianę bank zapisał po obu stronach, więc nie da się jej rozłączyć.")
     with connection:
         connection.execute("DELETE FROM case_members WHERE case_id = ?", (case_id,))
         connection.execute("UPDATE cases SET status = 'rejected' WHERE id = ?", (case_id,))
-        for transaction_id in invented:
-            connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
 
 
 def infer_case_member_role(kind: CaseKind, amount: Decimal) -> CaseRole:
