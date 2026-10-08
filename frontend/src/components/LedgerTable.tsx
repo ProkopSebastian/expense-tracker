@@ -1,6 +1,5 @@
 import { Fragment } from "react";
 import {
-  Banknote,
   ChevronDown,
   ChevronRight,
   Link2,
@@ -48,6 +47,11 @@ function PageNavigation({
   );
 }
 
+const OFF_BALANCE_NOTES: Record<string, string> = {
+  cash_withdrawal: "Do gotówki",
+  cash_deposit: "Z gotówki",
+};
+
 export default function LedgerTable({
   data,
   loading,
@@ -57,10 +61,6 @@ export default function LedgerTable({
   onSelectedChange,
   canGroup,
   onOpenGroupModal,
-  canFund,
-  onOpenFundModal,
-  canSell,
-  onOpenSellModal,
   months,
   expanded,
   onExpandedChange,
@@ -75,10 +75,6 @@ export default function LedgerTable({
   onSelectedChange: (selected: number[]) => void;
   canGroup: boolean;
   onOpenGroupModal: () => void;
-  canFund: boolean;
-  onOpenFundModal: () => void;
-  canSell: boolean;
-  onOpenSellModal: () => void;
   months: Map<string, Block[]>;
   expanded: string[];
   onExpandedChange: (expanded: string[]) => void;
@@ -91,8 +87,10 @@ export default function LedgerTable({
         ? expanded.filter((k) => k !== key)
         : [...expanded, key],
     );
-  const openRow = (row: Block) =>
-    row.case_id ? toggleGroup(row.key) : onEditRow(row);
+  const openRow = (row: Block) => {
+    if (row.case_id) toggleGroup(row.key);
+    else if (!row.from_cash_count) onEditRow(row);
+  };
   return (
     <>
       {selected.length > 0 && (
@@ -112,23 +110,6 @@ export default function LedgerTable({
             <Link2 size={16} />
             Połącz w grupę
           </button>
-          <button
-            className="btn"
-            disabled={!canFund}
-            onClick={onOpenFundModal}
-          >
-            <Banknote size={16} />
-            Zasil portfel
-          </button>
-          {canSell && (
-            <button
-              className="btn"
-              onClick={onOpenSellModal}
-            >
-              <Banknote size={16} />
-              Odsprzedaj walutę
-            </button>
-          )}
 
         </div>
       )}
@@ -173,7 +154,7 @@ export default function LedgerTable({
                         onClick={() => openRow(row)}
                       >
                         <td onClick={(event) => event.stopPropagation()}>
-                          {row.from_statement ? null : row.case_id ? (
+                          {row.from_statement || row.from_cash_count ? null : row.case_id ? (
                             <button
                               className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
                               aria-label={`Rozwiń grupę ${row.description}`}
@@ -186,7 +167,7 @@ export default function LedgerTable({
                                 <ChevronRight size={17} />
                               )}
                             </button>
-                          ) : (
+                          ) : row.from_cash_count ? null : (
                             <input
                               type="checkbox"
                               aria-label={`Zaznacz ${row.description}`}
@@ -243,12 +224,12 @@ export default function LedgerTable({
                             </small>
                           ) : row.off_balance ? (
                             <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
-                              Poza bilansem
+                              {OFF_BALANCE_NOTES[row.category_key ?? ""] ?? "Poza bilansem"}
                             </small>
                           ) : null}
                         </td>
                         <td onClick={(event) => event.stopPropagation()}>
-                          {row.case_id ? (
+                          {row.from_statement || row.from_cash_count ? null : row.case_id ? (
                             <button
                               className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
                               aria-label={`Rozwiąż grupę ${row.description}`}

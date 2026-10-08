@@ -92,8 +92,7 @@ export default function SummaryPage({
             >
               <CircleHelp size={17} className="shrink-0" />
               Podsumowanie jest niepełne: część operacji w {data.untranslated.join(", ")}
-              {" "}nie ma znanego kosztu w złotówkach. Uzupełnij wcześniejsze
-              zasilenia portfela albo saldo otwarcia.
+              {" "}nie ma znanego kosztu w złotówkach. Uzupełnij kurs w zakładce Waluty.
             </p>
           )}
           <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">

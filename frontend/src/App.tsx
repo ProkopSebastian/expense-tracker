@@ -6,7 +6,7 @@ import Sidebar from "./components/Sidebar";
 import { Notice } from "./components/Forms";
 import SummaryPage from "./pages/SummaryPage";
 import LedgerPage from "./pages/LedgerPage";
-import WalletsPage from "./pages/WalletsPage";
+import CashPage from "./pages/CashPage";
 import CurrenciesPage from "./pages/CurrenciesPage";
 import WealthPage from "./pages/WealthPage";
 import ClassificationPage from "./pages/ClassificationPage";
@@ -83,6 +83,7 @@ export default function App() {
               <SummaryPage externalRevision={revision} />
             ) : page === "ledger" ? (
               <LedgerPage
+                accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
                 categories={meta.categories}
                 revision={revision}
                 onChanged={changed}
@@ -91,13 +92,8 @@ export default function App() {
               <WealthPage revision={revision} onChanged={changed} />
             ) : page === "currencies" ? (
               <CurrenciesPage revision={revision} onChanged={changed} />
-            ) : page === "wallets" ? (
-              <WalletsPage
-                accounts={Array.isArray(meta.accounts) ? meta.accounts : []}
-                categories={meta.categories}
-                revision={revision}
-                onChanged={changed}
-              />
+            ) : page === "cash" ? (
+              <CashPage categories={meta.categories} revision={revision} onChanged={changed} />
             ) : page === "classification" ? (
               <ClassificationPage
                 categories={meta.categories}

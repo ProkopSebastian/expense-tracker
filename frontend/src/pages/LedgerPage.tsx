@@ -6,18 +6,18 @@ import { buildCategoryTree, Notice } from "../components/Forms";
 import {
   ManualForm,
   GroupForm,
-  FundWalletForm,
-  SellWalletForm,
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerTable from "../components/LedgerTable";
 import { EditCategoryModal, DissolveGroupModal } from "../components/LedgerModals";
 
 export default function LedgerPage({
+  accounts,
   categories,
   revision,
   onChanged,
 }: {
+  accounts: string[];
   categories: Category[];
   revision: number;
   onChanged: () => void;
@@ -31,7 +31,7 @@ export default function LedgerPage({
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
-    [modal, setModal] = useState<"manual" | "group" | "fund" | "sell" | null>(
+    [modal, setModal] = useState<"manual" | "group" | null>(
       null,
     ),
     [dissolve, setDissolve] = useState<number | null>(null);
@@ -58,16 +58,6 @@ export default function LedgerPage({
   // below reads selectedRows[0]. Keep them unmounted until there is something to act on.
   const hasSelection = selectedRows.length > 0;
   const canGroup = selectedRows.length >= 2;
-  // One row: the bank only recorded the money leaving, so the other side is entered by hand.
-  // Two rows: both sides were imported and only need linking.
-  const outflows = selectedRows.filter((row) => Number(row.amount) < 0);
-  const inflows = selectedRows.filter((row) => Number(row.amount) > 0);
-  const canFund =
-    (selectedRows.length === 1 && outflows.length === 1) ||
-    (selectedRows.length === 2 && outflows.length === 1 && inflows.length === 1);
-  // Money arriving on its own is the other direction: currency sold back.
-  const canSell = inflows.length === 1 && inflows[0].currency === "PLN" &&
-    (selectedRows.length === 1 || (selectedRows.length === 2 && outflows.length === 1));
   const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {
@@ -136,10 +126,6 @@ export default function LedgerPage({
           onSelectedChange={setSelected}
           canGroup={canGroup}
           onOpenGroupModal={() => setModal("group")}
-          canFund={canFund}
-          onOpenFundModal={() => setModal("fund")}
-          canSell={canSell}
-          onOpenSellModal={() => setModal("sell")}
           months={months}
           expanded={expanded}
           onExpandedChange={setExpanded}
@@ -162,6 +148,7 @@ export default function LedgerPage({
       )}
       {modal === "manual" && (
         <ManualForm
+          accounts={accounts}
           categories={categories}
           onClose={() => setModal(null)}
           onSaved={onChanged}
@@ -170,27 +157,6 @@ export default function LedgerPage({
       {modal === "group" && hasSelection && (
         <GroupForm
           categories={categories}
-          selected={selectedRows}
-          onClose={() => setModal(null)}
-          onSaved={() => {
-            setSelected([]);
-            onChanged();
-          }}
-        />
-      )}
-      {modal === "fund" && hasSelection && (
-        <FundWalletForm
-          categories={categories}
-          selected={selectedRows}
-          onClose={() => setModal(null)}
-          onSaved={() => {
-            setSelected([]);
-            onChanged();
-          }}
-        />
-      )}
-      {modal === "sell" && hasSelection && (
-        <SellWalletForm
           selected={selectedRows}
           onClose={() => setModal(null)}
           onSaved={() => {

@@ -4,6 +4,7 @@ import json
 import logging
 import sqlite3
 from dataclasses import asdict
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, Literal
@@ -12,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
-from . import ledger, wallet_service, wealth_service
+from . import cash_service, ledger, wallet_service, wealth_service
 from . import web_service as service
 from .api_dependencies import get_connection
 from .config import settings
@@ -34,6 +35,7 @@ from .web_models import (
     WalletFundEntry,
     WalletOpening,
     WalletOpeningRate,
+    CashCount,
     WalletReconcile,
     WalletSell,
 )
@@ -231,6 +233,43 @@ def reconcile_wallet(wallet_id: int, entry: WalletReconcile, db: DB):
 @router.get("/wallets/{wallet_id}/history")
 def wallet_history(wallet_id: int, db: DB):
     return {"history": wallet_service.wallet_history(db, wallet_id)}
+
+
+@router.get("/cash")
+def cash(db: DB):
+    state = cash_service.cash_state(db)
+    return {
+        "balance": str(state.balance),
+        "flows": [{**flow, "amount": str(flow["amount"])} for flow in state.flows],
+        "counts": [
+            {
+                "id": count.id, "counted_on": count.counted_on, "amount": str(count.amount),
+                "start": count.start, "spent": str(count.spent), "correction": str(count.correction),
+                "unassigned": str(count.unassigned),
+                "lines": [{**line, "amount": str(line["amount"])} for line in count.lines],
+            }
+            for count in state.counts
+        ],
+    }
+
+
+@router.get("/cash/count-preview")
+def cash_count_preview(
+    db: DB, counted_on: date,
+    amount: Annotated[Decimal, Query(ge=0, max_digits=18, decimal_places=2)],
+):
+    count = cash_service.count_preview(db, currency="PLN", counted_on=counted_on, amount=amount)
+    return {"start": count.start, "spent": str(count.spent), "correction": str(count.correction)}
+
+
+@router.post("/cash/counts", status_code=201)
+def add_cash_count(entry: CashCount, db: DB):
+    for line in entry.lines:
+        service.category_exists(db, line.category_key)
+    return {"id": cash_service.add_count(
+        db, currency=entry.currency, counted_on=entry.counted_on, amount=entry.amount,
+        lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
+    )}
 
 
 @router.get("/wealth")

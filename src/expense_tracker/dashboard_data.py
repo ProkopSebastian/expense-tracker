@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from typing import TypedDict
 
+from .cash_service import spending_items
 from .ledger import approved_cases, categories, pending_suggestions, transactions
 from .ledger_view import build_rows
 from .reporting import actuals
@@ -40,7 +41,7 @@ def summary_data(connection: sqlite3.Connection) -> SummaryData:
     rows = transactions(connection)
     case_rows = approved_cases(connection)
     category_rows = categories(connection)
-    return {"items": actuals(rows, case_rows), "categories": category_rows}
+    return {"items": actuals(rows, case_rows) + spending_items(connection), "categories": category_rows}
 
 
 def ledger_data(connection: sqlite3.Connection) -> LedgerData:

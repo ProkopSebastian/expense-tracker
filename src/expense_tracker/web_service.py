@@ -7,7 +7,7 @@ import sqlite3
 import unicodedata
 from decimal import Decimal
 
-from . import ledger
+from . import cash_service, ledger
 from .cash_flows import OFF_BALANCE
 from .ledger_view import display_title, visible_counterparty
 from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
@@ -190,6 +190,29 @@ def ledger_blocks(
                 "category_key": case["category_key"],
                 "category_label": case["category_label"] or "Do przypisania",
                 "members": grouped[case["id"]],
+            }
+        )
+    for index, item in enumerate(cash_service.spending_items(db)):
+        amount = str(-item["amount"])
+        blocks.append(
+            {
+                "key": f"cash{index}",
+                "id": None,
+                "case_id": None,
+                "from_cash_count": True,
+                "date": item["date"],
+                "account": cash_service.CASH_ACCOUNT,
+                "description": item["merchant"] if item["merchant"] != cash_service.CASH_ACCOUNT
+                else "Wydatki z gotówki",
+                "counterparty": "",
+                "amount": amount,
+                "real_amount": amount,
+                "currency": item["currency"],
+                "category_key": item["category"] if item["category"] != "uncategorized_expense" else None,
+                "category_label": item["label"] if item["category"] != "uncategorized_expense" else "Bez kategorii",
+                "members": [],
+                "pln_amount": None,
+                "bank_status": None,
             }
         )
     needle = query.casefold()

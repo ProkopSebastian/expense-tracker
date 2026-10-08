@@ -33,6 +33,7 @@ export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   valuation_missing?: string | null;
   from_statement?: boolean;
   off_balance?: boolean;
+  from_cash_count?: boolean;
   case_id: number | null;
   members: TransactionRow[];
 }
@@ -95,6 +96,29 @@ export interface Wallet {
   kind: "bank" | "cash";
   held_before: { amount: string; date: string; rate_known: boolean; pln: string | null } | null;
 }
+export interface CashFlow {
+  transaction_id: number;
+  date: string;
+  amount: string;
+  kind: "withdrawal" | "deposit" | "entry";
+  description: string;
+  account: string;
+}
+export interface CashCount {
+  id: number;
+  counted_on: string;
+  amount: string;
+  start: boolean;
+  spent: string;
+  correction: string;
+  unassigned: string;
+  lines: { category_key: string; label: string; amount: string; description: string | null }[];
+}
+export interface CashData {
+  balance: string;
+  flows: CashFlow[];
+  counts: CashCount[];
+}
 export interface WalletEvent {
   transaction_id: number;
   kind: "topup" | "spend" | "inflow" | "conversion_out" | "held_before";
@@ -154,8 +178,8 @@ export type Page =
   | "summary"
   | "ledger"
   | "wealth"
+  | "cash"
   | "currencies"
-  | "wallets"
   | "classification"
   | "rules";
 export const pages: Record<Page, { title: string; description: string }> = {
@@ -175,14 +199,15 @@ export const pages: Record<Page, { title: string; description: string }> = {
     title: "Majątek",
     description: "Ile masz na kontach, lokatach i w inwestycjach.",
   },
+  cash: {
+    title: "Gotówka",
+    description: "Ile masz w portfelu i na co poszło.",
+  },
   currencies: {
     title: "Waluty",
     description: "Waluty na kontach, ile ich masz i po jakim kursie je kupiłeś.",
   },
-  wallets: {
-    title: "Portfele",
-    description: "Gotówka, ile masz i na co poszła.",
-  },
+
   classification: {
     title: "Do klasyfikacji",
     description: "Uporządkuj wydatki, po swojemu lub z pomocą AI.",

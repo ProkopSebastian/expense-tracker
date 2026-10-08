@@ -163,7 +163,7 @@ const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
   },
   {
     title: "Gotówka i waluty",
-    body: "Wypłaciłeś 200 zł z bankomatu? Bank nie wie, na co poszły. Załóż portfel „Gotówka”, a po tygodniu w „Rozlicz” wpisz, ile zostało — różnica to Twoje wydatki.",
+    body: "Wypłaty z bankomatu trafiają do „Gotówki” same. Po tygodniu policz, ile zostało — różnica to Twoje wydatki.",
     illustration: <WalletIllustration />,
   },
   {

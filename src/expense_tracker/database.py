@@ -70,6 +70,14 @@ CREATE TABLE IF NOT EXISTS wallets (
     id INTEGER PRIMARY KEY, account TEXT NOT NULL, currency TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, opening_rate TEXT, UNIQUE(account, currency)
 );
+CREATE TABLE IF NOT EXISTS cash_counts (
+    id INTEGER PRIMARY KEY, currency TEXT NOT NULL, counted_on TEXT NOT NULL, amount TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(currency, counted_on)
+);
+CREATE TABLE IF NOT EXISTS cash_count_lines (
+    id INTEGER PRIMARY KEY, count_id INTEGER NOT NULL REFERENCES cash_counts(id) ON DELETE CASCADE,
+    category_key TEXT NOT NULL REFERENCES categories(key), amount TEXT NOT NULL, description TEXT
+);
 CREATE TABLE IF NOT EXISTS wealth_assets (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
     kind TEXT NOT NULL, currency TEXT NOT NULL, institution TEXT, is_active INTEGER NOT NULL DEFAULT 1,
@@ -305,6 +313,25 @@ def _migrate_cash_flows_off_balance(connection: sqlite3.Connection) -> None:
     categorize_cash_flows(connection)
 
 
+def _migrate_drop_legacy_wallet_records(connection: sqlite3.Connection) -> None:
+    # Cash moved to counts derived from bank movements; app-made wallet records from the old
+    # model would double that money, so they are removed. Imported bank rows stay untouched.
+    from .cash_flows import categorize_cash_flows
+
+    bank_accounts = """SELECT DISTINCT account FROM transactions WHERE transaction_type IS NOT NULL
+        AND transaction_type NOT IN ('wallet_exchange_leg', 'wallet_opening', 'manual_entry')"""
+    invented = f"""SELECT id FROM transactions WHERE transaction_type IN ('wallet_exchange_leg', 'wallet_opening')
+        OR (transaction_type = 'manual_entry' AND account IN (SELECT account FROM wallets)
+            AND account NOT IN ({bank_accounts}))"""
+    cases = f"SELECT case_id FROM case_members WHERE transaction_id IN ({invented})"
+    connection.execute(f"DELETE FROM case_members WHERE case_id IN ({cases})")
+    connection.execute("DELETE FROM cases WHERE kind = 'wallet_exchange' AND id NOT IN (SELECT case_id FROM case_members)")
+    connection.execute(f"DELETE FROM transaction_decisions WHERE transaction_id IN ({invented})")
+    connection.execute(f"DELETE FROM transactions WHERE id IN ({invented})")
+    connection.execute(f"DELETE FROM wallets WHERE account NOT IN ({bank_accounts})")
+    categorize_cash_flows(connection)
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -315,6 +342,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_wallet_exchange_case_kind,
     _migrate_wallet_opening_rate,
     _migrate_cash_flows_off_balance,
+    _migrate_drop_legacy_wallet_records,
 )
 
 

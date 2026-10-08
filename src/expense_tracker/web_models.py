@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, StringConstraints
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 Money = Annotated[Decimal, Field(allow_inf_nan=False, max_digits=18, decimal_places=2)]
 Currency = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
+OptionalText = Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=500)]
 Kind = Literal["shared_purchase", "reimbursement", "refund", "own_transfer", "payment_dispute"]
 Role = Literal["purchase", "received_reimbursement", "paid_settlement", "received_refund", "account_transfer"]
 
@@ -94,6 +95,19 @@ class WalletOpeningRate(BaseModel):
     pln_cost: Money
 
 
+class CashCountLine(BaseModel):
+    amount: Money
+    category_key: Text
+    description: OptionalText = None
+
+
+class CashCount(BaseModel):
+    currency: Currency = "PLN"
+    counted_on: date
+    amount: Money
+    lines: list[CashCountLine] = Field(default_factory=list, max_length=50)
+
+
 class ReconcileLine(BaseModel):
     amount: Money
     category_key: Text
@@ -108,7 +122,6 @@ class WalletReconcile(BaseModel):
 
 AssetKind = Literal["account", "savings", "bonds", "investments", "cash", "gold", "debt", "other"]
 Rate = Annotated[Decimal, Field(allow_inf_nan=False, gt=0, max_digits=18, decimal_places=6)]
-OptionalText = Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=500)]
 
 
 class AssetCreate(BaseModel):

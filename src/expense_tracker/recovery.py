@@ -85,6 +85,7 @@ ACTION_LABELS: dict[tuple[str, str], str] = {
     ("POST", "/api/wealth/snapshots"): "Zapisanie stanu majątku",
     ("PUT", "/api/wealth/snapshots/{}"): "Poprawienie stanu majątku",
     ("DELETE", "/api/wealth/snapshots/{}"): "Usunięcie stanu majątku",
+    ("POST", "/api/cash/counts"): "Liczenie gotówki",
     ("POST", "/api/sync"): "Synchronizacja katalogu danych",
     ("POST", "/api/ai/merchants"): "Analiza AI sprzedawców",
     ("POST", "/api/ai/relations"): "Analiza AI powiązań",

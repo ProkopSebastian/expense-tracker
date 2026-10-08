@@ -14,6 +14,8 @@ _FINANCIAL_TABLES = (
     "suggestions",
     "transaction_decisions",
     "merchant_rules",
+    "cash_count_lines",
+    "cash_counts",
     "cases",
     "wallets",
     "import_batches",
