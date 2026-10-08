@@ -145,7 +145,7 @@ def demo_app():
 def main() -> None:
     shutil.rmtree(OUTPUT, ignore_errors=True)
     OUTPUT.mkdir(parents=True)
-    with TestClient(demo_app()) as client:
+    with TestClient(demo_app(), base_url="http://127.0.0.1") as client:
         def call(method: str, path: str, **kwargs):
             response = client.request(method, f"/api{path}", **kwargs)
             response.raise_for_status()
@@ -193,9 +193,19 @@ def main() -> None:
             },
         )
 
-        cash = call("POST", "/wallets", json={"account": "Gotówka", "currency": "PLN"})["id"]
-        atm = by_description["Bankomat Euronet"][0]
-        call("POST", f"/wallets/{cash}/fund", json={"source_transaction_id": atm["id"], "received_amount": "200.00"})
+        # The withdrawal reaches the cash tab by itself; counting what is left turns the rest into spending.
+        call(
+            "POST",
+            "/cash/counts",
+            json={
+                "counted_on": "2026-09-20",
+                "amount": "60.00",
+                "lines": [
+                    {"amount": "100.00", "category_key": "groceries", "description": "Targ na Mirowie"},
+                    {"amount": "40.00", "category_key": "food_coffee", "description": "Kawa na mieście"},
+                ],
+            },
+        )
 
         assets = {}
         for name, kind, currency, institution in WEALTH_ASSETS:
@@ -238,6 +248,8 @@ def main() -> None:
                 },
             )
     database.close()
+    # Each request above left an undo copy; a freshly generated demo has nothing to undo.
+    shutil.rmtree(OUTPUT / f"{DATABASE.stem}-backups", ignore_errors=True)
     print(f"Demo database ready: {DATABASE}")
 
 
