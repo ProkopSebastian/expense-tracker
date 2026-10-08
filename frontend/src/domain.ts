@@ -32,6 +32,7 @@ export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   real_amount: string;
   valuation_missing?: string | null;
   from_statement?: boolean;
+  off_balance?: boolean;
   case_id: number | null;
   members: TransactionRow[];
 }

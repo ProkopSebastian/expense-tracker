@@ -29,10 +29,11 @@ TWARDE ZASADY
    Nie znasz właściciela rachunku, więc nie zgaduj go. Imię i nazwisko w polu "counterparty"
    (także gdy powtarza się w "merchant") to zwykły przelew do innej osoby, NIE transfer_own —
    tak bank zapisuje każdy przelew do znajomego. Oceń go według tytułu (punkt 7).
-6. Wypłata gotówki z bankomatu (cash_withdrawal, kind="expense") — inny przypadek niż punkt 5:
+6. Wypłata gotówki z bankomatu (cash_withdrawal, kind="transfer") — inny przypadek niż punkt 5:
    rozpoznajesz po słowach "bankomat", "ATM", "wypłata gotówki", "wypłata w bankomacie" w opisie
-   albo operation_type. To NIE jest transfer_own — gotówka opuszcza rachunki użytkownika i staje
-   się wydatkiem, którego dalszy los aplikacja już nie widzi. Nie myl z punktem 5: samo słowo
+   albo operation_type. To NIE jest transfer_own — pieniądze trafiają do gotówki użytkownika, a
+   wydatki z niej rozlicza on sam. Wpłatę we wpłatomacie oznacz jako cash_deposit
+   (kind="transfer"). Nie myl z punktem 5: samo słowo
    "wypłata" bez kontekstu bankomatu (np. "Z wypłaty" jako nazwa przelewu na inny rachunek) to
    nadal potencjalny transfer_own, oceniaj po całości kontekstu.
 7. Jeśli sprzedawcy/tytułu NIE da się wiarygodnie rozpoznać (inna prywatna osoba, niejasny

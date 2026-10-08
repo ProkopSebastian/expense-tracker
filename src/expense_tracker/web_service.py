@@ -8,6 +8,7 @@ import unicodedata
 from decimal import Decimal
 
 from . import ledger
+from .cash_flows import OFF_BALANCE
 from .ledger_view import display_title, visible_counterparty
 from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
 
@@ -167,7 +168,8 @@ def ledger_blocks(
                     "key": f"t{row['id']}",
                     "case_id": None,
                     "members": [],
-                    "real_amount": "0" if row["category_key"] == "transfer_own" else row["amount"],
+                    "real_amount": "0" if row["category_key"] in OFF_BALANCE else row["amount"],
+                    "off_balance": row["category_key"] in OFF_BALANCE,
                 }
             )
     for case in cases:

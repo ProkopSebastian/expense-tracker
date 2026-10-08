@@ -86,6 +86,7 @@ const categoryIcons: Record<string, LucideIcon> = {
   pets_food: Bone,
   pets_vet: Stethoscope,
   cash_withdrawal: Banknote,
+  cash_deposit: Banknote,
   income: Wallet,
   income_salary: BriefcaseBusiness,
   income_investments: TrendingUp,

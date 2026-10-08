@@ -136,12 +136,13 @@ CATEGORIES = (
     ("pets", "Zwierzęta", None, "expense"),
     ("pets_food", "Jedzenie dla zwierząt", "pets", "expense"),
     ("pets_vet", "Weterynarz", "pets", "expense"),
-    ("cash_withdrawal", "Wypłata gotówki", None, "expense"),
     ("income", "Przychody", None, "income"),
     ("income_salary", "Wynagrodzenie", "income", "income"),
     ("income_other", "Inne przychody", "income", "income"),
     ("income_investments", "Inwestycje i dywidendy", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
+    ("cash_withdrawal", "Wypłata gotówki", None, "transfer"),
+    ("cash_deposit", "Wpłata gotówki", None, "transfer"),
     ("fees_fx", "Opłaty walutowe", None, "expense"),
     ("fx_result", "Różnice kursowe", None, "adjustment"),
 )
@@ -294,6 +295,16 @@ def _migrate_wallet_opening_rate(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE wallets ADD COLUMN opening_rate TEXT")
 
 
+def _migrate_cash_flows_off_balance(connection: sqlite3.Connection) -> None:
+    from .cash_flows import categorize_cash_flows
+
+    connection.execute("UPDATE categories SET kind = 'transfer' WHERE key = 'cash_withdrawal'")
+    connection.execute(
+        "INSERT OR IGNORE INTO categories(key, label, parent_key, kind) VALUES ('cash_deposit', 'Wpłata gotówki', NULL, 'transfer')"
+    )
+    categorize_cash_flows(connection)
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -303,6 +314,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_category_presentation,
     _migrate_wallet_exchange_case_kind,
     _migrate_wallet_opening_rate,
+    _migrate_cash_flows_off_balance,
 )
 
 

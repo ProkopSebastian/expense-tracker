@@ -16,6 +16,7 @@ from .importers import (
     import_revolut_csv,
     import_velo_pdf,
 )
+from .cash_flows import categorize_cash_flows
 from .ledger import apply_rules, categorize_bank_fees
 from .wallet_service import pair_exchanges, track_imported_currencies
 
@@ -115,6 +116,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
     with database.connection:
         inserted, skipped = database.insert_transactions(found, commit=False)
         categorize_bank_fees(database.connection)
+        categorize_cash_flows(database.connection)
         apply_rules(database.connection, commit=False)
         paired = pair_exchanges(database.connection)
         track_imported_currencies(database.connection)

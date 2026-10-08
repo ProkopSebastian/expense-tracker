@@ -241,7 +241,7 @@ export default function LedgerTable({
                             <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
                               Łącznie w bilansie
                             </small>
-                          ) : row.category_key === "transfer_own" ? (
+                          ) : row.off_balance ? (
                             <small className="mt-1 block text-[10px] font-normal whitespace-normal text-muted">
                               Poza bilansem
                             </small>

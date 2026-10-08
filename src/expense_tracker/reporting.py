@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from .cash_flows import OFF_BALANCE
 from .ledger import merchant_key
 
 
@@ -14,7 +15,7 @@ def actuals(transactions: list[dict[str, object]], cases: list[dict[str, object]
         amount = Decimal(str(row["amount"]))
         category = str(row["category_key"] or ("uncategorized_expense" if amount < 0 else "income"))
         label = str(row["category_label"] or ("Niesklasyfikowane wydatki" if amount < 0 else "Przychody"))
-        if category == "transfer_own":
+        if category in OFF_BALANCE:
             continue
         if amount < 0:
             items.append(
