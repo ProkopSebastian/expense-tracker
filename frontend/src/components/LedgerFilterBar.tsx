@@ -1,7 +1,7 @@
 import CategoryIcon from "./CategoryIcon";
 import AppSelect from "./AppSelect";
 import * as Popover from "@radix-ui/react-popover";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { type CategoryNode } from "./Forms";
 
 function CategoryFilterNode({
@@ -57,6 +57,15 @@ export default function LedgerFilterBar({
   currency,
   onCurrencyChange,
   currencies,
+  account,
+  onAccountChange,
+  accounts,
+  dateFrom,
+  dateTo,
+  onDatesChange,
+  unvalued,
+  onUnvaluedClear,
+  onClear,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -68,6 +77,15 @@ export default function LedgerFilterBar({
   currency: string;
   onCurrencyChange: (value: string) => void;
   currencies: string[];
+  account: string;
+  onAccountChange: (value: string) => void;
+  accounts: string[];
+  dateFrom: string;
+  dateTo: string;
+  onDatesChange: (from: string, to: string) => void;
+  unvalued: boolean;
+  onUnvaluedClear: () => void;
+  onClear?: () => void;
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -88,6 +106,15 @@ export default function LedgerFilterBar({
           { value: "all", label: "Wszystkie przepływy" },
           { value: "expense", label: "Wydatki" },
           { value: "income", label: "Wpływy" },
+        ]}
+      />
+      <AppSelect
+        ariaLabel="Konto"
+        value={account}
+        onValueChange={onAccountChange}
+        options={[
+          { value: "all", label: "Wszystkie konta" },
+          ...accounts.map((name) => ({ value: name, label: name })),
         ]}
       />
       <AppSelect
@@ -147,6 +174,39 @@ export default function LedgerFilterBar({
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
+      <div className="flex items-center gap-2 text-sm text-muted [&_input]:w-36">
+        <input
+          type="date"
+          aria-label="Od dnia"
+          value={dateFrom}
+          max={dateTo || undefined}
+          onChange={(e) => onDatesChange(e.target.value, dateTo)}
+        />
+        <span>—</span>
+        <input
+          type="date"
+          aria-label="Do dnia"
+          value={dateTo}
+          min={dateFrom || undefined}
+          onChange={(e) => onDatesChange(dateFrom, e.target.value)}
+        />
+      </div>
+      {unvalued && (
+        <button
+          className="inline-flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning hover:bg-warning/20"
+          aria-label="Usuń filtr Bez kursu"
+          onClick={onUnvaluedClear}
+        >
+          Bez kursu
+          <X size={14} />
+        </button>
+      )}
+      {onClear && (
+        <button className="btn" onClick={onClear}>
+          <X size={15} />
+          Wyczyść filtry
+        </button>
+      )}
     </div>
   );
 }

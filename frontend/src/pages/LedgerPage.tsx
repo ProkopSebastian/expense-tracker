@@ -27,6 +27,10 @@ export default function LedgerPage({
     [direction, setDirection] = useSessionState("ledger.direction", "all"),
     [category, setCategory] = useSessionState<string[]>("ledger.category", []),
     [currency, setCurrency] = useSessionState("ledger.currency", "all"),
+    [account, setAccount] = useSessionState("ledger.account", "all"),
+    [dateFrom, setDateFrom] = useSessionState("ledger.from", ""),
+    [dateTo, setDateTo] = useSessionState("ledger.to", ""),
+    [unvalued, setUnvalued] = useSessionState("ledger.unvalued", false),
     [page, setPage] = useSessionState("ledger.page", 1),
     [selected, setSelected] = useState<number[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
@@ -45,6 +49,13 @@ export default function LedgerPage({
   });
   category.forEach((c) => params.append("category", c));
   if (currency !== "all") params.append("currency", currency);
+  if (account !== "all") params.append("account", account);
+  if (dateFrom) params.append("date_from", dateFrom);
+  if (dateTo) params.append("date_to", dateTo);
+  if (unvalued) params.append("unvalued", "true");
+  const filtered =
+    query !== "" || direction !== "all" || category.length > 0 || currency !== "all" ||
+    account !== "all" || dateFrom !== "" || dateTo !== "" || unvalued;
   const { data, error, loading } = useResource<LedgerData>(
     `/ledger?${params}`,
     revision,
@@ -72,6 +83,17 @@ export default function LedgerPage({
   function filtersChanged() {
     setPage(1);
     setSelected([]);
+  }
+  function clearFilters() {
+    setQuery("");
+    setDirection("all");
+    setCategory([]);
+    setCurrency("all");
+    setAccount("all");
+    setDateFrom("");
+    setDateTo("");
+    setUnvalued(false);
+    filtersChanged();
   }
   function changePage(nextPage: number) {
     setPage(nextPage);
@@ -120,6 +142,25 @@ export default function LedgerPage({
             filtersChanged();
           }}
           currencies={data?.currencies ?? []}
+          account={account}
+          onAccountChange={(value) => {
+            setAccount(value);
+            filtersChanged();
+          }}
+          accounts={accounts}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDatesChange={(from, to) => {
+            setDateFrom(from);
+            setDateTo(to);
+            filtersChanged();
+          }}
+          unvalued={unvalued}
+          onUnvaluedClear={() => {
+            setUnvalued(false);
+            filtersChanged();
+          }}
+          onClear={filtered ? clearFilters : undefined}
         />
         <LedgerTable
           data={data}

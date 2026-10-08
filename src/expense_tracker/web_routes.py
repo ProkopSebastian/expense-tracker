@@ -116,9 +116,16 @@ def history(
     direction: Literal["all", "expense", "income"] = "all",
     category: Annotated[list[str] | None, Query()] = None,
     currency: Annotated[list[str] | None, Query()] = None,
+    account: Annotated[list[str] | None, Query()] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    unvalued: bool = False,
     page: Annotated[int, Query(ge=1)] = 1,
 ):
-    return service.ledger_blocks(db, q, direction, category or [], currency or [], page)
+    return service.ledger_blocks(
+        db, q, direction, category or [], currency or [], page,
+        accounts=account or [], date_from=date_from, date_to=date_to, unvalued=unvalued,
+    )
 
 
 @router.post("/transactions", status_code=201)

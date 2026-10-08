@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import sqlite3
 import unicodedata
+from datetime import date
 from decimal import Decimal
 
 from . import cash_service, ledger
@@ -127,7 +128,9 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
 
 
 def ledger_blocks(
-    db: sqlite3.Connection, query: str, direction: str, category: list[str], currency: list[str], page: int
+    db: sqlite3.Connection, query: str, direction: str, category: list[str], currency: list[str], page: int,
+    *, accounts: list[str] | None = None, date_from: date | None = None, date_to: date | None = None,
+    unvalued: bool = False,
 ) -> dict:
     from . import wallet_service
 
@@ -230,6 +233,18 @@ def ledger_blocks(
             continue
         # A mixed-currency group belongs to every currency one of its members was paid in.
         if currency and not any(r["currency"] in currency for r in [block, *block["members"]]):
+            continue
+        if accounts and not any(r["account"] in accounts for r in [block, *block["members"]]):
+            continue
+        if date_from and block["date"] < date_from.isoformat():
+            continue
+        if date_to and block["date"] > date_to.isoformat():
+            continue
+        if unvalued and not (
+            block.get("valuation_missing")
+            or (not block.get("off_balance") and block["currency"] != "PLN" and block.get("pln_amount") is None
+                and not block["members"])
+        ):
             continue
         if needle and not any(
             needle in f"{r['description']} {r['counterparty']}".casefold() for r in [block, *block["members"]]
