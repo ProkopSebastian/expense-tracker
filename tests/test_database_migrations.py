@@ -70,7 +70,7 @@ def test_migration_is_idempotent_across_repeated_opens(tmp_path: Path) -> None:
     second = Database(path)
     try:
         version = second.connection.execute("PRAGMA user_version").fetchone()[0]
-        assert version == 11
+        assert version == 12
     finally:
         second.close()
 

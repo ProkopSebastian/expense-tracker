@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from . import ledger
 from .cash_flows import CASH_DEPOSIT, CASH_WITHDRAWAL
 from .ledger_view import display_title
 
@@ -75,8 +76,9 @@ def _flows(connection: sqlite3.Connection) -> list[dict]:
         WHERE t.bank_status NOT IN ({",".join("?" * len(INACTIVE))})
         AND t.id NOT IN (SELECT transaction_id FROM case_members)
         AND (d.category_key IN (?, ?) OR t.account = ?)
+        AND COALESCE(t.transaction_type, '') != ?
         ORDER BY t.booking_date, t.id""",
-        (*INACTIVE, CASH_WITHDRAWAL, CASH_DEPOSIT, CASH_ACCOUNT),
+        (*INACTIVE, CASH_WITHDRAWAL, CASH_DEPOSIT, CASH_ACCOUNT, ledger.CASH_COUNT_LINE),
     ).fetchall()
     flows = []
     for row in rows:
@@ -112,13 +114,16 @@ def _counts(connection: sqlite3.Connection) -> list[Count]:
     ]
     by_id = {count.id: count for count in counts}
     for row in connection.execute(
-        """SELECT l.count_id, l.category_key, c.label, l.amount, l.description
-        FROM cash_count_lines l JOIN categories c ON c.key = l.category_key ORDER BY l.id"""
+        """SELECT e.count_id, t.id, t.amount, t.description, d.category_key, c.label
+        FROM cash_count_entries e JOIN transactions t ON t.id = e.transaction_id
+        LEFT JOIN transaction_decisions d ON d.transaction_id = t.id
+        LEFT JOIN categories c ON c.key = d.category_key ORDER BY t.id"""
     ):
         if row["count_id"] in by_id:
             by_id[row["count_id"]].lines.append({
-                "category_key": row["category_key"], "label": row["label"],
-                "amount": Decimal(row["amount"]), "description": row["description"],
+                "transaction_id": row["id"], "category_key": row["category_key"],
+                "label": row["label"] or "Do przypisania", "amount": -Decimal(row["amount"]),
+                "description": row["description"],
             })
     return counts
 
@@ -172,6 +177,10 @@ def _replay(state: CashState) -> None:
             difference = pot.balance - payload.amount
             payload.spent = max(difference, Decimal(0))
             payload.spent_pln = pot.value(payload.spent)
+            for line in payload.lines:
+                value = pot.value(line["amount"])
+                if value is not None:
+                    state.values[line["transaction_id"]] = -value
             payload.correction = max(-difference, Decimal(0))
             if payload.correction:
                 cost = payload.correction if payload.currency == HOME_CURRENCY else payload.start_cost
@@ -227,10 +236,15 @@ def add_count(
             (currency, str(counted_on), str(amount), str(start_cost) if start_cost is not None else None),
         )
         count_id = int(cursor.lastrowid)
-        connection.executemany(
-            "INSERT INTO cash_count_lines(count_id, category_key, amount, description) VALUES (?, ?, ?, ?)",
-            [(count_id, category, str(line_amount), description) for line_amount, category, description in lines],
-        )
+        for line_amount, category, description in lines:
+            transaction_id = ledger.add_manual_transaction(
+                connection, account=CASH_ACCOUNT, booking_date=counted_on, amount=-line_amount,
+                currency=currency, description=description or "Wydatki z gotówki", counterparty=None,
+                category_key=category, commit=False, transaction_type=ledger.CASH_COUNT_LINE,
+            )
+            connection.execute(
+                "INSERT INTO cash_count_entries(transaction_id, count_id) VALUES (?, ?)", (transaction_id, count_id)
+            )
     return count_id
 
 
@@ -289,8 +303,6 @@ def spending_items(connection: sqlite3.Connection) -> list[dict[str, object]]:
             })
     for count in state.counts:
         rate = count.spent_pln / count.spent if count.spent and count.spent_pln is not None else None
-        for line in count.lines:
-            items.append(_item(count, line["amount"], rate, line["category_key"], line["label"], line["description"]))
         if count.unassigned > 0:
             items.append(_item(count, count.unassigned, rate, "uncategorized_expense", "Niesklasyfikowane wydatki", None))
     return items

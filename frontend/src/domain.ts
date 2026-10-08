@@ -119,7 +119,7 @@ export interface CashCount {
   spent: string;
   correction: string;
   unassigned: string;
-  lines: { category_key: string; label: string; amount: string; description: string | null }[];
+  lines: { transaction_id: number; category_key: string | null; label: string; amount: string; description: string | null }[];
 }
 export interface CashExchange {
   id: number;

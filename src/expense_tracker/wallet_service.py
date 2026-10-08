@@ -17,7 +17,7 @@ from .database import insert_transaction
 from .models import Transaction
 
 HOME_CURRENCY = "PLN"
-OPENING_BALANCE = "wallet_opening"
+OPENING_BALANCE = ledger.WALLET_OPENING
 COST_PRECISION = Decimal("0.000001")
 MONEY = Decimal("0.01")
 
@@ -58,8 +58,9 @@ def _wallets(connection: sqlite3.Connection) -> list[sqlite3.Row]:
 
 def _bank_accounts(connection: sqlite3.Connection) -> set[str]:
     rows = connection.execute(
-        "SELECT DISTINCT account FROM transactions WHERE transaction_type IS NOT NULL AND transaction_type NOT IN (?, ?, ?)",
-        (ledger.SYNTHETIC_EXCHANGE_LEG, OPENING_BALANCE, ledger.MANUAL_ENTRY),
+        f"""SELECT DISTINCT account FROM transactions WHERE transaction_type IS NOT NULL
+        AND transaction_type NOT IN ({",".join("?" * len(ledger.APP_MADE_TYPES))})""",
+        ledger.APP_MADE_TYPES,
     ).fetchall()
     return {row["account"] for row in rows}
 
@@ -574,9 +575,9 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
 
 def track_imported_currencies(connection: sqlite3.Connection) -> None:
     for row in connection.execute(
-        """SELECT DISTINCT account, currency FROM transactions
-        WHERE currency != ? AND transaction_type IS NOT NULL AND transaction_type NOT IN (?, ?, ?)""",
-        (HOME_CURRENCY, ledger.SYNTHETIC_EXCHANGE_LEG, OPENING_BALANCE, ledger.MANUAL_ENTRY),
+        f"""SELECT DISTINCT account, currency FROM transactions WHERE currency != ? AND transaction_type IS NOT NULL
+        AND transaction_type NOT IN ({",".join("?" * len(ledger.APP_MADE_TYPES))})""",
+        (HOME_CURRENCY, *ledger.APP_MADE_TYPES),
     ).fetchall():
         _ensure_wallet(connection, row["account"], row["currency"])
 

@@ -82,9 +82,9 @@ CREATE TABLE IF NOT EXISTS cash_exchanges (
     id INTEGER PRIMARY KEY, exchanged_on TEXT NOT NULL, given_currency TEXT NOT NULL, given_amount TEXT NOT NULL,
     received_currency TEXT NOT NULL, received_amount TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS cash_count_lines (
-    id INTEGER PRIMARY KEY, count_id INTEGER NOT NULL REFERENCES cash_counts(id) ON DELETE CASCADE,
-    category_key TEXT NOT NULL REFERENCES categories(key), amount TEXT NOT NULL, description TEXT
+CREATE TABLE IF NOT EXISTS cash_count_entries (
+    transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+    count_id INTEGER NOT NULL REFERENCES cash_counts(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS wealth_assets (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -347,6 +347,11 @@ def _migrate_cash_count_start_cost(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE cash_counts ADD COLUMN start_cost TEXT")
 
 
+def _migrate_drop_cash_count_lines(connection: sqlite3.Connection) -> None:
+    # Count splits are stored as ordinary transactions now; the earlier table never shipped.
+    connection.execute("DROP TABLE IF EXISTS cash_count_lines")
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -359,6 +364,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_cash_flows_off_balance,
     _migrate_drop_legacy_wallet_records,
     _migrate_cash_count_start_cost,
+    _migrate_drop_cash_count_lines,
 )
 
 

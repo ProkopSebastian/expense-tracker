@@ -20,6 +20,10 @@ CaseKind = Literal[
 ]
 SYNTHETIC_EXCHANGE_LEG = "wallet_exchange_leg"
 MANUAL_ENTRY = "manual_entry"
+CASH_COUNT_LINE = "cash_count_line"
+WALLET_OPENING = "wallet_opening"
+# Rows the app writes itself; they say nothing about which bank accounts or statements exist.
+APP_MADE_TYPES = (SYNTHETIC_EXCHANGE_LEG, WALLET_OPENING, MANUAL_ENTRY, CASH_COUNT_LINE)
 CaseRole = Literal["purchase", "received_reimbursement", "paid_settlement", "received_refund", "account_transfer"]
 DecisionSource = Literal["manual", "rule", "llm"]
 
@@ -398,6 +402,7 @@ def add_manual_transaction(
     counterparty: str | None,
     category_key: str,
     commit: bool = True,
+    transaction_type: str = MANUAL_ENTRY,
 ) -> int:
     transaction = Transaction(
         account=account,
@@ -407,7 +412,7 @@ def add_manual_transaction(
         description=description,
         counterparty=counterparty,
         external_id=uuid.uuid4().hex,
-        raw={"Type": MANUAL_ENTRY, "entered_at": datetime.now(UTC).isoformat()},
+        raw={"Type": transaction_type, "entered_at": datetime.now(UTC).isoformat()},
     )
     with connection if commit else nullcontext():
         transaction_id = insert_transaction(connection, transaction, commit=False)
