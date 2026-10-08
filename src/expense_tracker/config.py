@@ -11,9 +11,9 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-5.6-luna"
     openai_web_search: bool = True
-    database_path: Path = Path("expense-tracker.sqlite3")
+    database_path: Path = Path("dev/expense-tracker.sqlite3")
     data_dir: Path = Path("data")
-    configuration_dir: Path = Path(".")
+    configuration_dir: Path = Path("dev")
 
 
 settings = Settings()
