@@ -112,8 +112,10 @@ górę, w różnych walutach. Cokolwiek innego zostaje nietknięte — pojedyncz
 nie jest błędem i nie zgłasza się jako ostrzeżenie. Portfel dla nowej waluty powstaje przy
 okazji sam, z poprawnym kursem.
 
-Sprzedaż waluty z powrotem na złotówki jest celowo wyłączona z automatu: realizuje zysk albo
-stratę, a automatyczne połączenie połknęłoby tę różnicę po cichu.
+Sprzedaż waluty z powrotem na złotówki łączy się tak samo. Zysk albo stratę względem kosztu
+sprzedanej waluty aplikacja wylicza przy każdym odczycie i pokazuje jako „Różnice kursowe”.
+Obie strony muszą pochodzić z tego samego konta, a wymiany, którą bank zapisał po obu stronach,
+nie da się rozłączyć.
 
 ## „Ile zostało" zamiast pamiętania każdego wydatku
 

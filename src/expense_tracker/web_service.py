@@ -183,6 +183,7 @@ def ledger_blocks(
                 "amount": None,
                 "real_amount": str(-Decimal(case["personal_amount"])),
                 "valuation_missing": case.get("valuation_missing"),
+                "from_statement": bool(case["from_statement"]),
                 "currency": case["currency"],
                 "category_key": case["category_key"],
                 "category_label": case["category_label"] or "Do przypisania",

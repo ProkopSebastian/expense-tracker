@@ -370,7 +370,7 @@ def fund_wallet(
     if target_transaction_id is None and (received_amount is None or received_amount <= 0):
         raise ValueError("Otrzymana kwota musi być większa od zera.")
     source = connection.execute(
-        "SELECT id, account, booking_date, amount, currency FROM transactions WHERE id = ?",
+        "SELECT id, account, booking_date, amount, currency, transaction_type FROM transactions WHERE id = ?",
         (source_transaction_id,),
     ).fetchone()
     if source is None:
@@ -381,6 +381,11 @@ def fund_wallet(
         raise ValueError("Zasilenie musi wychodzić z transakcji pomniejszającej saldo.")
     if source["account"] == wallet["account"] and source["currency"] == wallet["currency"]:
         raise ValueError("Transakcja źródłowa należy do tego samego portfela.")
+    if target_transaction_id is None and source["transaction_type"] == "Exchange":
+        raise ValueError(
+            f"Drugą stronę tej wymiany ma wyciąg {wallet['currency']} z tego samego konta. "
+            "Wgraj go, a wymiana połączy się sama."
+        )
 
     label = _transfer_label(source["currency"], wallet["account"], wallet["currency"])
     if target_transaction_id is not None:
@@ -455,11 +460,11 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
         AND t.bank_status NOT IN ('DECLINED', 'REVERTED', 'FAILED')"""
     ).fetchall()
 
-    by_moment: dict[str, list[sqlite3.Row]] = {}
+    by_moment: dict[tuple[str, str], list[sqlite3.Row]] = {}
     for row in rows:
         moment = json.loads(row["raw_json"] or "{}").get("Started Date")
         if moment:
-            by_moment.setdefault(str(moment), []).append(row)
+            by_moment.setdefault((row["account"], str(moment)), []).append(row)
 
     paired = 0
     for candidates in by_moment.values():
@@ -470,28 +475,37 @@ def pair_exchanges(connection: sqlite3.Connection) -> int:
         source, target = outgoing[0], incoming[0]
         if source["currency"] == target["currency"]:
             continue
-        # Selling foreign currency back into złoty realises a gain or loss against the wallet's
-        # cost. Linking it here would quietly swallow that difference, so it stays manual.
         if target["currency"] == HOME_CURRENCY:
-            continue
-        wallet = connection.execute(
-            "SELECT id FROM wallets WHERE account = ? AND currency = ?",
-            (target["account"], target["currency"]),
-        ).fetchone()
-        wallet_id = (
-            int(wallet["id"])
-            if wallet
-            else create_wallet(connection, target["account"], target["currency"], commit=False)
-        )
-        fund_wallet(
-            connection,
-            wallet_id=wallet_id,
-            source_transaction_id=int(source["id"]),
-            target_transaction_id=int(target["id"]),
-            commit=False,
-        )
+            # The gain or loss against the sold currency's cost is derived on read by
+            # sale_results, so it follows any later correction of that cost.
+            _ensure_wallet(connection, source["account"], source["currency"])
+            ledger.create_case(
+                connection,
+                "wallet_exchange",
+                f"Odsprzedaż {source['currency']}",
+                "transfer_own",
+                Decimal(0),
+                HOME_CURRENCY,
+                [(int(target["id"]), "account_transfer"), (int(source["id"]), "account_transfer")],
+                commit=False,
+            )
+        else:
+            fund_wallet(
+                connection,
+                wallet_id=_ensure_wallet(connection, target["account"], target["currency"]),
+                source_transaction_id=int(source["id"]),
+                target_transaction_id=int(target["id"]),
+                commit=False,
+            )
         paired += 1
     return paired
+
+
+def _ensure_wallet(connection: sqlite3.Connection, account: str, currency: str) -> int:
+    wallet = connection.execute(
+        "SELECT id FROM wallets WHERE account = ? AND currency = ?", (account, currency)
+    ).fetchone()
+    return int(wallet["id"]) if wallet else create_wallet(connection, account, currency, commit=False)
 
 
 def wallet_balance(connection: sqlite3.Connection, wallet_id: int, on_date: date | None = None) -> Decimal:

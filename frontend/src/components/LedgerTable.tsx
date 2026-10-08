@@ -173,7 +173,7 @@ export default function LedgerTable({
                         onClick={() => openRow(row)}
                       >
                         <td onClick={(event) => event.stopPropagation()}>
-                          {row.case_id ? (
+                          {row.from_statement ? null : row.case_id ? (
                             <button
                               className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
                               aria-label={`Rozwiń grupę ${row.description}`}

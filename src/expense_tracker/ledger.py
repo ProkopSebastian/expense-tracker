@@ -133,7 +133,9 @@ def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
 def approved_cases(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
         """SELECT cases.id, cases.title, cases.category_key, categories.label AS category_label,
-                  cases.personal_amount, cases.currency, MIN(transactions.booking_date) AS booking_date
+                  cases.personal_amount, cases.currency, MIN(transactions.booking_date) AS booking_date,
+                  cases.kind = 'wallet_exchange'
+                      AND SUM(transactions.transaction_type = 'Exchange') = COUNT(*) AS from_statement
            FROM cases
            JOIN case_members ON case_members.case_id = cases.id
            JOIN transactions ON transactions.id = case_members.transaction_id
@@ -363,6 +365,8 @@ def dissolve_case(connection: sqlite3.Connection, case_id: int) -> None:
             (case_id, SYNTHETIC_EXCHANGE_LEG),
         ).fetchall()
     ]
+    if any(case["id"] == case_id and case["from_statement"] for case in approved_cases(connection)):
+        raise ValueError("Tę wymianę bank zapisał po obu stronach, więc nie da się jej rozłączyć.")
     with connection:
         connection.execute("DELETE FROM case_members WHERE case_id = ?", (case_id,))
         connection.execute("UPDATE cases SET status = 'rejected' WHERE id = ?", (case_id,))
