@@ -1,7 +1,8 @@
 import * as Popover from "@radix-ui/react-popover";
 import { money, type Summary } from "../api";
+import { openLedger } from "../ledgerLink";
 
-function MissingRate({ codes }: { codes: string[] }) {
+function MissingRate({ codes, start, end }: { codes: string[]; start: string | null; end: string | null }) {
   return (
     <Popover.Root>
       <Popover.Trigger
@@ -16,8 +17,16 @@ function MissingRate({ codes }: { codes: string[] }) {
           sideOffset={6}
           className="z-50 w-72 rounded-xl border border-line bg-surface p-4 text-sm leading-relaxed text-muted shadow-xl"
         >
-          Bez wydatków w {codes.join(", ")}, dla których brakuje kursu. Uzupełnisz go w zakładce
-          Waluty albo Gotówka.
+          <p>
+            Bez wydatków w {codes.join(", ")}, dla których brakuje kursu. Uzupełnisz go w zakładce
+            Waluty albo Gotówka.
+          </p>
+          <button
+            className="btn mt-3"
+            onClick={() => openLedger({ from: start ?? "", to: end ?? "", unvalued: true })}
+          >
+            Pokaż te wydatki
+          </button>
           <Popover.Arrow className="fill-surface" />
         </Popover.Content>
       </Popover.Portal>
@@ -38,7 +47,7 @@ export default function SummaryCards({ data }: { data: Summary }) {
         </h2>
         <strong className="mt-1 block text-4xl font-semibold tracking-tight tabular-nums">
           {money(data.expenses, data.currency)}
-          {data.untranslated.length > 0 && <MissingRate codes={data.untranslated} />}
+          {data.untranslated.length > 0 && <MissingRate codes={data.untranslated} start={data.start} end={data.end} />}
         </strong>
       </div>
       <div className="items-center justify-between gap-4 py-4">
