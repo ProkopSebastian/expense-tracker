@@ -739,6 +739,8 @@ export default function WalletsPage({
       <Notice
         error={error || action.error}
         notice={action.notice}
+        undoLabel={action.undoLabel}
+        onUndo={action.undo}
       />
       {!wallets.length && !error && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">

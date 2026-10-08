@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { pages, type Page, type Meta } from "./domain";
-import { request, useAction, useResource } from "./hooks";
+import { useResource } from "./hooks";
 import DataPage from "./pages/DataPage";
 import Sidebar from "./components/Sidebar";
 import { Notice } from "./components/Forms";
@@ -28,14 +28,6 @@ export default function App() {
     setAppNotice("");
     setRevision((value) => value + 1);
   };
-  const recovery = useResource<{ can_undo: boolean; label: string | null }>(
-    "/recovery",
-    revision,
-  );
-  const undo = useAction(() => {
-    changed();
-    setAppNotice("Ostatnia zmiana została cofnięta.");
-  });
   useEffect(() => {
     const handler = () => {
       positions.current[previousPage.current] = window.scrollY;
@@ -67,27 +59,6 @@ export default function App() {
         <main>
           <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
             <Notice error={error} notice={appNotice} />
-            <Notice error={undo.error} />
-            {recovery.error ? (
-              <div className="mb-5 flex items-center gap-3 text-sm text-danger" role="alert">
-                Nie udało się sprawdzić dostępności cofania.
-                <button className="btn" onClick={changed}>Spróbuj ponownie</button>
-              </div>
-            ) : recovery.data?.can_undo && (
-              <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-line px-4 py-3 text-sm">
-                <span className="text-muted">Możesz cofnąć jedną, ostatnią zmianę:</span>
-                <button
-                  className="btn"
-                  disabled={undo.busy || recovery.loading}
-                  onClick={() => void undo.run(
-                    () => request("/undo", "POST"),
-                    "Ostatnia zmiana została cofnięta.",
-                  )}
-                >
-                  Cofnij: {recovery.data.label ?? "ostatnią zmianę"}
-                </button>
-              </div>
-            )}
             {!meta ? (
               <div className="flex min-h-48 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted">
                 {error ? (

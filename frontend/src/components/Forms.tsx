@@ -603,9 +603,13 @@ export function CurrencyInput({
 export function Notice({
   error,
   notice,
+  undoLabel,
+  onUndo,
 }: {
   error?: string;
   notice?: string;
+  undoLabel?: string | null;
+  onUndo?: () => void;
 }) {
   return (
     <>
@@ -625,6 +629,15 @@ export function Notice({
         >
           <CheckCircle2 size={17} />
           {notice}
+          {onUndo && undoLabel && (
+            <button
+              type="button"
+              className="ml-auto rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline"
+              onClick={onUndo}
+            >
+              Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
+            </button>
+          )}
         </div>
       )}
     </>

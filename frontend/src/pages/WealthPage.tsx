@@ -389,6 +389,8 @@ export default function WealthPage({
       <Notice
         error={error || action.error}
         notice={action.notice}
+        undoLabel={action.undoLabel}
+        onUndo={action.undo}
       />
       {!data ? (
         !error && (
