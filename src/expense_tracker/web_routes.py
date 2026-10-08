@@ -585,15 +585,12 @@ async def upload(request: Request, account: Annotated[str | None, Query(min_leng
     outcome = await run_in_threadpool(run_import)
     if outcome is None:
         return {"message": "Ten plik został już wczytany."}
-    pairs = (
-        f" Rozpoznane wymiany walut: {outcome.paired}, portfele zasilone automatycznie."
-        if outcome.paired
-        else ""
-    )
-    return {
-        "message": f"Import zakończony. Nowe transakcje: {outcome.inserted}. "
-        f"Istniejące operacje zostały sprawdzone i zaktualizowane.{pairs}"
-    }
+    parts = [f"Import zakończony. Nowe transakcje: {outcome.inserted}."]
+    if outcome.withdrawals:
+        parts.append(f"Wypłaty z bankomatu przeniesione do gotówki: {outcome.withdrawals}.")
+    if outcome.paired:
+        parts.append(f"Połączone wymiany walut: {outcome.paired}.")
+    return {"message": " ".join(parts)}
 
 
 @router.put("/settings/ai")

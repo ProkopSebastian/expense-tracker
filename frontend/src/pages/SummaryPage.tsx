@@ -85,16 +85,6 @@ export default function SummaryPage({
           }
           aria-busy={loading}
         >
-          {data.untranslated.length > 0 && (
-            <p
-              role="status"
-              className="mb-5 flex items-center gap-3 rounded-xl bg-danger/10 px-4 py-3 text-sm leading-relaxed text-danger"
-            >
-              <CircleHelp size={17} className="shrink-0" />
-              Podsumowanie jest niepełne: część operacji w {data.untranslated.join(", ")}
-              {" "}nie ma znanego kosztu w złotówkach. Uzupełnij kurs w zakładce Waluty.
-            </p>
-          )}
           <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
             <div className="card">
               <SummaryCards data={data} />

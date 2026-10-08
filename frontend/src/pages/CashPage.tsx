@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeftRight, Banknote, HandCoins, Plus } from "lucide-react";
 import type { CashCount, CashData, CashExchange, CashFlow, CashPot, Category } from "../domain";
-import { request, useAction, useResource } from "../hooks";
+import { request, useAction, useResource, type Action } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
@@ -64,13 +64,13 @@ function CountForm({
   existing,
   categories,
   onClose,
-  onSaved,
+  action,
 }: {
   currency: string;
   existing?: CashCount;
   categories: Category[];
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const [currency, setCurrency] = useState(existing?.currency ?? initialCurrency);
   const [amount, setAmount] = useState(existing?.amount ?? "");
@@ -84,7 +84,6 @@ function CountForm({
       : [{ amount: "", category: "" }],
   );
   const [preview, setPreview] = useState<Preview | null>(null);
-  const action = useAction(onSaved);
 
   useEffect(() => {
     if (amount === "" || Number(amount) < 0 || !day || currency.length !== 3) {
@@ -239,15 +238,14 @@ function ReceivedForm({
   existing,
   categories,
   onClose,
-  onSaved,
+  action,
 }: {
   existing?: CashFlow;
   categories: Category[];
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const [category, setCategory] = useState(existing?.category_key ?? "income_other");
-  const action = useAction(onSaved);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -316,14 +314,13 @@ function ReceivedForm({
   );
 }
 
-function ExchangeForm({ existing, onClose, onSaved }: {
+function ExchangeForm({ existing, onClose, action }: {
   existing?: CashExchange;
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const [givenCurrency, setGivenCurrency] = useState(existing?.given_currency ?? HOME);
   const [receivedCurrency, setReceivedCurrency] = useState(existing?.received_currency ?? "");
-  const action = useAction(onSaved);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -428,7 +425,6 @@ type HistoryRow = {
   description: string;
   details?: string;
   amount: number | null;
-  flow?: CashFlow;
   target?: EditTarget;
   hint?: string;
 };
@@ -436,7 +432,8 @@ type HistoryRow = {
 type EditTarget =
   | { type: "count"; count: CashCount }
   | { type: "exchange"; exchange: CashExchange }
-  | { type: "received"; flow: CashFlow };
+  | { type: "received"; flow: CashFlow }
+  | { type: "withdrawal"; flow: CashFlow };
 
 function historyRows(data: CashData, currency: string): HistoryRow[] {
   const rows: HistoryRow[] = [
@@ -453,10 +450,11 @@ function historyRows(data: CashData, currency: string): HistoryRow[] {
             ? `${flow.account} · ${money(flow.bank_amount!, flow.bank_currency!)} z konta`
             : flow.account,
         amount: Number(flow.amount),
-        flow: flow.kind === "withdrawal" ? flow : undefined,
-        target: flow.kind === "entry" && Number(flow.amount) > 0 && flow.account === CASH_ACCOUNT
-          ? { type: "received" as const, flow }
-          : undefined,
+        target: flow.kind === "withdrawal"
+          ? { type: "withdrawal" as const, flow }
+          : flow.kind === "entry" && Number(flow.amount) > 0 && flow.account === CASH_ACCOUNT
+            ? { type: "received" as const, flow }
+            : undefined,
       })),
     ...data.exchanges
       .filter((exchange) => [exchange.given_currency, exchange.received_currency].includes(currency))
@@ -537,9 +535,9 @@ export default function CashPage({
   onChanged: () => void;
 }) {
   const { data, error, loading } = useResource<CashData>("/cash", revision);
+  const action = useAction(onChanged);
   const [selected, setSelected] = useState(HOME);
   const [modal, setModal] = useState<"count" | "received" | "exchange" | null>(null);
-  const [foreign, setForeign] = useState<Withdrawal | null>(null);
   const [editing, setEditing] = useState<EditTarget | null>(null);
   const closeEditing = () => setEditing(null);
   const pots = data?.pots ?? [];
@@ -576,7 +574,9 @@ export default function CashPage({
           {countButton}
         </div>
       </div>
-      <Notice error={error} />
+      <Notice
+        error={error || (modal || editing ? "" : action.error)}
+        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo} />
       {data && !hasAnything && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">
           <p className="max-w-md leading-relaxed">
@@ -625,7 +625,7 @@ export default function CashPage({
                         ) : (
                           row.description
                         )}
-                        {(row.details || row.flow) && (
+                        {row.details && (
                           <span className="block text-xs text-muted">
                             {row.details}
                             {row.hint && (
@@ -634,14 +634,6 @@ export default function CashPage({
                                 onClick={() => setEditing(row.target!)}
                               >
                                 {" · "}{row.hint}
-                              </button>
-                            )}
-                            {row.flow && (
-                              <button
-                                className="underline-offset-2 hover:text-accent hover:underline"
-                                onClick={() => setForeign(withdrawalOf(row.flow!))}
-                              >
-                                {row.flow.bank_currency !== row.flow.currency ? " · zmień" : " · inna waluta?"}
                               </button>
                             )}
                           </span>
@@ -659,28 +651,30 @@ export default function CashPage({
         </>
       )}
       {modal === "count" && (
-        <CountForm currency={currency} categories={categories} onClose={() => setModal(null)} onSaved={onChanged} />
+        <CountForm currency={currency} categories={categories} onClose={() => setModal(null)} action={action} />
       )}
       {modal === "received" && (
-        <ReceivedForm categories={categories} onClose={() => setModal(null)} onSaved={onChanged} />
+        <ReceivedForm categories={categories} onClose={() => setModal(null)} action={action} />
       )}
-      {modal === "exchange" && <ExchangeForm onClose={() => setModal(null)} onSaved={onChanged} />}
+      {modal === "exchange" && <ExchangeForm onClose={() => setModal(null)} action={action} />}
       {editing?.type === "count" && (
         <CountForm
           currency={editing.count.currency}
           existing={editing.count}
           categories={categories}
           onClose={closeEditing}
-          onSaved={onChanged}
+          action={action}
         />
       )}
       {editing?.type === "received" && (
-        <ReceivedForm existing={editing.flow} categories={categories} onClose={closeEditing} onSaved={onChanged} />
+        <ReceivedForm existing={editing.flow} categories={categories} onClose={closeEditing} action={action} />
+      )}
+      {editing?.type === "withdrawal" && (
+        <ForeignWithdrawalForm withdrawal={withdrawalOf(editing.flow)} onClose={closeEditing} action={action} />
       )}
       {editing?.type === "exchange" && (
-        <ExchangeForm existing={editing.exchange} onClose={closeEditing} onSaved={onChanged} />
+        <ExchangeForm existing={editing.exchange} onClose={closeEditing} action={action} />
       )}
-      {foreign && <ForeignWithdrawalForm withdrawal={foreign} onClose={() => setForeign(null)} onSaved={onChanged} />}
     </>
   );
 }

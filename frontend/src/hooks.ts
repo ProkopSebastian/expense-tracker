@@ -87,6 +87,8 @@ export function useAction(onSuccess?: () => void) {
   return { busy, notice, error, run, undo, undoLabel };
 }
 
+export type Action = ReturnType<typeof useAction>;
+
 export function useLoadMoreSentinel(onReachEnd: () => void, enabled: boolean) {
   return useCallback(
     (node: Element | null) => {

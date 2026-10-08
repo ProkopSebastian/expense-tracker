@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { Wallet } from "../domain";
-import { request, useAction, useResource } from "../hooks";
+import { request, useAction, useResource, type Action } from "../hooks";
 import { money } from "../api";
 import { Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
@@ -13,17 +13,16 @@ function dayLabel(value: string) {
 function HeldBeforeForm({
   wallet,
   onClose,
-  onSaved,
+  action,
 }: {
   wallet: Wallet;
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const held = wallet.held_before!;
   const [cost, setCost] = useState(
 held.pln ?? "",
   );
-  const action = useAction(onSaved);
   const path = `/wallets/${wallet.id}/opening-rate`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -107,6 +106,7 @@ export default function CurrenciesPage({
   onChanged: () => void;
 }) {
   const { data, error, loading } = useResource<{ wallets: Wallet[] }>("/wallets", revision);
+  const action = useAction(onChanged);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editing, setEditing] = useState<Wallet | null>(null);
   const wallets = (data?.wallets ?? []).filter(
@@ -124,7 +124,9 @@ export default function CurrenciesPage({
           </p>
         </HelpPopover>
       </div>
-      <Notice error={error} />
+      <Notice
+        error={error || (editing ? "" : action.error)}
+        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo} />
       {!wallets.length && !error && (
         <div className="card flex min-h-48 items-center justify-center px-6 py-10 text-sm text-muted">
           {loading ? "Wczytuję…" : "Nie masz walut na kontach."}
@@ -154,7 +156,7 @@ export default function CurrenciesPage({
         <HeldBeforeForm
           wallet={editing}
           onClose={() => setEditing(null)}
-          onSaved={onChanged}
+          action={action}
         />
       )}
     </>

@@ -171,18 +171,18 @@ export default function LedgerPage({
           accounts={accounts}
           categories={categories}
           onClose={() => setManualEditing(null)}
-          onSaved={onChanged}
+          action={action}
         />
       )}
       {foreign && (
-        <ForeignWithdrawalForm withdrawal={foreign} onClose={() => setForeign(null)} onSaved={onChanged} />
+        <ForeignWithdrawalForm withdrawal={foreign} expanded onClose={() => setForeign(null)} action={action} />
       )}
       {modal === "manual" && (
         <ManualForm
           accounts={accounts}
           categories={categories}
           onClose={() => setModal(null)}
-          onSaved={onChanged}
+          action={action}
         />
       )}
       {modal === "group" && hasSelection && (
@@ -190,10 +190,7 @@ export default function LedgerPage({
           categories={categories}
           selected={selectedRows}
           onClose={() => setModal(null)}
-          onSaved={() => {
-            setSelected([]);
-            onChanged();
-          }}
+          action={action}
         />
       )}
       {dissolve !== null && (

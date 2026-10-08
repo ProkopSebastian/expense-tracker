@@ -30,12 +30,13 @@ def cash_flow(description: str, transaction_type: str | None, amount: Decimal) -
     return None
 
 
-def categorize_cash_flows(connection: sqlite3.Connection) -> None:
+def categorize_cash_flows(connection: sqlite3.Connection) -> int:
     rows = connection.execute(
         """SELECT t.id, t.description, t.transaction_type, t.amount FROM transactions t
         WHERE t.id NOT IN (SELECT transaction_id FROM transaction_decisions)
         AND t.id NOT IN (SELECT transaction_id FROM case_members)"""
     ).fetchall()
+    withdrawals = 0
     for row in rows:
         category = cash_flow(row["description"], row["transaction_type"], Decimal(str(row["amount"])))
         if category is None:
@@ -45,3 +46,5 @@ def categorize_cash_flows(connection: sqlite3.Connection) -> None:
             VALUES (?, ?, 'rule', 'approved', 1, 'Rozpoznano po opisie banku')""",
             (row["id"], category),
         )
+        withdrawals += category == CASH_WITHDRAWAL
+    return withdrawals

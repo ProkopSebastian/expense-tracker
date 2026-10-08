@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { request, useAction } from "../hooks";
+import { request, type Action } from "../hooks";
 import { money } from "../api";
 import { CurrencyInput, Modal, Notice } from "./Forms";
 
@@ -15,17 +15,19 @@ export type Withdrawal = {
 
 export function ForeignWithdrawalForm({
   withdrawal,
+  expanded = false,
   onClose,
-  onSaved,
+  action,
 }: {
   withdrawal: Withdrawal;
+  expanded?: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const mapped = withdrawal.cashCurrency !== null;
+  const [foreign, setForeign] = useState(expanded || mapped);
   const [amount, setAmount] = useState(withdrawal.cashAmount ?? "");
   const [currency, setCurrency] = useState(withdrawal.cashCurrency ?? "");
-  const action = useAction(onSaved);
   const path = `/cash/withdrawals/${withdrawal.transactionId}/currency`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -34,7 +36,7 @@ export function ForeignWithdrawalForm({
   }
 
   return (
-    <Modal title="Wypłata w innej walucie" onClose={onClose} busy={action.busy}>
+    <Modal title="Wypłata z bankomatu" onClose={onClose} busy={action.busy}>
       <form
         onSubmit={submit}
         className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm"
@@ -44,24 +46,35 @@ export function ForeignWithdrawalForm({
           {withdrawal.date.split("-").reverse().join(".")} ·{" "}
           {money(withdrawal.bankAmount, withdrawal.bankCurrency)} z konta {withdrawal.account}
         </p>
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
-          <label>
-            Kwota w gotówce
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              required
-              autoFocus
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-            />
-          </label>
-          <label>
-            Waluta
-            <CurrencyInput ariaLabel="Waluta" value={currency} onChange={setCurrency} />
-          </label>
-        </div>
+        {!foreign && (
+          <button
+            type="button"
+            className="self-start text-sm text-muted underline-offset-2 hover:text-accent hover:underline"
+            onClick={() => setForeign(true)}
+          >
+            Wypłacone w innej walucie?
+          </button>
+        )}
+        {foreign && (
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
+            <label>
+              Kwota w gotówce
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                autoFocus
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
+            </label>
+            <label>
+              Waluta
+              <CurrencyInput ariaLabel="Waluta" value={currency} onChange={setCurrency} />
+            </label>
+          </div>
+        )}
         <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
           {mapped && (
             <button
@@ -76,11 +89,13 @@ export function ForeignWithdrawalForm({
             </button>
           )}
           <button type="button" className="btn ml-auto" onClick={onClose} disabled={action.busy}>
-            Anuluj
+            {foreign ? "Anuluj" : "Zamknij"}
           </button>
-          <button className="btn-primary" disabled={action.busy}>
-            {action.busy ? "Zapisuję…" : "Zapisz"}
-          </button>
+          {foreign && (
+            <button className="btn-primary" disabled={action.busy}>
+              {action.busy ? "Zapisuję…" : "Zapisz"}
+            </button>
+          )}
         </footer>
       </form>
     </Modal>

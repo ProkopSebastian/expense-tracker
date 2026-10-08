@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { Category, Block } from "../domain";
-import { request, useAction } from "../hooks";
+import { request, type Action } from "../hooks";
 import { money } from "../api";
 import { Modal, CategorySelect, CurrencyInput, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
@@ -12,13 +12,13 @@ export function ManualForm({
   accounts,
   categories,
   onClose,
-  onSaved,
+  action,
 }: {
   existing?: Block;
   accounts: string[];
   categories: Category[];
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const [category, setCategory] = useState(existing?.category_key ?? "");
   const [account, setAccount] = useState(existing?.account ?? CASH_ACCOUNT);
@@ -29,7 +29,6 @@ export function ManualForm({
     ...(existing && !accounts.includes(existing.account) && existing.account !== CASH_ACCOUNT ? [existing.account] : []),
   ];
   const signed = Number(existing?.amount ?? 0);
-  const action = useAction(onSaved);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -198,17 +197,16 @@ export function GroupForm({
   selected,
   categories,
   onClose,
-  onSaved,
+  action,
 }: {
   selected: Block[];
   categories: Category[];
   onClose: () => void;
-  onSaved: () => void;
+  action: Action;
 }) {
   const [kind, setKind] = useState("shared_purchase"),
     [category, setCategory] = useState(""),
     [overrides, setOverrides] = useState<Record<number, string>>({});
-  const action = useAction(onSaved);
   const currencies = [...new Set(selected.map((row) => row.currency))];
   const mixed = currencies.length > 1;
   // A group spanning currencies has no native unit; złoty is the only common one.

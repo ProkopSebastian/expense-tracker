@@ -81,6 +81,7 @@ def sync_data_directory(database: Database, data_dir: Path) -> SyncResult:
 class ImportOutcome:
     inserted: int
     paired: int
+    withdrawals: int = 0
 
 
 def import_file(database: Database, path: Path, account: str | None = None) -> ImportOutcome | None:
@@ -116,7 +117,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
     with database.connection:
         inserted, skipped = database.insert_transactions(found, commit=False)
         categorize_bank_fees(database.connection)
-        categorize_cash_flows(database.connection)
+        withdrawals = categorize_cash_flows(database.connection)
         apply_rules(database.connection, commit=False)
         paired = pair_exchanges(database.connection)
         track_imported_currencies(database.connection)
@@ -130,4 +131,4 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
                 parser_version=excluded.parser_version, imported_at=CURRENT_TIMESTAMP""",
             (path.name, file_hash, bank, len(found), inserted, skipped, PARSER_VERSION),
         )
-    return ImportOutcome(inserted=inserted, paired=paired)
+    return ImportOutcome(inserted=inserted, paired=paired, withdrawals=withdrawals)
