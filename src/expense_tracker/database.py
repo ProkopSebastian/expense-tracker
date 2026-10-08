@@ -147,6 +147,7 @@ CATEGORIES = (
     ("income", "Przychody", None, "income"),
     ("income_salary", "Wynagrodzenie", "income", "income"),
     ("income_other", "Inne przychody", "income", "income"),
+    ("income_gifts", "Prezenty", "income", "income"),
     ("income_investments", "Inwestycje i dywidendy", "income", "income"),
     ("transfer_own", "Transfer między własnymi kontami", None, "transfer"),
     ("cash_withdrawal", "Wypłata gotówki", None, "transfer"),

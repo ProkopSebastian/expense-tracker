@@ -7,6 +7,8 @@ import { CategorySelect, Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
 import { WALLET_GRID_CLASS } from "../components/WalletParts";
 
+const CASH_ACCOUNT = "Gotówka";
+
 function dayLabel(value: string) {
   return value.split("-").reverse().join(".");
 }
@@ -169,6 +171,74 @@ function CountForm({
   );
 }
 
+function ReceivedForm({
+  categories,
+  onClose,
+  onSaved,
+}: {
+  categories: Category[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [category, setCategory] = useState("income_other");
+  const action = useAction(onSaved);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    const ok = await action.run(() =>
+      request("/transactions", "POST", {
+        account: CASH_ACCOUNT,
+        booking_date: fields.get("date"),
+        amount: fields.get("amount"),
+        currency: "PLN",
+        description: fields.get("description"),
+        category_key: category,
+      }),
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Modal title="Otrzymana gotówka" onClose={onClose} busy={action.busy}>
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm"
+      >
+        <Notice error={action.error} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            Kwota (zł)
+            <input name="amount" type="number" min="0.01" step="0.01" required autoFocus />
+          </label>
+          <label>
+            Dzień
+            <input name="date" type="date" required defaultValue={new Date().toLocaleDateString("en-CA")} />
+          </label>
+          <label>
+            Od kogo albo za co
+            <input name="description" required maxLength={500} placeholder="Na przykład: od babci" />
+          </label>
+          <CategorySelect
+            categories={categories.filter((item) => item.kind === "income")}
+            value={category}
+            onChange={setCategory}
+          />
+        </div>
+        <p className="text-muted">Wypłat z bankomatu tu nie wpisuj — dodają się same z wyciągu.</p>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button type="button" className="btn" onClick={onClose} disabled={action.busy}>
+            Anuluj
+          </button>
+          <button className="btn-primary" disabled={action.busy || !category}>
+            {action.busy ? "Zapisuję…" : "Zapisz"}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
+
 function countDetails(count: CashCount) {
   if (count.start) return "stan na start";
   const parts: string[] = [];
@@ -226,6 +296,7 @@ export default function CashPage({
 }) {
   const { data, error, loading } = useResource<CashData>("/cash", revision);
   const [counting, setCounting] = useState(false);
+  const [receiving, setReceiving] = useState(false);
   const rows = data ? historyRows(data) : [];
   const lastCount = data?.counts.at(-1);
   const countButton = (
@@ -246,7 +317,13 @@ export default function CashPage({
             </p>
           </HelpPopover>
         </div>
-        {countButton}
+        <div className="flex flex-wrap gap-2">
+          <button className="btn" onClick={() => setReceiving(true)}>
+            <Plus size={17} />
+            Otrzymana gotówka
+          </button>
+          {countButton}
+        </div>
       </div>
       <Notice error={error} />
       {data && !rows.length && (
@@ -267,7 +344,7 @@ export default function CashPage({
                 <span className="grid h-8 shrink-0 place-items-center rounded-lg bg-accent-soft px-2 text-xs font-semibold tracking-wide text-accent ring-1 ring-accent/30">
                   PLN
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-muted">Gotówka</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-muted">{CASH_ACCOUNT}</span>
                 <Banknote size={18} className="shrink-0 text-muted" aria-hidden />
               </span>
               <span>
@@ -306,6 +383,9 @@ export default function CashPage({
             </table>
           </section>
         </>
+      )}
+      {receiving && (
+        <ReceivedForm categories={categories} onClose={() => setReceiving(false)} onSaved={onChanged} />
       )}
       {counting && (
         <CountForm categories={categories} onClose={() => setCounting(false)} onSaved={onChanged} />

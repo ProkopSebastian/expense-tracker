@@ -89,6 +89,7 @@ const categoryIcons: Record<string, LucideIcon> = {
   cash_deposit: Banknote,
   income: Wallet,
   income_salary: BriefcaseBusiness,
+  income_gifts: Gift,
   income_investments: TrendingUp,
   transfer_own: ArrowLeftRight,
   uncategorized_expense: CircleHelp,

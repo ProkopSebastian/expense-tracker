@@ -39,7 +39,7 @@ held.pln ?? "",
       >
         <Notice error={action.error} />
         <label>
-          Ile zapłaciłeś za {money(held.amount, wallet.currency)} sprzed{" "}
+          Ile kosztowało {money(held.amount, wallet.currency)} sprzed{" "}
           {dayLabel(held.date)}? (zł)
           <input
             type="number"
@@ -120,7 +120,7 @@ export default function CurrenciesPage({
         <HelpPopover label="Skąd się biorą kursy">
           <p>
             Kurs pochodzi z Twoich wymian w wyciągach. Wydatki w walucie liczą
-            się w złotówkach po tym, ile naprawdę zapłaciłeś za tę walutę.
+            się w złotówkach po tym, ile naprawdę kosztowała Cię ta waluta.
           </p>
         </HelpPopover>
       </div>

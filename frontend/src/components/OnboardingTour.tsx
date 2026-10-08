@@ -105,7 +105,7 @@ function SharedIllustration() {
     <div className="rounded-lg border border-line bg-surface px-3 py-3 text-xs">
       {[
         { label: "Bilety na koncert", value: "−240,00 zł", tone: "text-ink" },
-        { label: "BLIK od Kasi", value: "+120,00 zł", tone: "text-success" },
+        { label: "BLIK od Magdy", value: "+120,00 zł", tone: "text-success" },
       ].map((row) => (
         <div key={row.label} className="flex justify-between py-1">
           <span className="text-muted">{row.label}</span>
@@ -168,7 +168,7 @@ const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
   },
   {
     title: "Wspólne wydatki",
-    body: "Zapłaciłeś 240 zł za bilety, a Kasia oddała 120 zł BLIK-iem? Połącz obie transakcje w grupę — w podsumowaniu zostanie 120 zł, czyli Twój prawdziwy koszt.",
+    body: "Bilety kosztowały 240 zł, a Magda oddała 120 zł BLIK-iem? Połącz obie transakcje w grupę — w podsumowaniu zostanie 120 zł, czyli Twój prawdziwy koszt.",
     illustration: <SharedIllustration />,
   },
   {
