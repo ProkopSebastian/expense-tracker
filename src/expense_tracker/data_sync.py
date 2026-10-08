@@ -17,7 +17,7 @@ from .importers import (
     import_revolut_csv,
     import_velo_pdf,
 )
-from .ledger import apply_rules, categorize_bank_fees
+from .ledger import apply_rules, canonical_account, categorize_bank_fees
 from .wallet_service import pair_exchanges, track_imported_currencies
 
 IMPORTERS = {
@@ -30,12 +30,12 @@ IMPORTERS = {
 }
 SUPPORTED_SUFFIXES = {".csv", ".pdf"}
 DEFAULT_ACCOUNTS = {
-    "nest": "nest",
-    "revolut": "revolut",
-    "erste": "erste",
-    "ing_pdf": "ing",
-    "velo_pdf": "velo",
-    "pko_pdf": "pko",
+    "nest": "Nest",
+    "revolut": "Revolut",
+    "erste": "Erste",
+    "ing_pdf": "ING",
+    "velo_pdf": "VeloBank",
+    "pko_pdf": "PKO BP",
 }
 PARSER_VERSION = 5
 
@@ -90,7 +90,7 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
     if bank is None:
         raise ValueError("Nie rozpoznano formatu banku. Obsługiwane: Nest, Revolut, Erste, ING PDF i Velo PDF.")
     default_account = DEFAULT_ACCOUNTS[bank]
-    account = account or default_account
+    account = canonical_account(database.connection, account) if account else default_account
     original_hash = _file_hash(path)
     file_hash = (
         original_hash

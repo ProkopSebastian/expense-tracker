@@ -141,7 +141,7 @@ export default function DataPage({
                   >
                     <p className="leading-relaxed text-muted">
                       Potrzebne tylko, gdy masz dwa rachunki w jednym banku,
-                      np. osobisty i oszczędnościowy w Neście — wtedy wskaż,
+                      np. osobisty i oszczędnościowy w Nest — wtedy wskaż,
                       do którego trafi ten plik.
                     </p>
                     <AppSelect

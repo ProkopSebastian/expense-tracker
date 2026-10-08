@@ -82,14 +82,18 @@ def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
     category_exists(db, entry.category_key)
     if entry.amount == 0:
         raise ValueError("Kwota musi być różna od zera.")
-    return ledger.add_manual_transaction(db, **entry.model_dump())
+    fields = entry.model_dump()
+    fields["account"] = ledger.canonical_account(db, entry.account)
+    return ledger.add_manual_transaction(db, **fields)
 
 
 def update_manual(db: sqlite3.Connection, transaction_id: int, entry: ManualEntry) -> None:
     category_exists(db, entry.category_key)
     if entry.amount == 0:
         raise ValueError("Kwota musi być różna od zera.")
-    ledger.update_manual_transaction(db, transaction_id, **entry.model_dump())
+    fields = entry.model_dump()
+    fields["account"] = ledger.canonical_account(db, entry.account)
+    ledger.update_manual_transaction(db, transaction_id, **fields)
 
 
 def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:

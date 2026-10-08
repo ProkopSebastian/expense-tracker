@@ -37,7 +37,7 @@ def derive_external_id(row: dict[str, str]) -> str:
     return _derived_external_id("nest", booking_date, amount, balance, description)
 
 
-def import_nest_csv(path: Path, account: str = "nest") -> list[Transaction]:
+def import_nest_csv(path: Path, account: str = "Nest") -> list[Transaction]:
     _, rows = read_csv(path)
     transactions: list[Transaction] = []
     for number, row in enumerate(rows, start=2):

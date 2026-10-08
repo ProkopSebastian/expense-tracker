@@ -40,7 +40,7 @@ def _canonical_label(value: str | None, aliases: dict[str, str]) -> str:
     return aliases.get(_key(value), value.strip())
 
 
-def import_revolut_csv(path: Path, account: str = "revolut", *, include_inactive: bool = False) -> list[Transaction]:
+def import_revolut_csv(path: Path, account: str = "Revolut", *, include_inactive: bool = False) -> list[Transaction]:
     _, rows = read_csv(path)
     transactions: list[Transaction] = []
     for number, row in enumerate(rows, start=2):

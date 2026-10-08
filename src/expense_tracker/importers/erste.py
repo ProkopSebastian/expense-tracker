@@ -45,7 +45,7 @@ def _looks_like_erste_csv(path: Path) -> bool:
         return False
 
 
-def import_erste_csv(path: Path, account: str = "erste") -> list[Transaction]:
+def import_erste_csv(path: Path, account: str = "Erste") -> list[Transaction]:
     rows = _erste_rows(path)
     metadata, entries = rows[0], rows[1:]
     if not _looks_like_erste_csv(path):

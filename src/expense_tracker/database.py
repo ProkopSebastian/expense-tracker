@@ -355,6 +355,45 @@ def _migrate_drop_cash_count_lines(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE IF EXISTS cash_count_lines")
 
 
+def _migrate_bank_account_names(connection: sqlite3.Connection) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    names = {"nest": "Nest", "revolut": "Revolut", "erste": "Erste", "ing": "ING", "velo": "VeloBank", "pko": "PKO BP"}
+    for old, new in names.items():
+        # Account is part of each row's identity, so the stored identity is recomputed too;
+        # otherwise the next import of the same statement would not recognise these rows.
+        for row in connection.execute("SELECT * FROM transactions WHERE account = ?", (old,)).fetchall():
+            transaction = Transaction(
+                account=new,
+                booking_date=date.fromisoformat(row["booking_date"]),
+                amount=Decimal(row["amount"]),
+                currency=row["currency"],
+                description=row["description"],
+                external_id=row["external_id"],
+                raw=json.loads(row["raw_json"] or "{}"),
+            )
+            try:
+                connection.execute(
+                    "UPDATE transactions SET account = ?, fingerprint = ?, source_key = ? WHERE id = ?",
+                    (new, fingerprint(transaction), source_key(transaction), row["id"]),
+                )
+            except sqlite3.IntegrityError:
+                # The same statement was also imported under the other spelling.
+                linked = connection.execute(
+                    """SELECT 1 FROM case_members WHERE transaction_id = ?
+                    UNION SELECT 1 FROM cash_foreign_withdrawals WHERE transaction_id = ?""",
+                    (row["id"], row["id"]),
+                ).fetchone()
+                if not linked:
+                    connection.execute("DELETE FROM transaction_decisions WHERE transaction_id = ?", (row["id"],))
+                    connection.execute("DELETE FROM transactions WHERE id = ?", (row["id"],))
+        if connection.execute("SELECT 1 FROM wallets WHERE account = ?", (new,)).fetchone():
+            connection.execute("DELETE FROM wallets WHERE account = ?", (old,))
+        else:
+            connection.execute("UPDATE wallets SET account = ? WHERE account = ?", (new, old))
+
+
 _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_transaction_type,
     _migrate_drop_legacy_tables,
@@ -368,6 +407,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_drop_legacy_wallet_records,
     _migrate_cash_count_start_cost,
     _migrate_drop_cash_count_lines,
+    _migrate_bank_account_names,
 )
 
 

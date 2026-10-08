@@ -36,7 +36,7 @@ def _merchant_party_and_type(description: str) -> tuple[str, str | None, str | N
     return merchant, counterparty, transaction_type
 
 
-def _parse_ing_pdf_text(text: str, account: str = "ing") -> list[Transaction]:
+def _parse_ing_pdf_text(text: str, account: str = "ING") -> list[Transaction]:
     lines = _pdf_lines(text)
     transactions: list[Transaction] = []
     index = 0
@@ -99,5 +99,5 @@ def _parse_ing_pdf_text(text: str, account: str = "ing") -> list[Transaction]:
     return transactions
 
 
-def import_ing_pdf(path: Path, account: str = "ing") -> list[Transaction]:
+def import_ing_pdf(path: Path, account: str = "ING") -> list[Transaction]:
     return _parse_ing_pdf_text(_extract_pdf_text(path), account)

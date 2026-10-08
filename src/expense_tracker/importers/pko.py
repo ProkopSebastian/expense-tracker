@@ -32,7 +32,7 @@ def _merchant(description: str) -> str:
     return title or description
 
 
-def _parse_pko_pdf_text(text: str, account: str = "pko") -> list[Transaction]:
+def _parse_pko_pdf_text(text: str, account: str = "PKO BP") -> list[Transaction]:
     lines = _pdf_lines(text)
     if any(_OPERATION_LINE.match(line) and not _TRANSACTION.match(line) for line in lines):
         raise ValueError("Nie udało się odczytać kwoty lub salda operacji w wyciągu PKO PDF.")
@@ -92,5 +92,5 @@ def _parse_pko_pdf_text(text: str, account: str = "pko") -> list[Transaction]:
     return transactions
 
 
-def import_pko_pdf(path: Path, account: str = "pko") -> list[Transaction]:
+def import_pko_pdf(path: Path, account: str = "PKO BP") -> list[Transaction]:
     return _parse_pko_pdf_text(_extract_pdf_text(path), account)

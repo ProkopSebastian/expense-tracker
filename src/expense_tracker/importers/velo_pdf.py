@@ -58,7 +58,7 @@ def _merchant_party_and_type(description: str) -> tuple[str, str | None, str]:
     return merchant, counterparty, transaction_type
 
 
-def _parse_velo_pdf_text(text: str, account: str = "velo") -> list[Transaction]:
+def _parse_velo_pdf_text(text: str, account: str = "VeloBank") -> list[Transaction]:
     currency_match = re.search(r"Waluta rachunku:\s*([A-Z]{3})", text, re.I)
     currency = currency_match.group(1).upper() if currency_match else "PLN"
     lines = _pdf_lines(text)
@@ -120,5 +120,5 @@ def _parse_velo_pdf_text(text: str, account: str = "velo") -> list[Transaction]:
     return transactions
 
 
-def import_velo_pdf(path: Path, account: str = "velo") -> list[Transaction]:
+def import_velo_pdf(path: Path, account: str = "VeloBank") -> list[Transaction]:
     return _parse_velo_pdf_text(_extract_pdf_text(path), account)

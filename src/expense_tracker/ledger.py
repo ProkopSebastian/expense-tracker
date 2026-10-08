@@ -410,6 +410,16 @@ def add_manual_transaction(
     return transaction_id
 
 
+def canonical_account(connection: sqlite3.Connection, name: str) -> str:
+    # "revolut " and "Revolut" are one account typed twice; a second spelling would split its
+    # history and count a re-imported statement twice.
+    name = " ".join(name.split())
+    for row in connection.execute("SELECT DISTINCT account FROM transactions"):
+        if " ".join(row["account"].split()).casefold() == name.casefold():
+            return row["account"]
+    return name
+
+
 def group_title(connection: sqlite3.Connection, transaction_ids: list[int]) -> str | None:
     if not transaction_ids:
         return None
