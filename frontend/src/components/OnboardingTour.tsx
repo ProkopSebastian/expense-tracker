@@ -145,7 +145,7 @@ function SignsIllustration() {
   );
 }
 
-const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
+const steps: { title: string; body: ReactNode; illustration: ReactNode; importAction?: boolean }[] = [
   {
     title: "Twoje finanse, lokalnie",
     body: "Wgrywasz wyciągi z banku, a aplikacja liczy, na co idą pieniądze. Wszystko zostaje na tym komputerze.",
@@ -155,6 +155,7 @@ const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
     title: "Wgraj wyciąg",
     body: "Na stronie Import przeciągnij plik CSV lub PDF. Bank rozpozna się sam, a ten sam plik możesz wgrać ponownie bez duplikatów.",
     illustration: <ImportIllustration />,
+    importAction: true,
   },
   {
     title: "Kategorie",
@@ -163,7 +164,7 @@ const steps: { title: string; body: ReactNode; illustration: ReactNode }[] = [
   },
   {
     title: "Gotówka i waluty",
-    body: "Wypłaty z bankomatu trafiają do „Gotówki” same. Po tygodniu policz, ile zostało — różnica to Twoje wydatki.",
+    body: "Wypłaty z bankomatu trafiają do „Gotówki” same — po tygodniu policz, ile zostało, a różnica to Twoje wydatki. Wymiany walut łączą się same w obie strony, a wydatki w obcej walucie liczą się po kursie Twojej własnej wymiany.",
     illustration: <WalletIllustration />,
   },
   {
@@ -221,6 +222,12 @@ export default function OnboardingTour({ onClose }: { onClose: () => void }) {
                   <p className="mt-2 text-sm leading-relaxed text-muted">
                     {item.body}
                   </p>
+                  {item.importAction && (
+                    <a href="#data" className="btn mt-4" onClick={onClose} tabIndex={itemIndex === index ? 0 : -1}>
+                      <Upload size={15} />
+                      Wgraj pierwszy wyciąg
+                    </a>
+                  )}
                   <div className="mt-5">{item.illustration}</div>
                 </div>
               ))}
