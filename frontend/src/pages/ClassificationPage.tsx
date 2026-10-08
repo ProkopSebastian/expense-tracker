@@ -2,7 +2,7 @@ import { useCallback, useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, ChevronDown, Link2, LoaderCircle, Search, X } from "lucide-react";
 import type { Category, ClassificationRow, Relation } from "../domain";
-import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
+import { request, useResource, useAction, useLoadMoreSentinel, type Action } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
@@ -41,7 +41,7 @@ function StatBadge({ label, value }: { label: string; value: number }) {
 }
 
 const ITEM_COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(12rem,1.3fr)_5rem] lg:gap-x-6";
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(12rem,1.3fr)_9rem] lg:gap-x-6";
 const APPROVE_BUTTON_CLASS =
   "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent hover:text-white";
 const ICON_APPROVE_CLASS =
@@ -49,18 +49,41 @@ const ICON_APPROVE_CLASS =
 const REJECT_BUTTON_CLASS =
   "inline-grid size-8 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger";
 
+type Assigned = { transactionId: number; categoryKey: string; description: string };
+
 function ClassificationItem({
   row,
   categories,
-  onChanged,
+  action,
+  onAssigned,
 }: {
   row: ClassificationRow;
   categories: Category[];
-  onChanged: () => void;
+  action: Action;
+  onAssigned: (assigned: Assigned | null) => void;
 }) {
   const [category, setCategory] = useState(row.category_key ?? ""),
     [remember, setRemember] = useState(row.remember);
-  const action = useAction(onChanged);
+  async function assign(categoryKey: string) {
+    if (!categoryKey) return;
+    setCategory(categoryKey);
+    onAssigned(null);
+    const label = categories.find((item) => item.key === categoryKey)?.label ?? categoryKey;
+    const saved = await action.run(
+      () =>
+        request(
+          row.suggestion_id
+            ? `/suggestions/${row.suggestion_id}/approve`
+            : `/transactions/${row.transaction_id}/category`,
+          row.suggestion_id ? "POST" : "PUT",
+          { category_key: categoryKey, remember },
+        ),
+      `${row.description}: ${label}${remember ? " · zapamiętano dla sprzedawcy" : ""}.`,
+    );
+    if (!saved) setCategory(row.category_key ?? "");
+    else if (row.transaction_id !== null && !remember)
+      onAssigned({ transactionId: row.transaction_id, categoryKey, description: row.description });
+  }
   const income = transactionDirection(row.totals) === "income";
   const amount = Object.entries(row.totals)
     .map(([currency, total]) => formatSignedAmount(Number(total), currency))
@@ -127,7 +150,6 @@ function ClassificationItem({
           )}
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
         </div>
-        <Notice error={action.error} />
       </div>
       <div className="text-right">
         <strong
@@ -142,43 +164,49 @@ function ClassificationItem({
           inline
           categories={categories}
           value={category}
-          onChange={setCategory}
+          onChange={assign}
           label={`Kategoria ${row.description}`}
-          remember={remember}
-          onRememberChange={setRemember}
         />
       </div>
       <div className="col-span-2 flex items-center gap-1 lg:col-span-1 lg:justify-end">
-        <button
-          className={ICON_APPROVE_CLASS}
-          disabled={!category || action.busy}
-          aria-label={`${row.suggestion_id ? "Zatwierdź" : "Przypisz"} kategorię dla ${row.description}`}
-          title={row.suggestion_id ? "Zatwierdź" : "Przypisz"}
-          onClick={() =>
-            action.run(() =>
-              request(
-                row.suggestion_id
-                  ? `/suggestions/${row.suggestion_id}/approve`
-                  : `/transactions/${row.transaction_id}/category`,
-                row.suggestion_id ? "POST" : "PUT",
-                { category_key: category, remember },
-              ),
-            )
-          }
-        >
-          <Check size={17} />
-        </button>
+        {row.suggestion_id && (
+          <label
+            className="mr-auto flex items-center gap-2 text-xs text-muted lg:mr-1"
+            title="Kolejne płatności u tego sprzedawcy dostaną tę kategorię same."
+          >
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+              aria-label={`Zapamiętaj dla sprzedawcy ${row.description}`}
+            />
+            Zapamiętaj
+          </label>
+        )}
+        {row.suggestion_id && (
+          <button
+            className={ICON_APPROVE_CLASS}
+            disabled={!category || action.busy}
+            aria-label={`Zatwierdź kategorię dla ${row.description}`}
+            title="Zatwierdź"
+            onClick={() => assign(category)}
+          >
+            <Check size={17} />
+          </button>
+        )}
         {row.suggestion_id && (
           <button
             className={REJECT_BUTTON_CLASS}
             disabled={action.busy}
             aria-label={`Odrzuć sugestię dla ${row.description}`}
             title="Odrzuć"
-            onClick={() =>
-              action.run(() =>
-                request(`/suggestions/${row.suggestion_id}/reject`, "POST"),
-              )
-            }
+            onClick={() => {
+              onAssigned(null);
+              action.run(
+                () => request(`/suggestions/${row.suggestion_id}/reject`, "POST"),
+                "Sugestia odrzucona.",
+              );
+            }}
           >
             <X size={16} />
           </button>
@@ -332,7 +360,21 @@ export default function ClassificationPage({
     (row) => (row.confidence ?? 0) >= 0.9 && row.category_key,
   );
   const bulk = useAction(onChanged);
+  const [assigned, setAssigned] = useState<Assigned | null>(null);
+  function rememberAssigned() {
+    if (!assigned) return;
+    setAssigned(null);
+    bulk.run(
+      () =>
+        request(`/transactions/${assigned.transactionId}/category`, "PUT", {
+          category_key: assigned.categoryKey,
+          remember: true,
+        }),
+      `${assigned.description}: zapamiętano dla sprzedawcy.`,
+    );
+  }
   function approveConfident() {
+    setAssigned(null);
     bulk.run(
       () =>
         request("/suggestions/approve-all", "POST", {
@@ -367,12 +409,14 @@ export default function ClassificationPage({
       title: "Sugestie AI",
       count: suggestions.length,
       bulk: confident.length > 0,
+      remember: true,
       rows: visibleRows.filter((row) => row.suggestion_id),
     },
     {
       title: "Bez kategorii",
       count: unclassified.length,
       bulk: false,
+      remember: false,
       rows: visibleRows.filter((row) => !row.suggestion_id),
     },
   ];
@@ -455,8 +499,15 @@ export default function ClassificationPage({
         error={error || bulk.error}
         notice={bulk.notice}
         undoLabel={bulk.undoLabel}
-        onUndo={bulk.undo}
-        onDismiss={bulk.dismiss}
+        onUndo={() => {
+          setAssigned(null);
+          void bulk.undo();
+        }}
+        onDismiss={() => {
+          setAssigned(null);
+          bulk.dismiss();
+        }}
+        extra={assigned ? { label: "Zapamiętaj dla sprzedawcy", onClick: rememberAssigned } : undefined}
       />
       {activeKind && <Notice error={action.error} notice={notice} />}
       {merchantStats && (
@@ -517,7 +568,7 @@ export default function ClassificationPage({
                   <span>Sprzedawca</span>
                   <span className="text-right">Kwota</span>
                   <span>Kategoria</span>
-                  <span />
+                  <span className="text-right">{group.remember && "Dla sprzedawcy"}</span>
                 </div>
                 <div className="divide-y divide-line/40">
                   {group.rows.map((row) => (
@@ -525,7 +576,8 @@ export default function ClassificationPage({
                       key={row.key}
                       row={row}
                       categories={categories}
-                      onChanged={onChanged}
+                      action={bulk}
+                      onAssigned={setAssigned}
                     />
                   ))}
                 </div>

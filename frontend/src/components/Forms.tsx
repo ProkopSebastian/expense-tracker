@@ -151,16 +151,12 @@ export function CategorySelect({
   onChange,
   label = "Kategoria",
   inline = false,
-  remember,
-  onRememberChange,
 }: {
   categories: Category[];
   value: string;
   onChange: (value: string) => void;
   label?: string;
   inline?: boolean;
-  remember?: boolean;
-  onRememberChange?: (remember: boolean) => void;
 }) {
   const [localCategories, setLocalCategories] = useState(categories);
   useEffect(() => setLocalCategories(categories), [categories]);
@@ -537,16 +533,6 @@ export function CategorySelect({
                   </button>
                 )}
               </div>
-              {onRememberChange && (
-                <label className="flex items-center gap-2 border-t border-line px-4 py-3 text-sm text-muted">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(event) => onRememberChange(event.target.checked)}
-                  />
-                  Zapamiętaj dla sprzedawcy
-                </label>
-              )}
             </>
           )}
         </Popover.Content>
@@ -606,9 +592,11 @@ export function Notice({
   undoLabel,
   onUndo,
   onDismiss,
+  extra,
 }: {
   error?: string;
   notice?: string;
+  extra?: { label: string; onClick: () => void };
   undoLabel?: string | null;
   onUndo?: () => void;
   onDismiss?: () => void;
@@ -631,10 +619,19 @@ export function Notice({
         >
           <CheckCircle2 size={17} />
           <span className="whitespace-pre-line">{notice}</span>
+          {extra && (
+            <button
+              type="button"
+              className="ml-auto rounded-md bg-success/15 px-2 py-1 font-medium hover:bg-success/25"
+              onClick={extra.onClick}
+            >
+              {extra.label}
+            </button>
+          )}
           {onUndo && undoLabel && (
             <button
               type="button"
-              className="ml-auto rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline"
+              className={`${extra ? "" : "ml-auto "}rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline`}
               onClick={onUndo}
             >
               Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
@@ -644,7 +641,7 @@ export function Notice({
             <button
               type="button"
               aria-label="Zamknij komunikat"
-              className={`${onUndo && undoLabel ? "" : "ml-auto "}grid size-7 place-items-center rounded-md hover:bg-success/15`}
+              className={`${extra || (onUndo && undoLabel) ? "" : "ml-auto "}grid size-7 place-items-center rounded-md hover:bg-success/15`}
               onClick={onDismiss}
             >
               <X size={16} />
