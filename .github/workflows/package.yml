@@ -37,20 +37,12 @@ jobs:
       - name: Build Windows package
         shell: pwsh
         run: ./scripts/build_windows.ps1
-      - name: Create Windows archive
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path package/Wydatki-Windows | Out-Null
-          Copy-Item dist/Wydatki.exe package/Wydatki-Windows/
-          Copy-Item dist/START.txt package/Wydatki-Windows/
-          Copy-Item dist/CHANGES.txt package/Wydatki-Windows/
-          Compress-Archive -Path package/Wydatki-Windows -DestinationPath dist/Wydatki-Windows.zip
       - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
+          retention-days: 3
           name: release-windows
           path: |
-            dist/Wydatki-Windows.zip
             dist/Wydatki.exe
             dist/assets-windows.json
 
@@ -77,9 +69,9 @@ jobs:
       - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
+          retention-days: 3
           name: release-linux
           path: |
-            dist/Wydatki-Linux-x86_64.tar.gz
             dist/Wydatki
             dist/assets-linux.json
             dist/*.deb
@@ -104,6 +96,7 @@ jobs:
       - run: uv run python scripts/release_manifest.py describe dist
       - uses: actions/upload-artifact@v7
         with:
+          retention-days: 3
           name: release-macos
           path: |
             dist/Wydatki-macOS.zip

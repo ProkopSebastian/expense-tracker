@@ -67,12 +67,10 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           files: |
-            release/Wydatki-Windows.zip
             release/Wydatki.exe
             release/Wydatki
             release/update-manifest.json
             release/update-manifest.sig
-            release/Wydatki-Linux-x86_64.tar.gz
             release/*.deb
             release/*.rpm
             release/Wydatki-macOS.zip

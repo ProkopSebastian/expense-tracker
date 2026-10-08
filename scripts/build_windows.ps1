@@ -16,5 +16,3 @@ $smoke = Start-Process -FilePath dist/Wydatki.exe -ArgumentList '--smoke-test' -
 if ($smoke.ExitCode -ne 0) { throw "Packaged application smoke test failed: $($smoke.ExitCode)" }
 uv run --group desktop python scripts/check_update_package.py dist/Wydatki.exe
 Check-Exit
-Copy-Item docs/WINDOWS.txt dist/START.txt -Force
-Copy-Item CHANGELOG.md dist/CHANGES.txt -Force

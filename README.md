@@ -29,7 +29,7 @@ Aby lokalnie zbudować samodzielny plik dla bieżącej architektury Linuksa, uru
 scripts/build_linux.sh
 ```
 
-Wynikiem będzie `dist/Wydatki`. Skrypt wydaniowy na GitHubie używa tego samego mechanizmu i dołącza program, ikonę oraz instalator do paczki.
+Wynikiem będzie `dist/Wydatki`. Skrypt wydaniowy na GitHubie używa tego samego mechanizmu.
 
 ## Dla deweloperów
 

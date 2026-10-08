@@ -34,8 +34,6 @@ package_dir="$repo_root/dist/Wydatki-macOS"
 rm -rf "$package_dir"
 mkdir -p "$package_dir"
 ditto "$repo_root/dist/Wydatki.app" "$package_dir/Wydatki.app"
-install -m 644 "$repo_root/docs/MACOS.txt" "$package_dir/README.txt"
-install -m 644 "$repo_root/CHANGELOG.md" "$package_dir/CHANGES.txt"
 ditto -c -k --keepParent "$package_dir" "$repo_root/dist/Wydatki-macOS.zip"
 if [[ -n "${MACOS_NOTARY_PROFILE:-}" ]]; then
   if [[ -z "${MACOS_CODESIGN_IDENTITY:-}" ]]; then
