@@ -21,6 +21,7 @@ export function ManualForm({
   action: Action;
 }) {
   const [category, setCategory] = useState(existing?.category_key ?? "");
+  const [categoryMissing, setCategoryMissing] = useState(false);
   const [account, setAccount] = useState(existing?.account ?? CASH_ACCOUNT);
   const [confirming, setConfirming] = useState(false);
   const accountOptions = [
@@ -31,6 +32,10 @@ export function ManualForm({
   const signed = Number(existing?.amount ?? 0);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!category) {
+      setCategoryMissing(true);
+      return;
+    }
     const f = new FormData(e.currentTarget);
     const amount = String(f.get("amount"));
     const ok = await action.run(() =>
@@ -110,8 +115,12 @@ export function ManualForm({
             <CategorySelect
               categories={categories}
               value={category}
-              onChange={setCategory}
+              onChange={(value) => {
+                setCategory(value);
+                setCategoryMissing(false);
+              }}
             />
+            {categoryMissing && <small className="text-danger!">Wybierz kategorię.</small>}
           </label>
         </div>
         <label>
@@ -206,6 +215,7 @@ export function GroupForm({
 }) {
   const [kind, setKind] = useState("shared_purchase"),
     [category, setCategory] = useState(""),
+    [categoryMissing, setCategoryMissing] = useState(false),
     [overrides, setOverrides] = useState<Record<number, string>>({});
   const currencies = [...new Set(selected.map((row) => row.currency))];
   const mixed = currencies.length > 1;
@@ -225,6 +235,10 @@ export function GroupForm({
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const amount = String(f.get("amount") || "0");
+    if (kind !== "own_transfer" && !category) {
+      setCategoryMissing(true);
+      return;
+    }
     const ok = await action.run(() =>
       request("/cases", "POST", {
         title: f.get("title"),
@@ -319,8 +333,12 @@ export function GroupForm({
               <CategorySelect
                 categories={categories}
                 value={category}
-                onChange={setCategory}
+                onChange={(value) => {
+                  setCategory(value);
+                  setCategoryMissing(false);
+                }}
               />
+              {categoryMissing && <small className="text-danger!">Wybierz kategorię.</small>}
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label>

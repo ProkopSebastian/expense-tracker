@@ -6,6 +6,8 @@ export async function importStatement(file: File, account: string): Promise<{ me
     method: "POST",
     headers: { "X-File-Name": `upload.${extension}` },
     body: file,
+  }).catch(() => {
+    throw new Error("Brak połączenia z aplikacją. Spróbuj ponownie za chwilę.");
   });
   const result = await response.json();
   if (!response.ok)

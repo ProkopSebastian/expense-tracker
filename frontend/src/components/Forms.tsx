@@ -630,7 +630,7 @@ export function Notice({
           className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-success/10 text-success"
         >
           <CheckCircle2 size={17} />
-          {notice}
+          <span className="whitespace-pre-line">{notice}</span>
           {onUndo && undoLabel && (
             <button
               type="button"

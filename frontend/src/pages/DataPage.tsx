@@ -39,13 +39,27 @@ export default function DataPage({
   const [message, setMessage] = useState("");
   const [syncError, setSyncError] = useState("");
   const accountReady = account !== "__new__" || Boolean(newAccount.trim());
-  async function upload(file?: File) {
-    if (!file || !accountReady) return;
+  async function upload(files: FileList | null) {
+    if (!files?.length || !accountReady) return;
+    setMessage("");
+    setSyncError("");
+    const selectedAccount =
+      account === "__new__" ? newAccount.trim() : account.trim();
     await action.run(async () => {
-      const selectedAccount =
-        account === "__new__" ? newAccount.trim() : account.trim();
-      const result = await importStatement(file, selectedAccount);
-      setMessage(result.message);
+      if (files.length === 1) {
+        setMessage((await importStatement(files[0], selectedAccount)).message);
+        return;
+      }
+      // One unreadable file must not hide what happened to the others.
+      const results: string[] = [];
+      for (const file of Array.from(files)) {
+        try {
+          results.push(`${file.name}: ${(await importStatement(file, selectedAccount)).message}`);
+        } catch (error) {
+          results.push(`${file.name}: ${error instanceof Error ? error.message : "nie udało się wczytać."}`);
+        }
+      }
+      setMessage(results.join("\n"));
     });
   }
   const chosenAccount =
@@ -83,23 +97,24 @@ export default function DataPage({
               onDrop={(e) => {
                 e.preventDefault();
                 if (!action.busy && accountReady)
-                  void upload(e.dataTransfer.files[0]);
+                  void upload(e.dataTransfer.files);
               }}
             >
               <Upload className="shrink-0 text-accent" size={22} />
               <strong className="text-sm font-medium text-ink">
-                Przeciągnij plik tutaj
+                Przeciągnij pliki tutaj
               </strong>
               <span className="btn shrink-0">
-                Wybierz plik
+                Wybierz pliki
               </span>
               <input
                 className="sr-only"
                 type="file"
+                multiple
                 accept=".csv,.pdf,text/csv,application/pdf"
                 disabled={action.busy || !accountReady}
                 onChange={(e) => {
-                  void upload(e.target.files?.[0]);
+                  void upload(e.target.files);
                   e.target.value = "";
                 }}
               />

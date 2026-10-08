@@ -1,23 +1,52 @@
 import { useCallback, useEffect, useState } from "react";
+
+const FIELD_NAMES: Record<string, string> = {
+  amount: "kwota",
+  given_amount: "kwota oddana",
+  received_amount: "kwota otrzymana",
+  pln_cost: "koszt",
+  start_cost: "koszt",
+  category_key: "kategoria",
+  booking_date: "data",
+  counted_on: "dzień",
+  exchanged_on: "dzień",
+  day: "dzień",
+  description: "opis",
+  currency: "waluta",
+  rates: "kurs",
+};
+
+function validationMessage(detail: unknown): string {
+  const first = Array.isArray(detail) ? detail[0] : null;
+  const field = Array.isArray(first?.loc)
+    ? [...first.loc].reverse().find((part: unknown) => typeof part === "string" && part in FIELD_NAMES)
+    : undefined;
+  if (!field) return "Sprawdź dane formularza i spróbuj ponownie.";
+  const tooLarge = String(first.type ?? "").startsWith("decimal_max");
+  return `${tooLarge ? "Za duża liczba w polu" : "Sprawdź pole"}: ${FIELD_NAMES[field]}.`;
+}
+
 export async function request<T>(
   path: string,
   method = "GET",
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    method,
-    signal,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, {
+      method,
+      signal,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error("Brak połączenia z aplikacją. Spróbuj ponownie za chwilę.");
+  }
   const data = await response.json().catch(() => null);
   if (!response.ok)
-    throw new Error(
-      typeof data?.detail === "string"
-        ? data.detail
-        : "Sprawdź dane formularza i spróbuj ponownie.",
-    );
+    throw new Error(typeof data?.detail === "string" ? data.detail : validationMessage(data?.detail));
   return data as T;
 }
 export function useResource<T>(path: string | null, revision = 0) {
