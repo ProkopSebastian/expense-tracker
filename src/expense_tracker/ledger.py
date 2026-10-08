@@ -422,6 +422,55 @@ def add_manual_transaction(
     return transaction_id
 
 
+def group_title(connection: sqlite3.Connection, transaction_ids: list[int]) -> str | None:
+    if not transaction_ids:
+        return None
+    row = connection.execute(
+        f"""SELECT c.title FROM case_members m JOIN cases c ON c.id = m.case_id
+        WHERE m.transaction_id IN ({",".join("?" * len(transaction_ids))}) LIMIT 1""",
+        transaction_ids,
+    ).fetchone()
+    return row["title"] if row else None
+
+
+def _require_editable_manual(connection: sqlite3.Connection, transaction_id: int) -> None:
+    row = connection.execute("SELECT transaction_type FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    if row is None or row["transaction_type"] != MANUAL_ENTRY:
+        raise ValueError("Poprawiać można tylko wpisy dodane ręcznie.")
+    title = group_title(connection, [transaction_id])
+    if title is not None:
+        raise ValueError(f"Wpis jest w grupie „{title}”. Najpierw rozwiąż grupę.")
+
+
+def update_manual_transaction(
+    connection: sqlite3.Connection,
+    transaction_id: int,
+    *,
+    account: str,
+    booking_date: date,
+    amount: Decimal,
+    currency: str,
+    description: str,
+    counterparty: str | None,
+    category_key: str,
+) -> None:
+    _require_editable_manual(connection, transaction_id)
+    with connection:
+        connection.execute(
+            """UPDATE transactions SET account = ?, booking_date = ?, amount = ?, currency = ?, description = ?,
+            counterparty = ? WHERE id = ?""",
+            (account, str(booking_date), str(amount), currency, description, counterparty, transaction_id),
+        )
+        save_decision(connection, transaction_id, category_key, "Wpisane ręcznie w aplikacji", commit=False)
+
+
+def delete_manual_transaction(connection: sqlite3.Connection, transaction_id: int) -> None:
+    _require_editable_manual(connection, transaction_id)
+    with connection:
+        connection.execute("DELETE FROM transaction_decisions WHERE transaction_id = ?", (transaction_id,))
+        connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+
+
 def approve_merchant_suggestion_with_category(
     connection: sqlite3.Connection, suggestion_id: int, category_key: str, should_create_rule: bool,
     *, commit: bool = True, apply_remembered_rules: bool = True,

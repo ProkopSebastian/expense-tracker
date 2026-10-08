@@ -137,6 +137,18 @@ def create_category(entry: CategoryEntry, db: DB):
     return service.add_category(db, entry)
 
 
+@router.put("/transactions/{tid}")
+def update_manual(tid: int, entry: ManualEntry, db: DB):
+    service.update_manual(db, tid, entry)
+    return {"message": "Wpis zapisany."}
+
+
+@router.delete("/transactions/{tid}")
+def delete_manual(tid: int, db: DB):
+    ledger.delete_manual_transaction(db, tid)
+    return {"message": "Wpis usunięty."}
+
+
 @router.put("/transactions/{tid}/category")
 def decision(tid: int, entry: Decision, db: DB):
     service.decide(db, tid, entry)
@@ -265,6 +277,7 @@ def cash(db: DB):
         "counts": [
             {
                 "id": count.id, "currency": count.currency, "counted_on": count.counted_on,
+                "start_cost": _money(count.start_cost),
                 "amount": str(count.amount), "first": count.first, "spent": str(count.spent),
                 "correction": str(count.correction), "unassigned": str(count.unassigned),
                 "lines": [{**line, "amount": str(line["amount"])} for line in count.lines],
@@ -277,20 +290,35 @@ def cash(db: DB):
 @router.get("/cash/count-preview")
 def cash_count_preview(
     db: DB, counted_on: date, currency: Annotated[str, Query(pattern=r"^[A-Z]{3}$")],
-    amount: Annotated[Decimal, Query(ge=0, max_digits=18, decimal_places=2)],
+    amount: Annotated[Decimal, Query(ge=0, max_digits=18, decimal_places=2)], replacing: int | None = None,
 ):
-    count = cash_service.count_preview(db, currency=currency, counted_on=counted_on, amount=amount)
+    count = cash_service.count_preview(db, currency=currency, counted_on=counted_on, amount=amount, replacing=replacing)
     return {"first": count.first, "spent": str(count.spent), "correction": str(count.correction)}
+
+
+def _save_count(db, entry: CashCount, count_id: int | None = None) -> int:
+    for line in entry.lines:
+        service.category_exists(db, line.category_key)
+    return cash_service.save_count(
+        db, count_id=count_id, currency=entry.currency, counted_on=entry.counted_on, amount=entry.amount,
+        start_cost=entry.start_cost, lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
+    )
 
 
 @router.post("/cash/counts", status_code=201)
 def add_cash_count(entry: CashCount, db: DB):
-    for line in entry.lines:
-        service.category_exists(db, line.category_key)
-    return {"id": cash_service.add_count(
-        db, currency=entry.currency, counted_on=entry.counted_on, amount=entry.amount, start_cost=entry.start_cost,
-        lines=[(line.amount, line.category_key, line.description) for line in entry.lines],
-    )}
+    return {"id": _save_count(db, entry)}
+
+
+@router.put("/cash/counts/{count_id}")
+def update_cash_count(count_id: int, entry: CashCount, db: DB):
+    return {"id": _save_count(db, entry, count_id)}
+
+
+@router.delete("/cash/counts/{count_id}")
+def delete_cash_count(count_id: int, db: DB):
+    cash_service.delete_count(db, count_id)
+    return {"message": "Liczenie usunięte."}
 
 
 @router.put("/cash/withdrawals/{transaction_id}/currency")
@@ -307,7 +335,18 @@ def clear_withdrawal_currency(transaction_id: int, db: DB):
 
 @router.post("/cash/exchanges", status_code=201)
 def add_cash_exchange(entry: CashExchange, db: DB):
-    return {"id": cash_service.add_exchange(db, **entry.model_dump())}
+    return {"id": cash_service.save_exchange(db, **entry.model_dump())}
+
+
+@router.put("/cash/exchanges/{exchange_id}")
+def update_cash_exchange(exchange_id: int, entry: CashExchange, db: DB):
+    return {"id": cash_service.save_exchange(db, exchange_id=exchange_id, **entry.model_dump())}
+
+
+@router.delete("/cash/exchanges/{exchange_id}")
+def delete_cash_exchange(exchange_id: int, db: DB):
+    cash_service.delete_exchange(db, exchange_id)
+    return {"message": "Wymiana usunięta."}
 
 
 @router.get("/wealth")

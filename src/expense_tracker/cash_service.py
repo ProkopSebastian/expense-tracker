@@ -96,7 +96,7 @@ def _flows(connection: sqlite3.Connection) -> list[dict]:
         flows.append({
             "transaction_id": row["id"], "date": row["booking_date"], "currency": currency,
             "amount": amount, "cost": cost, "kind": kind, "description": display_title(dict(row)),
-            "account": row["account"], "bank_amount": str(-Decimal(str(row["amount"]))) if bank else None,
+            "account": row["account"], "category_key": row["category_key"], "bank_amount": str(-Decimal(str(row["amount"]))) if bank else None,
             "bank_currency": row["currency"] if bank else None,
         })
     return flows
@@ -196,20 +196,44 @@ def cash_state(connection: sqlite3.Connection) -> CashState:
     return state
 
 
-def count_preview(connection: sqlite3.Connection, *, currency: str, counted_on: date, amount: Decimal) -> Count:
+def count_preview(
+    connection: sqlite3.Connection, *, currency: str, counted_on: date, amount: Decimal, replacing: int | None = None,
+) -> Count:
     state = cash_state(connection)
     candidate = Count(id=0, currency=currency, counted_on=str(counted_on), amount=amount, start_cost=None, lines=[])
-    state = CashState(
-        flows=state.flows, exchanges=state.exchanges,
-        counts=[*(count for count in _counts(connection) if (count.currency, count.counted_on) != (currency, str(counted_on))), candidate],
-    )
+    others = [
+        count for count in _counts(connection)
+        if count.id != replacing and (count.currency, count.counted_on) != (currency, str(counted_on))
+    ]
+    state = CashState(flows=state.flows, exchanges=state.exchanges, counts=[*others, candidate])
     _replay(state)
     return candidate
 
 
-def add_count(
+def _line_ids(connection: sqlite3.Connection, count_id: int) -> list[int]:
+    return [
+        row["transaction_id"]
+        for row in connection.execute("SELECT transaction_id FROM cash_count_entries WHERE count_id = ?", (count_id,))
+    ]
+
+
+def _require_ungrouped(connection: sqlite3.Connection, transaction_ids: list[int]) -> None:
+    title = ledger.group_title(connection, transaction_ids)
+    if title is not None:
+        raise ValueError(f"Część tego liczenia jest w grupie „{title}”. Najpierw rozwiąż grupę.")
+
+
+def _remove_lines(connection: sqlite3.Connection, transaction_ids: list[int]) -> None:
+    for transaction_id in transaction_ids:
+        connection.execute("DELETE FROM cash_count_entries WHERE transaction_id = ?", (transaction_id,))
+        connection.execute("DELETE FROM transaction_decisions WHERE transaction_id = ?", (transaction_id,))
+        connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+
+
+def save_count(
     connection: sqlite3.Connection,
     *,
+    count_id: int | None = None,
     currency: str,
     counted_on: date,
     amount: Decimal,
@@ -219,10 +243,17 @@ def add_count(
     if amount < 0:
         raise ValueError("Kwota nie może być ujemna.")
     if connection.execute(
-        "SELECT 1 FROM cash_counts WHERE currency = ? AND counted_on = ?", (currency, str(counted_on))
+        "SELECT 1 FROM cash_counts WHERE currency = ? AND counted_on = ? AND id IS NOT ?",
+        (currency, str(counted_on), count_id),
     ).fetchone():
         raise ValueError("Na ten dzień ta waluta jest już policzona.")
-    preview = count_preview(connection, currency=currency, counted_on=counted_on, amount=amount)
+    previous_lines = []
+    if count_id is not None:
+        if connection.execute("SELECT 1 FROM cash_counts WHERE id = ?", (count_id,)).fetchone() is None:
+            raise ValueError("Liczenie nie istnieje.")
+        previous_lines = _line_ids(connection, count_id)
+        _require_ungrouped(connection, previous_lines)
+    preview = count_preview(connection, currency=currency, counted_on=counted_on, amount=amount, replacing=count_id)
     if any(line_amount <= 0 for line_amount, _, _ in lines):
         raise ValueError("Każda kwota musi być większa od zera.")
     assigned = sum((line_amount for line_amount, _, _ in lines), Decimal(0))
@@ -230,12 +261,19 @@ def add_count(
         raise ValueError(f"Wydano {preview.spent} {currency}, a przypisujesz {assigned}.")
     if start_cost is not None and start_cost < 0:
         raise ValueError("Koszt nie może być ujemny.")
+    stored_cost = str(start_cost) if start_cost is not None else None
     with connection:
-        cursor = connection.execute(
-            "INSERT INTO cash_counts(currency, counted_on, amount, start_cost) VALUES (?, ?, ?, ?)",
-            (currency, str(counted_on), str(amount), str(start_cost) if start_cost is not None else None),
-        )
-        count_id = int(cursor.lastrowid)
+        if count_id is None:
+            count_id = int(connection.execute(
+                "INSERT INTO cash_counts(currency, counted_on, amount, start_cost) VALUES (?, ?, ?, ?)",
+                (currency, str(counted_on), str(amount), stored_cost),
+            ).lastrowid)
+        else:
+            _remove_lines(connection, previous_lines)
+            connection.execute(
+                "UPDATE cash_counts SET currency = ?, counted_on = ?, amount = ?, start_cost = ? WHERE id = ?",
+                (currency, str(counted_on), str(amount), stored_cost, count_id),
+            )
         for line_amount, category, description in lines:
             transaction_id = ledger.add_manual_transaction(
                 connection, account=CASH_ACCOUNT, booking_date=counted_on, amount=-line_amount,
@@ -246,6 +284,14 @@ def add_count(
                 "INSERT INTO cash_count_entries(transaction_id, count_id) VALUES (?, ?)", (transaction_id, count_id)
             )
     return count_id
+
+
+def delete_count(connection: sqlite3.Connection, count_id: int) -> None:
+    lines = _line_ids(connection, count_id)
+    _require_ungrouped(connection, lines)
+    with connection:
+        _remove_lines(connection, lines)
+        connection.execute("DELETE FROM cash_counts WHERE id = ?", (count_id,))
 
 
 def set_withdrawal_currency(connection: sqlite3.Connection, transaction_id: int, currency: str, amount: Decimal) -> None:
@@ -273,21 +319,34 @@ def clear_withdrawal_currency(connection: sqlite3.Connection, transaction_id: in
         connection.execute("DELETE FROM cash_foreign_withdrawals WHERE transaction_id = ?", (transaction_id,))
 
 
-def add_exchange(
-    connection: sqlite3.Connection, *, exchanged_on: date, given_currency: str, given_amount: Decimal,
-    received_currency: str, received_amount: Decimal,
+def save_exchange(
+    connection: sqlite3.Connection, *, exchange_id: int | None = None, exchanged_on: date, given_currency: str,
+    given_amount: Decimal, received_currency: str, received_amount: Decimal,
 ) -> int:
     if given_currency == received_currency:
         raise ValueError("Wybierz dwie różne waluty.")
     if given_amount <= 0 or received_amount <= 0:
         raise ValueError("Obie kwoty muszą być większe od zera.")
+    values = (str(exchanged_on), given_currency, str(given_amount), received_currency, str(received_amount))
     with connection:
-        cursor = connection.execute(
-            """INSERT INTO cash_exchanges(exchanged_on, given_currency, given_amount, received_currency, received_amount)
-            VALUES (?, ?, ?, ?, ?)""",
-            (str(exchanged_on), given_currency, str(given_amount), received_currency, str(received_amount)),
-        )
-    return int(cursor.lastrowid)
+        if exchange_id is None:
+            return int(connection.execute(
+                """INSERT INTO cash_exchanges(exchanged_on, given_currency, given_amount, received_currency, received_amount)
+                VALUES (?, ?, ?, ?, ?)""",
+                values,
+            ).lastrowid)
+        if connection.execute(
+            """UPDATE cash_exchanges SET exchanged_on = ?, given_currency = ?, given_amount = ?, received_currency = ?,
+            received_amount = ? WHERE id = ?""",
+            (*values, exchange_id),
+        ).rowcount == 0:
+            raise ValueError("Wymiana nie istnieje.")
+    return exchange_id
+
+
+def delete_exchange(connection: sqlite3.Connection, exchange_id: int) -> None:
+    with connection:
+        connection.execute("DELETE FROM cash_exchanges WHERE id = ?", (exchange_id,))
 
 
 def spending_items(connection: sqlite3.Connection) -> list[dict[str, object]]:

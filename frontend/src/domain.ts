@@ -26,6 +26,7 @@ export interface TransactionRow {
   category_label: string;
   cash_currency?: string | null;
   cash_amount?: string | null;
+  manual?: boolean;
 }
 export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   key: string;
@@ -107,6 +108,7 @@ export interface CashFlow {
   kind: "withdrawal" | "deposit" | "entry";
   description: string;
   account: string;
+  category_key: string | null;
   bank_amount: string | null;
   bank_currency: string | null;
 }
@@ -115,6 +117,7 @@ export interface CashCount {
   currency: string;
   counted_on: string;
   amount: string;
+  start_cost: string | null;
   first: boolean;
   spent: string;
   correction: string;

@@ -100,6 +100,13 @@ def add_manual(db: sqlite3.Connection, entry: ManualEntry) -> int:
     return ledger.add_manual_transaction(db, **fields)
 
 
+def update_manual(db: sqlite3.Connection, transaction_id: int, entry: ManualEntry) -> None:
+    category_exists(db, entry.category_key)
+    if entry.amount == 0:
+        raise ValueError("Kwota musi być różna od zera.")
+    ledger.update_manual_transaction(db, transaction_id, **entry.model_dump(exclude={"wallet_id"}))
+
+
 def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
     category_exists(db, entry.category_key)
     ids = [member.transaction_id for member in entry.members]
@@ -146,6 +153,7 @@ def ledger_blocks(
 
     def item(row):
         return {
+            "manual": row["transaction_type"] == ledger.MANUAL_ENTRY,
             "cash_currency": foreign_cash.get(row["id"], (None, None))[0],
             "cash_amount": foreign_cash.get(row["id"], (None, None))[1],
             # Absent when nothing can value this row honestly, so the UI can say so.

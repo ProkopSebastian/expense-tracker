@@ -36,7 +36,8 @@ export default function LedgerPage({
       null,
     ),
     [dissolve, setDissolve] = useState<number | null>(null),
-    [foreign, setForeign] = useState<Withdrawal | null>(null);
+    [foreign, setForeign] = useState<Withdrawal | null>(null),
+    [manualEditing, setManualEditing] = useState<Block | null>(null);
   const params = new URLSearchParams({
     q: query,
     direction,
@@ -146,6 +147,10 @@ export default function LedgerPage({
           categories={categories}
           action={action}
           onClose={() => setEditing(null)}
+          onEditManual={() => {
+            setManualEditing(editing);
+            setEditing(null);
+          }}
           onForeignCash={() => {
             setForeign({
               transactionId: editing.id!,
@@ -158,6 +163,15 @@ export default function LedgerPage({
             });
             setEditing(null);
           }}
+        />
+      )}
+      {manualEditing && (
+        <ManualForm
+          existing={manualEditing}
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setManualEditing(null)}
+          onSaved={onChanged}
         />
       )}
       {foreign && (

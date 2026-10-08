@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeftRight, Banknote, HandCoins, Plus } from "lucide-react";
-import type { CashCount, CashData, CashFlow, CashPot, Category } from "../domain";
+import type { CashCount, CashData, CashExchange, CashFlow, CashPot, Category } from "../domain";
 import { request, useAction, useResource } from "../hooks";
 import { money } from "../api";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
@@ -18,16 +18,31 @@ function dayLabel(value: string) {
   return value.split("-").reverse().join(".");
 }
 
-function FormFooter({ busy, onClose, disabled, onDelete }: {
+function FormFooter({ busy, onClose, disabled, onDelete, deleteNote }: {
   busy: boolean;
   onClose: () => void;
   disabled?: boolean;
   onDelete?: () => void;
+  deleteNote?: string;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming) {
+    return (
+      <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
+        <span className="mr-auto text-sm">{deleteNote ?? "Usunąć ten wpis?"}</span>
+        <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={busy}>
+          Nie
+        </button>
+        <button type="button" className="btn-danger" onClick={onDelete} disabled={busy}>
+          Usuń
+        </button>
+      </footer>
+    );
+  }
   return (
     <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
       {onDelete && (
-        <button type="button" className="btn-danger mr-auto" disabled={busy} onClick={onDelete}>
+        <button type="button" className="btn-danger mr-auto" disabled={busy} onClick={() => setConfirming(true)}>
           Usuń
         </button>
       )}
@@ -41,25 +56,33 @@ function FormFooter({ busy, onClose, disabled, onDelete }: {
   );
 }
 
-type Split = { amount: string; category: string };
+type Split = { amount: string; category: string; description?: string | null };
 type Preview = { first: boolean; spent: string; correction: string };
 
 function CountForm({
   currency: initialCurrency,
+  existing,
   categories,
   onClose,
   onSaved,
 }: {
   currency: string;
+  existing?: CashCount;
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [currency, setCurrency] = useState(initialCurrency);
-  const [amount, setAmount] = useState("");
-  const [startCost, setStartCost] = useState("");
-  const [day, setDay] = useState(today());
-  const [splits, setSplits] = useState<Split[]>([{ amount: "", category: "" }]);
+  const [currency, setCurrency] = useState(existing?.currency ?? initialCurrency);
+  const [amount, setAmount] = useState(existing?.amount ?? "");
+  const [startCost, setStartCost] = useState(existing?.start_cost ?? "");
+  const [day, setDay] = useState(existing?.counted_on ?? today());
+  const [splits, setSplits] = useState<Split[]>(
+    existing?.lines.length
+      ? existing.lines.map((line) => ({
+          amount: line.amount, category: line.category_key ?? "", description: line.description,
+        }))
+      : [{ amount: "", category: "" }],
+  );
   const [preview, setPreview] = useState<Preview | null>(null);
   const action = useAction(onSaved);
 
@@ -69,6 +92,7 @@ function CountForm({
       return;
     }
     const params = new URLSearchParams({ counted_on: day, currency, amount: Number(amount).toFixed(2) });
+    if (existing) params.set("replacing", String(existing.id));
     let current = true;
     request<Preview>(`/cash/count-preview?${params}`)
       .then((value) => current && setPreview(value))
@@ -76,7 +100,7 @@ function CountForm({
     return () => {
       current = false;
     };
-  }, [amount, day, currency]);
+  }, [amount, day, currency, existing]);
 
   const spent = Number(preview?.spent ?? 0);
   const correction = Number(preview?.correction ?? 0);
@@ -89,13 +113,15 @@ function CountForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const ok = await action.run(() =>
-      request("/cash/counts", "POST", {
+      request(existing ? `/cash/counts/${existing.id}` : "/cash/counts", existing ? "PUT" : "POST", {
         currency,
         counted_on: day,
         amount,
         start_cost: asksCost && startCost !== "" ? startCost : null,
         lines: spent > 0
-          ? filled.map((split) => ({ amount: split.amount, category_key: split.category }))
+          ? filled.map((split) => ({
+              amount: split.amount, category_key: split.category, description: split.description ?? null,
+            }))
           : [],
       }),
     );
@@ -103,7 +129,7 @@ function CountForm({
   }
 
   return (
-    <Modal title="Policz gotówkę" onClose={onClose} busy={action.busy}>
+    <Modal title={existing ? "Liczenie gotówki" : "Policz gotówkę"} onClose={onClose} busy={action.busy}>
       <form onSubmit={submit} className={FORM_CLASS}>
         <Notice error={action.error} />
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
@@ -195,6 +221,14 @@ function CountForm({
           busy={action.busy}
           onClose={onClose}
           disabled={!preview || unassigned < -0.004 || filled.some((split) => !split.category)}
+          onDelete={existing ? async () => {
+            if (await action.run(() => request(`/cash/counts/${existing.id}`, "DELETE"))) onClose();
+          } : undefined}
+          deleteNote={existing?.lines.length
+            ? `Usunąć liczenie? Usunie też podział ${money(
+                existing.lines.reduce((sum, line) => sum + Number(line.amount), 0), existing.currency,
+              )}.`
+            : "Usunąć liczenie?"}
         />
       </form>
     </Modal>
@@ -202,22 +236,24 @@ function CountForm({
 }
 
 function ReceivedForm({
+  existing,
   categories,
   onClose,
   onSaved,
 }: {
+  existing?: CashFlow;
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [category, setCategory] = useState("income_other");
+  const [category, setCategory] = useState(existing?.category_key ?? "income_other");
   const action = useAction(onSaved);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
     const ok = await action.run(() =>
-      request("/transactions", "POST", {
+      request(existing ? `/transactions/${existing.transaction_id}` : "/transactions", existing ? "PUT" : "POST", {
         account: CASH_ACCOUNT,
         booking_date: fields.get("date"),
         amount: fields.get("amount"),
@@ -236,15 +272,29 @@ function ReceivedForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
             Kwota (zł)
-            <input name="amount" type="number" min="0.01" step="0.01" required autoFocus />
+            <input
+              name="amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              autoFocus
+              defaultValue={existing?.amount}
+            />
           </label>
           <label>
             Dzień
-            <input name="date" type="date" required defaultValue={today()} />
+            <input name="date" type="date" required defaultValue={existing?.date ?? today()} />
           </label>
           <label>
             Od kogo albo za co
-            <input name="description" required maxLength={500} placeholder="Na przykład: od babci" />
+            <input
+              name="description"
+              required
+              maxLength={500}
+              placeholder="Na przykład: od babci"
+              defaultValue={existing?.description}
+            />
           </label>
           <CategorySelect
             categories={categories.filter((item) => item.kind === "income")}
@@ -253,22 +303,33 @@ function ReceivedForm({
           />
         </div>
         <p className="text-muted">Wypłat z bankomatu tu nie wpisuj — dodają się same z wyciągu.</p>
-        <FormFooter busy={action.busy} onClose={onClose} disabled={!category} />
+        <FormFooter
+          busy={action.busy}
+          onClose={onClose}
+          disabled={!category}
+          onDelete={existing ? async () => {
+            if (await action.run(() => request(`/transactions/${existing.transaction_id}`, "DELETE"))) onClose();
+          } : undefined}
+        />
       </form>
     </Modal>
   );
 }
 
-function ExchangeForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [givenCurrency, setGivenCurrency] = useState(HOME);
-  const [receivedCurrency, setReceivedCurrency] = useState("");
+function ExchangeForm({ existing, onClose, onSaved }: {
+  existing?: CashExchange;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [givenCurrency, setGivenCurrency] = useState(existing?.given_currency ?? HOME);
+  const [receivedCurrency, setReceivedCurrency] = useState(existing?.received_currency ?? "");
   const action = useAction(onSaved);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
     const ok = await action.run(() =>
-      request("/cash/exchanges", "POST", {
+      request(existing ? `/cash/exchanges/${existing.id}` : "/cash/exchanges", existing ? "PUT" : "POST", {
         exchanged_on: fields.get("date"),
         given_currency: givenCurrency,
         given_amount: fields.get("given"),
@@ -286,7 +347,15 @@ function ExchangeForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem]">
           <label>
             Oddane
-            <input name="given" type="number" min="0.01" step="0.01" required autoFocus />
+            <input
+              name="given"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              autoFocus
+              defaultValue={existing?.given_amount}
+            />
           </label>
           <label>
             Waluta
@@ -294,7 +363,14 @@ function ExchangeForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           </label>
           <label>
             Otrzymane
-            <input name="received" type="number" min="0.01" step="0.01" required />
+            <input
+              name="received"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              defaultValue={existing?.received_amount}
+            />
           </label>
           <label>
             Waluta
@@ -302,10 +378,16 @@ function ExchangeForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           </label>
           <label>
             Dzień
-            <input name="date" type="date" required defaultValue={today()} />
+            <input name="date" type="date" required defaultValue={existing?.date ?? today()} />
           </label>
         </div>
-        <FormFooter busy={action.busy} onClose={onClose} />
+        <FormFooter
+          busy={action.busy}
+          onClose={onClose}
+          onDelete={existing ? async () => {
+            if (await action.run(() => request(`/cash/exchanges/${existing.id}`, "DELETE"))) onClose();
+          } : undefined}
+        />
       </form>
     </Modal>
   );
@@ -347,7 +429,14 @@ type HistoryRow = {
   details?: string;
   amount: number | null;
   flow?: CashFlow;
+  target?: EditTarget;
+  hint?: string;
 };
+
+type EditTarget =
+  | { type: "count"; count: CashCount }
+  | { type: "exchange"; exchange: CashExchange }
+  | { type: "received"; flow: CashFlow };
 
 function historyRows(data: CashData, currency: string): HistoryRow[] {
   const rows: HistoryRow[] = [
@@ -365,6 +454,9 @@ function historyRows(data: CashData, currency: string): HistoryRow[] {
             : flow.account,
         amount: Number(flow.amount),
         flow: flow.kind === "withdrawal" ? flow : undefined,
+        target: flow.kind === "entry" && Number(flow.amount) > 0 && flow.account === CASH_ACCOUNT
+          ? { type: "received" as const, flow }
+          : undefined,
       })),
     ...data.exchanges
       .filter((exchange) => [exchange.given_currency, exchange.received_currency].includes(currency))
@@ -382,6 +474,7 @@ function historyRows(data: CashData, currency: string): HistoryRow[] {
         amount: exchange.given_currency === currency
           ? -Number(exchange.given_amount)
           : Number(exchange.received_amount),
+        target: { type: "exchange" as const, exchange },
       })),
     ...data.counts
       .filter((count) => count.currency === currency)
@@ -392,6 +485,8 @@ function historyRows(data: CashData, currency: string): HistoryRow[] {
         description: `Policzone: ${money(count.amount, count.currency)}`,
         details: countDetails(count),
         amount: Number(count.correction) - Number(count.spent) || null,
+        target: { type: "count" as const, count },
+        hint: Number(count.unassigned) < 0 ? "popraw" : Number(count.unassigned) > 0 ? "rozdziel" : undefined,
       })),
   ];
   // A count closes its day, so it sits above that day's movements in a newest-first list.
@@ -445,6 +540,8 @@ export default function CashPage({
   const [selected, setSelected] = useState(HOME);
   const [modal, setModal] = useState<"count" | "received" | "exchange" | null>(null);
   const [foreign, setForeign] = useState<Withdrawal | null>(null);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
+  const closeEditing = () => setEditing(null);
   const pots = data?.pots ?? [];
   const currency = pots.some((pot) => pot.currency === selected) ? selected : HOME;
   const rows = data ? historyRows(data, currency) : [];
@@ -518,10 +615,27 @@ export default function CashPage({
                     <tr key={row.key}>
                       <td className="whitespace-nowrap text-muted tabular-nums">{dayLabel(row.date)}</td>
                       <td className="w-full">
-                        {row.description}
+                        {row.target ? (
+                          <button
+                            className="text-left hover:text-accent hover:underline"
+                            onClick={() => setEditing(row.target!)}
+                          >
+                            {row.description}
+                          </button>
+                        ) : (
+                          row.description
+                        )}
                         {(row.details || row.flow) && (
                           <span className="block text-xs text-muted">
                             {row.details}
+                            {row.hint && (
+                              <button
+                                className="underline-offset-2 hover:text-accent hover:underline"
+                                onClick={() => setEditing(row.target!)}
+                              >
+                                {" · "}{row.hint}
+                              </button>
+                            )}
                             {row.flow && (
                               <button
                                 className="underline-offset-2 hover:text-accent hover:underline"
@@ -551,6 +665,21 @@ export default function CashPage({
         <ReceivedForm categories={categories} onClose={() => setModal(null)} onSaved={onChanged} />
       )}
       {modal === "exchange" && <ExchangeForm onClose={() => setModal(null)} onSaved={onChanged} />}
+      {editing?.type === "count" && (
+        <CountForm
+          currency={editing.count.currency}
+          existing={editing.count}
+          categories={categories}
+          onClose={closeEditing}
+          onSaved={onChanged}
+        />
+      )}
+      {editing?.type === "received" && (
+        <ReceivedForm existing={editing.flow} categories={categories} onClose={closeEditing} onSaved={onChanged} />
+      )}
+      {editing?.type === "exchange" && (
+        <ExchangeForm existing={editing.exchange} onClose={closeEditing} onSaved={onChanged} />
+      )}
       {foreign && <ForeignWithdrawalForm withdrawal={foreign} onClose={() => setForeign(null)} onSaved={onChanged} />}
     </>
   );

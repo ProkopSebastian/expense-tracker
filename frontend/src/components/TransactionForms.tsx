@@ -8,26 +8,34 @@ const CASH_ACCOUNT = "Gotówka";
 const OTHER_ACCOUNT = "__other";
 
 export function ManualForm({
+  existing,
   accounts,
   categories,
   onClose,
   onSaved,
 }: {
+  existing?: Block;
   accounts: string[];
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [category, setCategory] = useState("");
-  const [account, setAccount] = useState(CASH_ACCOUNT);
-  const accountOptions = [CASH_ACCOUNT, ...accounts.filter((name) => name !== CASH_ACCOUNT)];
+  const [category, setCategory] = useState(existing?.category_key ?? "");
+  const [account, setAccount] = useState(existing?.account ?? CASH_ACCOUNT);
+  const [confirming, setConfirming] = useState(false);
+  const accountOptions = [
+    CASH_ACCOUNT,
+    ...accounts.filter((name) => name !== CASH_ACCOUNT),
+    ...(existing && !accounts.includes(existing.account) && existing.account !== CASH_ACCOUNT ? [existing.account] : []),
+  ];
+  const signed = Number(existing?.amount ?? 0);
   const action = useAction(onSaved);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const amount = String(f.get("amount"));
     const ok = await action.run(() =>
-      request("/transactions", "POST", {
+      request(existing ? `/transactions/${existing.id}` : "/transactions", existing ? "PUT" : "POST", {
         account: account === OTHER_ACCOUNT ? f.get("account") : account,
         booking_date: f.get("date"),
         amount: f.get("direction") === "expense" ? `-${amount}` : amount,
@@ -40,7 +48,7 @@ export function ManualForm({
     if (ok) onClose();
   }
   return (
-    <Modal title="Dodaj transakcję" onClose={onClose} busy={action.busy}>
+    <Modal title={existing ? "Wpis ręczny" : "Dodaj transakcję"} onClose={onClose} busy={action.busy}>
       <form
         onSubmit={submit}
         className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted [&_summary]:cursor-pointer [&_summary]:text-sm [&_details_label]:mt-3"
@@ -53,7 +61,7 @@ export function ManualForm({
               type="date"
               name="date"
               required
-              defaultValue={new Date().toLocaleDateString("en-CA")}
+              defaultValue={existing?.date ?? new Date().toLocaleDateString("en-CA")}
             />
           </label>
           <label>
@@ -76,7 +84,7 @@ export function ManualForm({
             <AppSelect
               ariaLabel="Rodzaj"
               name="direction"
-              defaultValue="expense"
+              defaultValue={signed > 0 ? "income" : "expense"}
               options={[
                 { value: "expense", label: "Wydatek" },
                 { value: "income", label: "Przychód" },
@@ -91,11 +99,12 @@ export function ManualForm({
               min="0.01"
               step="0.01"
               required
+              defaultValue={existing ? Math.abs(signed).toFixed(2) : undefined}
             />
           </label>
           <label>
             Waluta
-            <CurrencyInput name="currency" ariaLabel="Waluta" defaultValue="PLN" />
+            <CurrencyInput name="currency" ariaLabel="Waluta" defaultValue={existing?.currency ?? "PLN"} />
           </label>
           <label>
             Kategoria
@@ -113,28 +122,53 @@ export function ManualForm({
             required
             maxLength={500}
             placeholder="Na przykład: zakupy na targu"
+            defaultValue={existing?.description}
           />
         </label>
         <label>
           Kontrahent <small>opcjonalnie</small>
-          <input name="counterparty" />
+          <input
+            name="counterparty"
+            defaultValue={existing?.counterparty && existing.counterparty !== "—" ? existing.counterparty : undefined}
+          />
         </label>
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
-          <button
-            type="button"
-            className="btn"
-            disabled={action.busy}
-            onClick={onClose}
-          >
-            Anuluj
-          </button>
-          <button
-            className="btn-primary"
-            disabled={action.busy}
-          >
-            {action.busy ? "Zapisuję…" : "Dodaj transakcję"}
-          </button>
-        </footer>
+        {confirming ? (
+          <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
+            <span className="mr-auto text-sm">Usunąć ten wpis?</span>
+            <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={action.busy}>
+              Nie
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              disabled={action.busy}
+              onClick={async () => {
+                if (await action.run(() => request(`/transactions/${existing!.id}`, "DELETE"))) onClose();
+              }}
+            >
+              Usuń
+            </button>
+          </footer>
+        ) : (
+          <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
+            {existing && (
+              <button
+                type="button"
+                className="btn-danger mr-auto"
+                disabled={action.busy}
+                onClick={() => setConfirming(true)}
+              >
+                Usuń
+              </button>
+            )}
+            <button type="button" className="btn ml-auto" disabled={action.busy} onClick={onClose}>
+              Anuluj
+            </button>
+            <button className="btn-primary" disabled={action.busy}>
+              {action.busy ? "Zapisuję…" : existing ? "Zapisz" : "Dodaj transakcję"}
+            </button>
+          </footer>
+        )}
       </form>
     </Modal>
   );
