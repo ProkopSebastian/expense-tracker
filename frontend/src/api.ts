@@ -18,7 +18,10 @@ export async function fetchSummary(
   Object.entries(filters).forEach(([key, value]) => {
     if (value) query.set(key, value);
   });
-  const response = await fetch(`/api/summary?${query}`, { signal });
+  const response = await fetch(`/api/summary?${query}`, { signal }).catch((error) => {
+    if (signal?.aborted) throw error;
+    throw new Error("Brak połączenia z aplikacją. Spróbuj ponownie za chwilę.");
+  });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(
@@ -32,11 +35,13 @@ export async function fetchSummary(
 
 export function money(value: string | number, currency: string): string {
   // "ALL" is the aggregate view's pseudo-code and its totals are already in złoty.
-  const code = /^[A-Z]{3}$/.test(currency) && currency !== "ALL" ? currency : "PLN";
-  return new Intl.NumberFormat("pl-PL", {
-    style: "currency",
-    currency: code,
-  }).format(Number(value));
+  if (currency === "ALL") currency = "PLN";
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    // Never relabel an unknown code as złoty; show the number with the code as stored.
+    const amount = new Intl.NumberFormat("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${amount.format(Number(value))} ${currency}`;
+  }
+  return new Intl.NumberFormat("pl-PL", { style: "currency", currency }).format(Number(value));
 }
 
 // A rate rounded to grosze is useless: 0,40 and 0,401849 differ by złoty over a few hundred

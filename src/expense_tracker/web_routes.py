@@ -227,7 +227,7 @@ def cash(db: DB):
 @router.get("/cash/count-preview")
 def cash_count_preview(
     db: DB, counted_on: date, currency: Annotated[str, Query(pattern=r"^[A-Z]{3}$")],
-    amount: Annotated[Decimal, Query(ge=0, max_digits=18, decimal_places=2)], replacing: int | None = None,
+    amount: Annotated[Decimal, Query(ge=0, max_digits=14, decimal_places=2)], replacing: int | None = None,
 ):
     count = cash_service.count_preview(db, currency=currency, counted_on=counted_on, amount=amount, replacing=replacing)
     return {"first": count.first, "spent": str(count.spent), "correction": str(count.correction)}

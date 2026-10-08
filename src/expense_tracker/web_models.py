@@ -7,7 +7,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
-Money = Annotated[Decimal, Field(allow_inf_nan=False, max_digits=18, decimal_places=2)]
+# Twelve integer digits keep amount times rate within Decimal's precision in every valuation.
+Money = Annotated[Decimal, Field(allow_inf_nan=False, max_digits=14, decimal_places=2)]
 Currency = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
 OptionalText = Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=500)]
 Kind = Literal["shared_purchase", "reimbursement", "refund", "own_transfer", "payment_dispute"]
@@ -90,7 +91,7 @@ class CashExchange(BaseModel):
 
 
 AssetKind = Literal["account", "savings", "bonds", "investments", "cash", "gold", "debt", "other"]
-Rate = Annotated[Decimal, Field(allow_inf_nan=False, gt=0, max_digits=18, decimal_places=6)]
+Rate = Annotated[Decimal, Field(allow_inf_nan=False, gt=0, max_digits=12, decimal_places=6)]
 
 
 class AssetCreate(BaseModel):

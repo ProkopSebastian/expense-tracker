@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ..csv_utils import read_csv
 from ..models import Transaction
-from .common import _column, _derived_external_id, _parse_amount, _parse_date
+from .common import _column, _derived_external_id, _parse_amount, _parse_currency, _parse_date
 
 _BALANCE_COLUMNS = ("saldo", "saldo po operacji", "balance")
 _DESCRIPTION_COLUMNS = ("opis", "tytuł", "tytuł operacji", "nazwa kontrahenta", "description")
@@ -43,7 +43,7 @@ def import_nest_csv(path: Path, account: str = "Nest") -> list[Transaction]:
     for number, row in enumerate(rows, start=2):
         try:
             amount_text = _column(row, "kwota", "amount", "kwota transakcji")
-            currency = _column(row, "waluta", "currency", required=False) or "PLN"
+            currency = _parse_currency(_column(row, "waluta", "currency", required=False))
             booking_date = _column(row, "data operacji", required=False) or _column(
                 row, "data księgowania", "data", "date"
             )
@@ -64,7 +64,7 @@ def import_nest_csv(path: Path, account: str = "Nest") -> list[Transaction]:
                     booking_date=_parse_date(booking_date),
                     value_date=_parse_date(value_date) if value_date else None,
                     amount=_parse_amount(amount_text),
-                    currency=currency.upper(),
+                    currency=currency,
                     description=description,
                     counterparty=counterparty or None,
                     external_id=derive_external_id(row),

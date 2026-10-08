@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ..csv_utils import read_csv
 from ..models import Transaction
-from .common import _column, _key, _parse_amount, _parse_date
+from .common import _column, _key, _parse_amount, _parse_currency, _parse_date
 
 FEE = "Fee"
 INACTIVE_STATES = {"DECLINED", "REVERTED", "FAILED"}
@@ -48,7 +48,7 @@ def import_revolut_csv(path: Path, account: str = "Revolut", *, include_inactive
             started = _column(row, "started date", "data rozpoczęcia")
             completed = _column(row, "completed date", "data zrealizowania", required=False)
             amount = _column(row, "amount", "kwota")
-            currency = (_column(row, "currency", "waluta", required=False) or "PLN").upper()
+            currency = _parse_currency(_column(row, "currency", "waluta", required=False))
             description = _column(row, "description", "opis")
             balance = _column(row, "balance", "saldo", required=False)
             state = _canonical_state(_column(row, "state", "stan", required=False))

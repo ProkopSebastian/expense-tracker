@@ -8,6 +8,8 @@ from decimal import Decimal, InvalidOperation
 
 from ..csv_utils import read_text_with_fallback_encoding
 
+MAX_AMOUNT = Decimal("1e12")
+
 
 def _key(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
@@ -28,6 +30,19 @@ def _column(row: dict[str, str], *names: str, required: bool = True) -> str | No
         available = ", ".join(row)
         raise ValueError(f"Brakuje oczekiwanej kolumny ({', '.join(names)}). Dostępne: {available}")
     return None
+
+
+def _parse_currency(value: str | None) -> str:
+    # A statement without a currency column is in złoty; a present but empty or malformed code
+    # is a damaged row, and guessing złoty would silently misstate the amount.
+    if value is None:
+        return "PLN"
+    code = value.strip().upper()
+    if not code:
+        raise ValueError("Brak waluty.")
+    if not re.fullmatch(r"[A-Z]{3}", code):
+        raise ValueError(f"Nieznana waluta {value.strip()!r}. Oczekiwany trzyliterowy kod, np. EUR.")
+    return code
 
 
 def _parse_date(value: str) -> datetime.date:
@@ -53,9 +68,12 @@ def _parse_amount(value: str) -> Decimal:
         amount = Decimal(cleaned)
         if not amount.is_finite():
             raise InvalidOperation
-        return amount
     except InvalidOperation as exc:
         raise ValueError(f"Nieobsługiwana kwota: {value!r}") from exc
+    # Larger amounts overflow the precision of later valuations and would break every view.
+    if abs(amount) >= MAX_AMOUNT:
+        raise ValueError(f"Kwota {value.strip()!r} przekracza obsługiwany zakres.")
+    return amount
 
 
 _read_text = read_text_with_fallback_encoding
