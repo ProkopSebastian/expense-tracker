@@ -1,3 +1,25 @@
+## v0.7.0 — 08.10.2026
+
+- feat: zakładki „Waluty” i „Gotówka” zastępują „Portfele”
+- feat: wymiany walut na Revolucie łączą się same w obie strony, a zysk albo strata ze sprzedaży waluty trafia do „Różnic kursowych”
+- feat: dla waluty, która była na koncie przed pierwszym wyciągiem, można podać jej koszt w złotówkach
+- feat: wypłaty z bankomatu i wpłaty gotówki są rozpoznawane same i nie liczą się jako wydatki
+- feat: „Policz gotówkę” — po wpisaniu, ile zostało, różnica trafia do wydatków z podziałem na kategorie
+- feat: otrzymana gotówka, wymiany w kantorze i wypłaty w obcej walucie
+- feat: ręczne wpisy, liczenia gotówki i wymiany można poprawić albo usunąć
+- feat: opłaty Revoluta są osobnymi transakcjami
+- feat: konta mają nazwy banków: Nest, Revolut, Erste, ING, VeloBank, PKO BP
+- feat: kategoria zapisuje się od razu po wybraniu, a „Zapamiętaj dla sprzedawcy” jest pod ręką
+- feat: historia filtruje po koncie i zakresie dat
+- feat: po imporcie każdy plik ma podsumowanie — konto, zakres dat, nowe i powtórzone transakcje — z przejściem do historii
+- feat: gwiazdka w podsumowaniu prowadzi do wydatków bez kursu
+- feat: przewodnik prowadzi od razu do importu pierwszego wyciągu
+- feat: komunikaty można zamknąć, a „Cofnij” zostaje po zamknięciu okna
+- fix: import przetwarza wszystkie upuszczone pliki i odrzuca błędne waluty i kwoty
+- fix: folder kopii bazy nie rośnie bez potrzeby — zostaje 5 kopii sprzed zmian, 7 dziennych i 3 sprzed aktualizacji
+- fix: podsumowanie otwiera się na okresie z danymi, a brak kursu oznacza gwiazdka zamiast czerwonego paska
+- uwaga: aktualizacja usuwa dane starych portfeli — salda początkowe, rozliczenia i ręcznie dodane połówki wymian. Transakcje z banków, kategorie i reguły zostają.
+
 ## v0.6.1 — 07.10.2026
 
 - fix: poprawne koszty historyczne i wyniki sprzedaży walut, bez podwójnego odejmowania zaimportowanej wymiany
