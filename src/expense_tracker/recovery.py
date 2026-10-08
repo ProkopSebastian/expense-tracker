@@ -10,6 +10,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+# Undo needs only the newest action copy; a week of daily copies and a few pre-update copies
+# cover recovery from mistakes noticed later without letting the folder grow with the database.
+KEPT_BACKUPS = {"action": 5, "startup": 7, "update": 3}
+
 
 def backup_database(path: Path, label: str, *, daily: bool = False) -> Path:
     directory = path.parent / f"{path.stem}-backups"
@@ -27,10 +31,9 @@ def backup_database(path: Path, label: str, *, daily: bool = False) -> Path:
         temporary.replace(target)
     finally:
         temporary.unlink(missing_ok=True)
-    # Startup and action backups have independent retention.
     manifest = directory / "undo.json"
     protected = json.loads(manifest.read_text()).get("backup") if manifest.exists() else None
-    for old in sorted(directory.glob(f"{label}-*.sqlite3"))[:-30]:
+    for old in sorted(directory.glob(f"{label}-*.sqlite3"))[: -KEPT_BACKUPS.get(label, 30)]:
         if old.name != protected:
             old.unlink()
             _unlink_wal_sidecars(old)
