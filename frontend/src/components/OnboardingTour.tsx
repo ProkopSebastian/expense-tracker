@@ -82,7 +82,7 @@ function WalletIllustration() {
     <div className="flex flex-col gap-2 text-xs">
       {[
         { label: "Wypłata z bankomatu", value: "+200,00 zł" },
-        { label: "Rozlicz: zostało", value: "60,00 zł" },
+        { label: "Policzona gotówka", value: "60,00 zł" },
       ].map((row) => (
         <div
           key={row.label}
@@ -159,7 +159,7 @@ const steps: { title: string; body: ReactNode; illustration: ReactNode; importAc
   },
   {
     title: "Kategorie",
-    body: "Znanych sprzedawców aplikacja przypisze sama. Resztę zatwierdzasz w „Do klasyfikacji” — raz powiesz „Żabka → Zakupy spożywcze” i następnym razem nie zapyta.",
+    body: "W „Do klasyfikacji” wybierz kategorię — zapisuje się od razu. Z zaznaczonym „Zapamiętaj” kolejne płatności u tego sprzedawcy przypiszą się same.",
     illustration: <ClassificationIllustration />,
   },
   {
