@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import date
 from functools import partial
 from pathlib import Path
 
@@ -82,6 +83,10 @@ class ImportOutcome:
     inserted: int
     paired: int
     withdrawals: int = 0
+    duplicates: int = 0
+    account: str = ""
+    first_date: date | None = None
+    last_date: date | None = None
 
 
 def import_file(database: Database, path: Path, account: str | None = None) -> ImportOutcome | None:
@@ -131,4 +136,8 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
                 parser_version=excluded.parser_version, imported_at=CURRENT_TIMESTAMP""",
             (path.name, file_hash, bank, len(found), inserted, skipped, PARSER_VERSION),
         )
-    return ImportOutcome(inserted=inserted, paired=paired, withdrawals=withdrawals)
+    dates = [transaction.booking_date for transaction in found]
+    return ImportOutcome(
+        inserted=inserted, paired=paired, withdrawals=withdrawals, duplicates=skipped, account=account,
+        first_date=min(dates, default=None), last_date=max(dates, default=None),
+    )

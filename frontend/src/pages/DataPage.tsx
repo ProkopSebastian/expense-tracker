@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { importStatement } from "../importStatement";
+import { importStatement, type ImportReceipt } from "../importStatement";
+import { openLedger } from "../ledgerLink";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, FolderOpen, RefreshCw, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
@@ -37,30 +38,38 @@ export default function DataPage({
   const [account, setAccount] = useState("");
   const [newAccount, setNewAccount] = useState("");
   const [message, setMessage] = useState("");
+  const [results, setResults] = useState<
+    { file: string; message: string; receipt?: ImportReceipt; failed?: boolean }[]
+  >([]);
   const [syncError, setSyncError] = useState("");
   const accountReady = account !== "__new__" || Boolean(newAccount.trim());
   async function upload(files: FileList | null) {
     if (!files?.length || !accountReady) return;
+    setResults([]);
     setMessage("");
     setSyncError("");
     const selectedAccount =
       account === "__new__" ? newAccount.trim() : account.trim();
     await action.run(async () => {
       if (files.length === 1) {
-        setMessage((await importStatement(files[0], selectedAccount)).message);
+        setResults([{ file: files[0].name, ...(await importStatement(files[0], selectedAccount)) }]);
         return;
       }
       // One unreadable file must not hide what happened to the others.
-      const results: string[] = [];
+      const outcomes: typeof results = [];
       for (const file of Array.from(files)) {
         try {
-          results.push(`${file.name}: ${(await importStatement(file, selectedAccount)).message}`);
+          outcomes.push({ file: file.name, ...(await importStatement(file, selectedAccount)) });
         } catch (error) {
-          results.push(`${file.name}: ${error instanceof Error ? error.message : "nie udało się wczytać."}`);
+          outcomes.push({
+            file: file.name,
+            message: error instanceof Error ? error.message : "Nie udało się wczytać.",
+            failed: true,
+          });
         }
       }
-      setMessage(results.join("\n"));
-    });
+      setResults(outcomes);
+    }, "Import zakończony.");
   }
   const chosenAccount =
     account === "__new__" ? newAccount.trim() : account;
@@ -73,13 +82,55 @@ export default function DataPage({
         undoLabel={action.undoLabel}
         onUndo={() => {
           setMessage("");
+          setResults([]);
           void action.undo();
         }}
         onDismiss={() => {
           setMessage("");
+          setResults([]);
           action.dismiss();
         }}
       />
+      {results.length > 0 && (
+        <ul className="card mb-6 divide-y divide-line/40 text-sm">
+          {results.map((result, index) => (
+            <li key={index} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
+              <strong className="font-medium wrap-anywhere">{result.file}</strong>
+              {result.receipt ? (
+                <>
+                  <span className="text-muted">
+                    {result.receipt.account}
+                    {result.receipt.first_date && result.receipt.last_date &&
+                      ` · ${dateLabel(result.receipt.first_date)} – ${dateLabel(result.receipt.last_date)}`}
+                  </span>
+                  <span>
+                    nowe: {result.receipt.inserted}
+                    {result.receipt.duplicates > 0 && ` · już były: ${result.receipt.duplicates}`}
+                    {result.receipt.withdrawals > 0 && ` · do gotówki: ${result.receipt.withdrawals}`}
+                    {result.receipt.paired > 0 && ` · wymiany walut: ${result.receipt.paired}`}
+                  </span>
+                  {result.receipt.first_date && (
+                    <button
+                      className="ml-auto text-accent hover:underline"
+                      onClick={() =>
+                        openLedger({
+                          account: result.receipt!.account,
+                          from: result.receipt!.first_date!,
+                          to: result.receipt!.last_date!,
+                        })
+                      }
+                    >
+                      Pokaż w historii
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className={result.failed ? "text-danger" : "text-muted"}>{result.message}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           <section className="card p-6">
@@ -202,6 +253,7 @@ export default function DataPage({
                 disabled={action.busy}
                 onClick={() => {
                   setSyncError("");
+                  setResults([]);
                   action.run(async () => {
                     const result = await request<{
                       transactions_inserted: number;

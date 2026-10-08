@@ -1,4 +1,17 @@
-export async function importStatement(file: File, account: string): Promise<{ message: string }> {
+export interface ImportReceipt {
+  account: string;
+  first_date: string | null;
+  last_date: string | null;
+  inserted: number;
+  duplicates: number;
+  withdrawals: number;
+  paired: number;
+}
+
+export async function importStatement(
+  file: File,
+  account: string,
+): Promise<{ message: string; receipt?: ImportReceipt }> {
   const extension = file.name.match(/\.(csv|pdf)$/i)?.[1].toLowerCase();
   if (!extension) throw new Error("Obsługiwane pliki mają rozszerzenie CSV lub PDF.");
   const params = account ? `?account=${encodeURIComponent(account)}` : "";
