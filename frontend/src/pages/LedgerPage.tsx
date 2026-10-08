@@ -94,6 +94,7 @@ export default function LedgerPage({
         notice={action.notice}
         undoLabel={action.undoLabel}
         onUndo={action.undo}
+        onDismiss={action.dismiss}
       />
       <section className="mb-6">
         <LedgerFilterBar

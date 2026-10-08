@@ -605,11 +605,13 @@ export function Notice({
   notice,
   undoLabel,
   onUndo,
+  onDismiss,
 }: {
   error?: string;
   notice?: string;
   undoLabel?: string | null;
   onUndo?: () => void;
+  onDismiss?: () => void;
 }) {
   return (
     <>
@@ -636,6 +638,16 @@ export function Notice({
               onClick={onUndo}
             >
               Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              type="button"
+              aria-label="Zamknij komunikat"
+              className={`${onUndo && undoLabel ? "" : "ml-auto "}grid size-7 place-items-center rounded-md hover:bg-success/15`}
+              onClick={onDismiss}
+            >
+              <X size={16} />
             </button>
           )}
         </div>

@@ -84,7 +84,11 @@ export function useAction(onSuccess?: () => void) {
     await run(() => request("/undo", "POST"), "Ostatnia zmiana została cofnięta.");
     setUndoLabel(null);
   };
-  return { busy, notice, error, run, undo, undoLabel };
+  const dismiss = () => {
+    setNotice("");
+    setUndoLabel(null);
+  };
+  return { busy, notice, error, run, undo, undoLabel, dismiss };
 }
 
 export type Action = ReturnType<typeof useAction>;

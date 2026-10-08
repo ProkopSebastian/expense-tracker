@@ -576,7 +576,8 @@ export default function CashPage({
       </div>
       <Notice
         error={error || (modal || editing ? "" : action.error)}
-        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo} />
+        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo}
+        onDismiss={action.dismiss} />
       {data && !hasAnything && (
         <div className="card flex min-h-48 flex-col items-center justify-center gap-4 px-6 py-10 text-center text-sm text-muted">
           <p className="max-w-md leading-relaxed">

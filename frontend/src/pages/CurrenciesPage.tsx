@@ -126,7 +126,8 @@ export default function CurrenciesPage({
       </div>
       <Notice
         error={error || (editing ? "" : action.error)}
-        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo} />
+        notice={action.notice} undoLabel={action.undoLabel} onUndo={action.undo}
+        onDismiss={action.dismiss} />
       {!wallets.length && !error && (
         <div className="card flex min-h-48 items-center justify-center px-6 py-10 text-sm text-muted">
           {loading ? "Wczytuję…" : "Nie masz walut na kontach."}

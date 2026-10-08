@@ -61,6 +61,10 @@ export default function DataPage({
           setMessage("");
           void action.undo();
         }}
+        onDismiss={() => {
+          setMessage("");
+          action.dismiss();
+        }}
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
