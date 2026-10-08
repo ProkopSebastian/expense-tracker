@@ -41,8 +41,5 @@ appearance.json
 # Development database, its backups and preferences
 dev/
 
-# Invented data from scripts/demo_data.py
-demo/
-
 # Private update signing key
 .release-keys/

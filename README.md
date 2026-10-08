@@ -15,12 +15,6 @@ Aplikacja do śledzenia wydatków na podstawie wyciągów z banku. Została zapr
 * **Lokalna baza danych:** Wszystko zostaje u Ciebie. Aplikacja przechowuje całą historię finansową, wyciągi i konfigurację lokalnie, w plikowej bazie danych w jednym folderze. Nigdzie nie wysyła Twoich wyciągów.
 * **Funkcje AI:** Do korzystania z funkcji automatycznego sugerowania grup potrzebny jest własny klucz API (OpenAI). Jeśli go nie podasz, aplikacja nadal będzie działać, a transakcje możesz grupować ręcznie.
 
-## Podgląd aplikacji
-
-![Wydatki w działaniu: podsumowanie, historia transakcji, portfele i klasyfikacja](docs/demo.gif)
-
-*Nagranie pokazuje wymyślone dane z `scripts/demo_data.py`.*
-
 ## Budowanie wersji Linux
 
 Aby lokalnie zbudować samodzielny plik dla bieżącej architektury Linuksa, uruchom:
@@ -35,5 +29,4 @@ Wynikiem będzie `dist/Wydatki`. Skrypt wydaniowy na GitHubie używa tego samego
 
 Desktop update architecture, release signing setup, and recovery: [docs/UPDATES.md](docs/UPDATES.md).
 
-* **Dane pokazowe:** `uv run python scripts/demo_data.py` tworzy w `demo/` bazę z wymyślonymi transakcjami, a `uv run uvicorn --factory scripts.demo_data:demo_app --port 8001` uruchamia na niej aplikację. Prawdziwa baza zostaje nietknięta.
 * **Ikony:** `uv run scripts/export_icons.py` generuje ikony aplikacji i favicony z plików SVG.
