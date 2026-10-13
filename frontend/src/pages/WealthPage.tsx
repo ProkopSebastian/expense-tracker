@@ -14,6 +14,7 @@ import {
   KIND_ORDER,
   SnapshotForm,
   byKindThenName,
+  zeroLast,
 } from "../components/WealthForms";
 
 const MISSING = "—";
@@ -208,7 +209,7 @@ function SnapshotDetails({
   return (
     <>
       <ul className="grid gap-x-8 gap-y-1.5 py-2 sm:grid-cols-2">
-        {[...assets].sort(byKindThenName).map((asset) => {
+        {zeroLast(assets, snapshot).map((asset) => {
           const balance = snapshot.balances.find(
             (item) => item.asset_id === asset.id,
           );

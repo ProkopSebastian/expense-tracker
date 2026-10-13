@@ -26,6 +26,12 @@ export function byKindThenName(left: Asset, right: Asset) {
   );
 }
 
+export function zeroLast(assets: Asset[], snapshot?: Snapshot) {
+  const isZero = (asset: Asset) =>
+    Number(snapshot?.balances.find((item) => item.asset_id === asset.id)?.amount ?? NaN) === 0;
+  return [...assets].sort((left, right) => Number(isZero(left)) - Number(isZero(right)) || byKindThenName(left, right));
+}
+
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label_small]:text-xs [&_label_small]:text-muted";
 const ROW_CLASS = "flex-row! items-center justify-between gap-4! py-3";
@@ -205,13 +211,14 @@ export function SnapshotForm({
   const [rates, setRates] = useState<Record<string, string>>({});
   const action = useAction(onSaved);
 
-  const shown = assets
-    .filter(
+  const shown = zeroLast(
+    assets.filter(
       (asset) =>
         asset.is_active ||
         editing?.balances.some((item) => item.asset_id === asset.id),
-    )
-    .sort(byKindThenName);
+    ),
+    editing ?? snapshots.at(-1),
+  );
   const filled = shown.filter((asset) => normalize(amounts[asset.id]));
   const currencies = [
     ...new Set(
