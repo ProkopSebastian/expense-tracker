@@ -27,6 +27,7 @@ export default function LedgerTable({
   onSelectedChange,
   canGroup,
   onOpenGroupModal,
+  onDeleteSelected,
   months,
   expanded,
   onExpandedChange,
@@ -42,6 +43,7 @@ export default function LedgerTable({
   onSelectedChange: (selected: Block[]) => void;
   canGroup: boolean;
   onOpenGroupModal: () => void;
+  onDeleteSelected: () => void;
   months: Map<string, Block[]>;
   expanded: string[];
   onExpandedChange: (expanded: string[]) => void;
@@ -68,6 +70,9 @@ export default function LedgerTable({
             onClick={() => onSelectedChange([])}
           >
             Odznacz
+          </button>
+          <button className="btn-danger" onClick={onDeleteSelected}>
+            Usuń
           </button>
           <button
             className="btn-primary"

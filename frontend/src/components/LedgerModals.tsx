@@ -12,6 +12,7 @@ export function EditCategoryModal({
   onClose,
   onForeignCash,
   onEditManual,
+  onDelete,
 }: {
   editing: Block;
   editCategory: string;
@@ -21,6 +22,7 @@ export function EditCategoryModal({
   onClose: () => void;
   onForeignCash: () => void;
   onEditManual: () => void;
+  onDelete: () => void;
 }) {
   return (
     <Modal title="Zmień kategorię" onClose={onClose} busy={action.busy}>
@@ -75,6 +77,9 @@ export function EditCategoryModal({
           />
         </label>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button type="button" className="btn-danger mr-auto" disabled={action.busy} onClick={onDelete}>
+            Usuń
+          </button>
           <button
             className="btn-primary"
             disabled={action.busy}
@@ -125,6 +130,50 @@ export function DissolveGroupModal({
             }}
           >
             Rozwiąż grupę
+          </button>
+        </footer>
+      </div>
+    </Modal>
+  );
+}
+
+export function DeleteTransactionsModal({
+  rows,
+  action,
+  onClose,
+}: {
+  rows: Block[];
+  action: ReturnType<typeof useAction>;
+  onClose: () => void;
+}) {
+  const title = rows.length === 1 ? "Usunąć transakcję?" : `Usunąć transakcje (${rows.length})?`;
+  return (
+    <Modal title={title} onClose={onClose} busy={action.busy}>
+      <div className="flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed">
+        <Notice error={action.error} />
+        <p>
+          {rows.length === 1
+            ? "Zniknie z historii i podsumowań. Przy kolejnym imporcie wyciągu nie zostanie dodana ponownie."
+            : "Znikną z historii i podsumowań. Przy kolejnym imporcie wyciągu nie zostaną dodane ponownie."}
+        </p>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
+          <button className="btn" onClick={onClose}>
+            Anuluj
+          </button>
+          <button
+            className="btn-danger"
+            disabled={action.busy}
+            onClick={async () => {
+              if (
+                await action.run(
+                  () => request("/transactions/delete", "POST", { ids: rows.map((row) => row.id) }),
+                  rows.length === 1 ? "Transakcja usunięta." : `Usunięto transakcje: ${rows.length}.`,
+                )
+              )
+                onClose();
+            }}
+          >
+            Usuń
           </button>
         </footer>
       </div>

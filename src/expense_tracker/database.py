@@ -104,6 +104,9 @@ CREATE TABLE IF NOT EXISTS wealth_rates (
     currency TEXT NOT NULL, rate TEXT NOT NULL,
     PRIMARY KEY(snapshot_id, currency)
 );
+CREATE TABLE IF NOT EXISTS deleted_transactions (
+    fingerprint TEXT PRIMARY KEY, source_key TEXT, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 CATEGORIES = (
@@ -428,6 +431,11 @@ def fingerprint(transaction: Transaction) -> str:
 
 def insert_transaction(connection: sqlite3.Connection, transaction: Transaction, *, commit: bool = True) -> int | None:
     raw = transaction.raw or {}
+    key = source_key(transaction)
+    if connection.execute(
+        "SELECT 1 FROM deleted_transactions WHERE fingerprint = ? OR source_key = ?", (fingerprint(transaction), key)
+    ).fetchone():
+        return None
     if reconcile(connection, transaction, fingerprint(transaction)):
         if commit:
             connection.commit()
@@ -454,7 +462,7 @@ def insert_transaction(connection: sqlite3.Connection, transaction: Transaction,
             str(transaction.balance) if transaction.balance is not None else None,
             json.dumps(raw, ensure_ascii=False),
             fingerprint(transaction),
-            source_key(transaction),
+            key,
             bank_state(raw),
         ),
     )

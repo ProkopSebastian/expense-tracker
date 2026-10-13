@@ -33,6 +33,7 @@ from .web_models import (
     GroupEntry,
     ManualEntry,
     SnapshotEntry,
+    TransactionIds,
     WalletOpeningRate,
 )
 
@@ -148,6 +149,12 @@ def update_manual(tid: int, entry: ManualEntry, db: DB):
 def delete_manual(tid: int, db: DB):
     ledger.delete_manual_transaction(db, tid)
     return {"message": "Wpis usunięty."}
+
+
+@router.post("/transactions/delete")
+def delete_transactions(entry: TransactionIds, db: DB):
+    ledger.delete_transactions(db, entry.ids)
+    return {"message": "Transakcje usunięte."}
 
 
 @router.put("/transactions/{tid}/category")

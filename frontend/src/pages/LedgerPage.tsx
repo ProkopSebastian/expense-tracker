@@ -9,7 +9,7 @@ import {
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerTable, { LEDGER_PAGE_SIZE } from "../components/LedgerTable";
-import { EditCategoryModal, DissolveGroupModal } from "../components/LedgerModals";
+import { EditCategoryModal, DissolveGroupModal, DeleteTransactionsModal } from "../components/LedgerModals";
 import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
 
 export default function LedgerPage({
@@ -40,6 +40,7 @@ export default function LedgerPage({
       null,
     ),
     [dissolve, setDissolve] = useState<number | null>(null),
+    [deleting, setDeleting] = useState<Block[] | null>(null),
     [foreign, setForeign] = useState<Withdrawal | null>(null),
     [manualEditing, setManualEditing] = useState<Block | null>(null);
   const params = new URLSearchParams({
@@ -167,6 +168,7 @@ export default function LedgerPage({
           onSelectedChange={setSelected}
           canGroup={canGroup}
           onOpenGroupModal={() => setModal("group")}
+          onDeleteSelected={() => setDeleting(selected)}
           months={months}
           expanded={expanded}
           onExpandedChange={setExpanded}
@@ -187,6 +189,10 @@ export default function LedgerPage({
           onClose={() => setEditing(null)}
           onEditManual={() => {
             setManualEditing(editing);
+            setEditing(null);
+          }}
+          onDelete={() => {
+            setDeleting([editing]);
             setEditing(null);
           }}
           onForeignCash={() => {
@@ -230,6 +236,9 @@ export default function LedgerPage({
           onClose={() => setModal(null)}
           action={action}
         />
+      )}
+      {deleting && (
+        <DeleteTransactionsModal rows={deleting} action={action} onClose={() => setDeleting(null)} />
       )}
       {dissolve !== null && (
         <DissolveGroupModal

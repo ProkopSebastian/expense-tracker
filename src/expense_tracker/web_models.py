@@ -50,6 +50,10 @@ class Member(BaseModel):
     role: Role
 
 
+class TransactionIds(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=1000)
+
+
 class GroupEntry(BaseModel):
     title: Text
     kind: Kind

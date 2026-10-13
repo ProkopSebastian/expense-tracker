@@ -469,6 +469,34 @@ def delete_manual_transaction(connection: sqlite3.Connection, transaction_id: in
         connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
 
 
+def delete_transactions(connection: sqlite3.Connection, transaction_ids: list[int]) -> None:
+    placeholders = ",".join("?" * len(transaction_ids))
+    rows = connection.execute(
+        f"SELECT id, transaction_type, fingerprint, source_key FROM transactions WHERE id IN ({placeholders})",
+        transaction_ids,
+    ).fetchall()
+    if len(rows) != len(set(transaction_ids)):
+        raise ValueError("Jedna z transakcji już nie istnieje.")
+    if any(row["transaction_type"] in APP_MADE_TYPES and row["transaction_type"] != MANUAL_ENTRY for row in rows):
+        raise ValueError("Część wpisów tworzy aplikacja, na przykład przy przeliczeniu gotówki. Zmień je tam.")
+    title = group_title(connection, transaction_ids)
+    if title is not None:
+        raise ValueError(f"Transakcja jest w grupie „{title}”. Najpierw rozwiąż grupę.")
+    deleted = set(transaction_ids)
+    with connection:
+        # Remembered so that importing an overlapping statement does not bring them back.
+        connection.executemany(
+            "INSERT OR IGNORE INTO deleted_transactions(fingerprint, source_key) VALUES (?, ?)",
+            [(row["fingerprint"], row["source_key"]) for row in rows if row["transaction_type"] != MANUAL_ENTRY],
+        )
+        for suggestion in pending_suggestions(connection):
+            if deleted & {int(i) for i in suggestion["payload"]["transaction_ids"]}:
+                connection.execute("UPDATE suggestions SET status = 'rejected' WHERE id = ?", (suggestion["id"],))
+        for table in ("transaction_decisions", "cash_foreign_withdrawals", "transactions"):
+            column = "id" if table == "transactions" else "transaction_id"
+            connection.execute(f"DELETE FROM {table} WHERE {column} IN ({placeholders})", transaction_ids)
+
+
 def approve_merchant_suggestion_with_category(
     connection: sqlite3.Connection, suggestion_id: int, category_key: str, should_create_rule: bool,
     *, commit: bool = True, apply_remembered_rules: bool = True,
