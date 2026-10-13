@@ -1,6 +1,7 @@
 import CategoryIcon from "./CategoryIcon";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useState } from "react";
+import { useSessionState } from "../hooks";
 import { PieChart, BarChart3, ChevronRight, Wallet } from "lucide-react";
 import { money, type BreakdownNode, type Summary } from "../api";
 import CategoryChart from "./CategoryChart";
@@ -8,7 +9,7 @@ import CategoryBarChart from "./CategoryBarChart";
 export default function BreakdownPanel({ data }: { data: Summary }) {
   const [path, setPath] = useState<BreakdownNode[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [view, setView] = useState<"donut" | "bars">("donut");
+  const [view, setView] = useSessionState<"donut" | "bars">("summary.breakdownView", "donut");
   const nodes = path.at(-1)?.children ?? data.breakdown;
   const currentTotal = nodes.reduce((sum, node) => sum + Number(node.total), 0);
   const selectNode = (node: BreakdownNode) => {
