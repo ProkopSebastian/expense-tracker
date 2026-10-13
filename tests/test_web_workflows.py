@@ -196,14 +196,13 @@ def test_write_origin_guard_and_empty_sync(client, tmp_path, monkeypatch):
     assert client.post("/api/sync").json()["transactions_inserted"] == 0
 
 
-def test_pagination_never_splits_groups(client):
+def test_ledger_limit_never_splits_groups(client):
     ids = [add(client) for _ in range(102)]
     assert client.post("/api/cases", json=group_payload(ids[:2])).status_code == 201
-    first = client.get("/api/ledger?page=1").json()
-    second = client.get("/api/ledger?page=2").json()
-    third = client.get("/api/ledger?page=3").json()
-    assert len(first["blocks"]) == 50 and len(second["blocks"]) == 50 and len(third["blocks"]) == 1
-    groups = [b for b in first["blocks"] + second["blocks"] + third["blocks"] if b["case_id"]]
+    first = client.get("/api/ledger").json()
+    everything = client.get("/api/ledger?limit=200").json()
+    assert len(first["blocks"]) == 50 and first["total"] == 101 and len(everything["blocks"]) == 101
+    groups = [b for b in everything["blocks"] if b["case_id"]]
     assert len(groups) == 1 and len(groups[0]["members"]) == 2
 
 

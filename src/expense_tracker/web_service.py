@@ -128,7 +128,7 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
 
 
 def ledger_blocks(
-    db: sqlite3.Connection, query: str, direction: str, category: list[str], currency: list[str], page: int,
+    db: sqlite3.Connection, query: str, direction: str, category: list[str], currency: list[str], limit: int,
     *, accounts: list[str] | None = None, date_from: date | None = None, date_to: date | None = None,
     unvalued: bool = False,
 ) -> dict:
@@ -252,14 +252,8 @@ def ledger_blocks(
             continue
         filtered.append(block)
     filtered.sort(key=lambda b: b["date"], reverse=True)
-    page_size = 50
-    pages = max(1, (len(filtered) + page_size - 1) // page_size)
-    page = min(page, pages)
     return {
-        "blocks": filtered[(page - 1) * page_size : page * page_size],
-        "page": page,
-        "pages": pages,
-        "page_size": page_size,
+        "blocks": filtered[:limit],
         "total": len(filtered),
         "currencies": sorted({row["currency"] for row in raw}),
         "cases": cases,

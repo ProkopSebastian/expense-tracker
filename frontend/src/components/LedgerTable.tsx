@@ -3,49 +3,14 @@ import {
   ChevronDown,
   ChevronRight,
   Link2,
-  ArrowLeft,
-  ArrowRight,
+  LoaderCircle,
   Unlink,
 } from "lucide-react";
 import CategoryIcon from "./CategoryIcon";
 import type { LedgerData, Block } from "../domain";
 import { money, monthLabel } from "../api";
 
-function PageNavigation({
-  page,
-  pages,
-  loading,
-  onPageChange,
-}: {
-  page: number;
-  pages: number;
-  loading: boolean;
-  onPageChange: (page: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <button
-        className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-        disabled={loading || page <= 1}
-        aria-label="Poprzednia strona"
-        onClick={() => onPageChange(page - 1)}
-      >
-        <ArrowLeft size={16} />
-      </button>
-      <span>
-        {page} / {pages}
-      </span>
-      <button
-        className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-        disabled={loading || page >= pages}
-        aria-label="Następna strona"
-        onClick={() => onPageChange(page + 1)}
-      >
-        <ArrowRight size={16} />
-      </button>
-    </div>
-  );
-}
+export const LEDGER_PAGE_SIZE = 50;
 
 const OFF_BALANCE_NOTES: Record<string, string> = {
   cash_withdrawal: "Do gotówki",
@@ -55,8 +20,9 @@ const OFF_BALANCE_NOTES: Record<string, string> = {
 export default function LedgerTable({
   data,
   loading,
-  page,
-  onPageChange,
+  remaining,
+  onLoadMore,
+  loadMoreRef,
   selected,
   onSelectedChange,
   canGroup,
@@ -69,10 +35,11 @@ export default function LedgerTable({
 }: {
   data: LedgerData | null;
   loading: boolean;
-  page: number;
-  onPageChange: (page: number) => void;
-  selected: number[];
-  onSelectedChange: (selected: number[]) => void;
+  remaining: number;
+  onLoadMore: () => void;
+  loadMoreRef: (node: Element | null) => void;
+  selected: Block[];
+  onSelectedChange: (selected: Block[]) => void;
   canGroup: boolean;
   onOpenGroupModal: () => void;
   months: Map<string, Block[]>;
@@ -171,12 +138,12 @@ export default function LedgerTable({
                             <input
                               type="checkbox"
                               aria-label={`Zaznacz ${row.description}`}
-                              checked={selected.includes(row.id!)}
+                              checked={selected.some((item) => item.id === row.id)}
                               onChange={(e) =>
                                 onSelectedChange(
                                   e.target.checked
-                                    ? [...selected, row.id!]
-                                    : selected.filter((id) => id !== row.id),
+                                    ? [...selected, row]
+                                    : selected.filter((item) => item.id !== row.id),
                                 )
                               }
                             />
@@ -289,19 +256,23 @@ export default function LedgerTable({
           </div>
         )}
       </div>
-      <footer className="flex items-center justify-end gap-6 py-4 text-xs text-muted [&>div]:flex [&>div]:items-center [&>div]:gap-3">
-        <span>
-          {data && data.total
-            ? `${(data.page - 1) * data.page_size + 1}–${(data.page - 1) * data.page_size + data.blocks.length} z ${data.total}`
-            : "0"}
-        </span>
-        <PageNavigation
-          page={data?.page ?? page}
-          pages={data?.pages ?? 1}
-          loading={loading}
-          onPageChange={onPageChange}
-        />
-      </footer>
+      {remaining > 0 && (
+        <div className="flex justify-center p-4" ref={loadMoreRef}>
+          <button className="btn" disabled={loading} aria-busy={loading} onClick={onLoadMore}>
+            {loading ? (
+              <>
+                <LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" />
+                Wczytuję…
+              </>
+            ) : (
+              <>
+                Pokaż kolejne {Math.min(LEDGER_PAGE_SIZE, remaining)}
+                <span className="text-muted">· zostało {remaining}</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </>
   );
 }

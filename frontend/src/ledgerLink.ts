@@ -16,7 +16,7 @@ export function openLedger({ account = "all", from = "", to = "", unvalued = fal
     "ledger.from": from,
     "ledger.to": to,
     "ledger.unvalued": unvalued,
-    "ledger.page": 1,
+    "ledger.shown": 50,
   };
   try {
     for (const [key, value] of Object.entries(filters)) sessionStorage.setItem(key, JSON.stringify(value));

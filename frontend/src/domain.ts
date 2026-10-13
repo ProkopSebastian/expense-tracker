@@ -61,9 +61,6 @@ export interface Relation {
 }
 export interface LedgerData {
   blocks: Block[];
-  page: number;
-  pages: number;
-  page_size: number;
   total: number;
   currencies: string[];
   cases: {

@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import type { Category, LedgerData, Block } from "../domain";
-import { useResource, useAction, useSessionState } from "../hooks";
+import { useResource, useAction, useSessionState, useLoadMoreSentinel } from "../hooks";
 import { buildCategoryTree, Notice } from "../components/Forms";
 import {
   ManualForm,
   GroupForm,
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
-import LedgerTable from "../components/LedgerTable";
+import LedgerTable, { LEDGER_PAGE_SIZE } from "../components/LedgerTable";
 import { EditCategoryModal, DissolveGroupModal } from "../components/LedgerModals";
 import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
 
@@ -31,8 +31,8 @@ export default function LedgerPage({
     [dateFrom, setDateFrom] = useSessionState("ledger.from", ""),
     [dateTo, setDateTo] = useSessionState("ledger.to", ""),
     [unvalued, setUnvalued] = useSessionState("ledger.unvalued", false),
-    [page, setPage] = useSessionState("ledger.page", 1),
-    [selected, setSelected] = useState<number[]>([]),
+    [shown, setShown] = useSessionState("ledger.shown", LEDGER_PAGE_SIZE),
+    [selected, setSelected] = useState<Block[]>([]),
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
@@ -45,7 +45,7 @@ export default function LedgerPage({
   const params = new URLSearchParams({
     q: query,
     direction,
-    page: String(page),
+    limit: String(shown),
   });
   category.forEach((c) => params.append("category", c));
   if (currency !== "all") params.append("currency", currency);
@@ -64,14 +64,14 @@ export default function LedgerPage({
     setSelected([]);
     onChanged();
   });
-  const selectedRows =
-    data?.blocks.filter(
-      (row) => row.id !== null && selected.includes(row.id),
-    ) ?? [];
-  // A refetch empties this list for a moment while the modal is still open, and every form
-  // below reads selectedRows[0]. Keep them unmounted until there is something to act on.
-  const hasSelection = selectedRows.length > 0;
-  const canGroup = selectedRows.length >= 2;
+  const canGroup = selected.length >= 2;
+  const [isLoadingMore, startLoadingMore] = useTransition();
+  const remaining = (data?.total ?? 0) - (data?.blocks.length ?? 0);
+  const loadMore = useCallback(
+    () => startLoadingMore(() => setShown((count) => count + LEDGER_PAGE_SIZE)),
+    [startLoadingMore, setShown],
+  );
+  const sentinelRef = useLoadMoreSentinel(loadMore, remaining > 0 && !loading && !isLoadingMore);
   const categoryTree = buildCategoryTree(categories);
   const months = new Map<string, Block[]>();
   for (const row of data?.blocks ?? []) {
@@ -81,8 +81,7 @@ export default function LedgerPage({
     months.set(month, rows);
   }
   function filtersChanged() {
-    setPage(1);
-    setSelected([]);
+    setShown(LEDGER_PAGE_SIZE);
   }
   function clearFilters() {
     setQuery("");
@@ -94,10 +93,6 @@ export default function LedgerPage({
     setDateTo("");
     setUnvalued(false);
     filtersChanged();
-  }
-  function changePage(nextPage: number) {
-    setPage(nextPage);
-    setSelected([]);
   }
   return (
     <>
@@ -165,8 +160,9 @@ export default function LedgerPage({
         <LedgerTable
           data={data}
           loading={loading}
-          page={page}
-          onPageChange={changePage}
+          remaining={remaining}
+          onLoadMore={loadMore}
+          loadMoreRef={sentinelRef}
           selected={selected}
           onSelectedChange={setSelected}
           canGroup={canGroup}
@@ -227,10 +223,10 @@ export default function LedgerPage({
           action={action}
         />
       )}
-      {modal === "group" && hasSelection && (
+      {modal === "group" && canGroup && (
         <GroupForm
           categories={categories}
-          selected={selectedRows}
+          selected={selected}
           onClose={() => setModal(null)}
           action={action}
         />

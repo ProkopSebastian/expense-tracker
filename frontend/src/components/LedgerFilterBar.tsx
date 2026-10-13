@@ -4,6 +4,10 @@ import * as Popover from "@radix-ui/react-popover";
 import { Search, X } from "lucide-react";
 import { type CategoryNode } from "./Forms";
 
+function subtreeKeys(node: CategoryNode): string[] {
+  return [node.category.key, ...node.children.flatMap(subtreeKeys)];
+}
+
 function CategoryFilterNode({
   node,
   depth,
@@ -13,7 +17,7 @@ function CategoryFilterNode({
   node: CategoryNode;
   depth: number;
   selected: string[];
-  onToggle: (key: string, checked: boolean) => void;
+  onToggle: (node: CategoryNode, checked: boolean) => void;
 }) {
   return (
     <div className={depth === 0 ? "border-b border-line py-1 last:border-0" : undefined}>
@@ -24,7 +28,7 @@ function CategoryFilterNode({
         <input
           type="checkbox"
           checked={selected.includes(node.category.key)}
-          onChange={(e) => onToggle(node.category.key, e.target.checked)}
+          onChange={(e) => onToggle(node, e.target.checked)}
         />
         <CategoryIcon
           categoryKey={node.category.key}
@@ -142,13 +146,11 @@ export default function LedgerFilterBar({
                 node={node}
                 depth={0}
                 selected={category}
-                onToggle={(key, checked) =>
-                  onCategoryChange(
-                    checked
-                      ? [...category, key]
-                      : category.filter((existing) => existing !== key),
-                  )
-                }
+                onToggle={(toggled, checked) => {
+                  const keys = subtreeKeys(toggled);
+                  const rest = category.filter((existing) => !keys.includes(existing));
+                  onCategoryChange(checked ? [...rest, ...keys] : rest);
+                }}
               />
             ))}
             <label>

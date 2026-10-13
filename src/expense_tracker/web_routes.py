@@ -120,10 +120,10 @@ def history(
     date_from: date | None = None,
     date_to: date | None = None,
     unvalued: bool = False,
-    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1)] = 50,
 ):
     return service.ledger_blocks(
-        db, q, direction, category or [], currency or [], page,
+        db, q, direction, category or [], currency or [], limit,
         accounts=account or [], date_from=date_from, date_to=date_to, unvalued=unvalued,
     )
 
