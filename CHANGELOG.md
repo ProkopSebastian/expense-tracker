@@ -1,3 +1,18 @@
+## v0.7.1 — 13.10.2026
+
+- feat: grupy można edytować — nazwę, kategorię, koszt i datę — oraz dopisywać do nich transakcje
+- feat: zaimportowane transakcje można usunąć z historii, a ponowny import wyciągu ich nie przywraca
+- feat: historia doładowuje kolejne transakcje zamiast dzielić je na strony, a zaznaczenie zostaje po zmianie filtrów
+- feat: zaznaczenie kategorii w filtrze historii obejmuje jej podkategorie, a filtr kont pokazuje też same grupy
+- feat: kursy walut w wycenie majątku wpisują się same z NBP i można je poprawić
+- feat: składniki majątku z zerową kwotą są na końcu listy
+- feat: waluty wybiera się z listy z wyszukiwaniem, także po polskiej nazwie
+- fix: wydatki z gotówki w obcej walucie mają kurs w historii i w sumie grupy
+- fix: saldo walut na koncie liczy się od najnowszego salda z wyciągu, więc starszy wyciąg z przerwą go nie psuje
+- fix: okno wyboru kategorii da się przewinąć, a strzałki miesięcy w podsumowaniu nie skaczą
+- fix: komunikaty pojawiają się w rogu ekranu i nie przesuwają strony
+- uwaga: grupę utworzoną z wydatkami z gotówki w obcej walucie warto otworzyć i sprawdzić jej koszt
+
 ## v0.7.0 — 08.10.2026
 
 - feat: zakładki „Waluty” i „Gotówka” zastępują „Portfele”
