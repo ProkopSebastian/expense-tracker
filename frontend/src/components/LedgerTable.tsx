@@ -26,6 +26,8 @@ export default function LedgerTable({
   loadMoreRef,
   selected,
   onSelectedChange,
+  allSelected,
+  onToggleAll,
   canGroup,
   onOpenGroupModal,
   onDeleteSelected,
@@ -44,6 +46,8 @@ export default function LedgerTable({
   loadMoreRef: (node: Element | null) => void;
   selected: Block[];
   onSelectedChange: (selected: Block[]) => void;
+  allSelected: boolean | "mixed";
+  onToggleAll: () => void;
   canGroup: boolean;
   onOpenGroupModal: () => void;
   onDeleteSelected: () => void;
@@ -109,7 +113,18 @@ export default function LedgerTable({
               </colgroup>
               <thead>
                 <tr>
-                  <th aria-label="Zaznaczenie" />
+                  <th aria-label="Zaznaczenie">
+                    <input
+                      type="checkbox"
+                      aria-label="Zaznacz wszystkie wyniki"
+                      title="Zaznacz wszystkie wyniki filtra"
+                      checked={allSelected === true}
+                      ref={(input) => {
+                        if (input) input.indeterminate = allSelected === "mixed";
+                      }}
+                      onChange={onToggleAll}
+                    />
+                  </th>
                   <th>Transakcja</th>
                   <th>Kategoria</th>
                   <th className="text-right!">Kwota</th>

@@ -1,7 +1,7 @@
 import { useCallback, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import type { Category, LedgerData, Block, GroupCase } from "../domain";
-import { useResource, useAction, useSessionState, useLoadMoreSentinel } from "../hooks";
+import { request, useResource, useAction, useSessionState, useLoadMoreSentinel } from "../hooks";
 import { buildCategoryTree, Notice } from "../components/Forms";
 import {
   ManualForm,
@@ -16,6 +16,8 @@ import {
   PickGroupModal,
 } from "../components/LedgerModals";
 import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
+
+const isSelectable = (row: Block) => row.id !== null && !row.case_id && !row.from_cash_count;
 
 export default function LedgerPage({
   accounts,
@@ -47,6 +49,7 @@ export default function LedgerPage({
     [groupEdit, setGroupEdit] = useState<{ group: GroupCase; add: Block[] } | null>(null),
     [dissolve, setDissolve] = useState<number | null>(null),
     [deleting, setDeleting] = useState<Block[] | null>(null),
+    [selectError, setSelectError] = useState(""),
     [foreign, setForeign] = useState<Withdrawal | null>(null),
     [manualEditing, setManualEditing] = useState<Block | null>(null);
   const params = new URLSearchParams({
@@ -72,6 +75,28 @@ export default function LedgerPage({
     onChanged();
   });
   const canGroup = selected.length >= 2;
+  const selectedIds = new Set(selected.map((row) => row.id));
+  const loadedSelectable = data?.blocks.filter(isSelectable) ?? [];
+  const loadedChosen = loadedSelectable.filter((row) => selectedIds.has(row.id)).length;
+  const allSelected =
+    loadedSelectable.length > 0 && loadedChosen === loadedSelectable.length
+      ? true
+      : loadedChosen > 0
+        ? ("mixed" as const)
+        : false;
+  async function toggleAll() {
+    setSelectError("");
+    const everything = new URLSearchParams(params);
+    everything.set("limit", String(Math.max(data?.total ?? 1, 1)));
+    try {
+      const rows = (await request<LedgerData>(`/ledger?${everything}`)).blocks.filter(isSelectable);
+      const ids = new Set(rows.map((row) => row.id));
+      const rest = selected.filter((row) => !ids.has(row.id));
+      setSelected(allSelected === true ? rest : [...rest, ...rows]);
+    } catch (error) {
+      setSelectError(error instanceof Error ? error.message : "Nie udało się zaznaczyć transakcji.");
+    }
+  }
   const [isLoadingMore, startLoadingMore] = useTransition();
   const remaining = (data?.total ?? 0) - (data?.blocks.length ?? 0);
   const loadMore = useCallback(
@@ -114,7 +139,7 @@ export default function LedgerPage({
         </button>
       </div>
       <Notice
-        error={error || action.error}
+        error={error || action.error || selectError}
         notice={action.notice}
         undoLabel={action.undoLabel}
         onUndo={action.undo}
@@ -172,6 +197,8 @@ export default function LedgerPage({
           loadMoreRef={sentinelRef}
           selected={selected}
           onSelectedChange={setSelected}
+          allSelected={allSelected}
+          onToggleAll={toggleAll}
           canGroup={canGroup}
           onOpenGroupModal={() => setModal("group")}
           onDeleteSelected={() => setDeleting(selected)}
