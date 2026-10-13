@@ -40,7 +40,6 @@ def describe_assets(directory: Path) -> None:
     arch = {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
     names = {
         f"windows-{arch}": "Wydatki.exe",
-        f"linux-{arch}-portable": "Wydatki",
         f"linux-{arch}-deb": f"wydatki_{VERSION}_amd64.deb",
         f"linux-{arch}-rpm": f"wydatki-{VERSION}-1.x86_64.rpm",
         f"macos-{arch}": "Wydatki-macOS.zip",
@@ -68,7 +67,7 @@ def sign_release(directory: Path) -> None:
             if target in assets:
                 raise SystemExit(f"Duplicate target: {target}")
             assets[target] = asset
-    required = {"windows-x86_64", "linux-x86_64-portable", "linux-x86_64-rpm", "linux-x86_64-deb"}
+    required = {"windows-x86_64", "linux-x86_64-rpm", "linux-x86_64-deb"}
     if not required.issubset(assets) or not any(target.startswith("macos-") for target in assets):
         raise SystemExit("Release does not contain every supported platform")
     notes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ", 1)[0]

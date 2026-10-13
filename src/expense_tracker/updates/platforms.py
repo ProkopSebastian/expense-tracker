@@ -60,9 +60,7 @@ def detect_installation() -> Installation:
                 owner = result.stdout.strip().split(":", 1)[0]
                 if result.returncode == 0 and owner == "wydatki":
                     return Installation(f"linux-x86_64-{kind}", executable, kind)
-        if executable.parent == Path("/usr/bin"):
-            raise UpdateError("Nie można rozpoznać pakietu systemowego aplikacji.")
-        return Installation("linux-x86_64-portable", executable, "portable")
+        raise UpdateError("Na Linuksie aktualizacje działają dla instalacji z paczki .rpm lub .deb.")
     raise UpdateError("Brak aktualizacji dla tego systemu lub procesora.")
 
 

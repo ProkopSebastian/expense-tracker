@@ -75,7 +75,6 @@ jobs:
           retention-days: 3
           name: release-linux
           path: |
-            dist/Wydatki
             dist/assets-linux.json
             dist/*.deb
             dist/*.rpm

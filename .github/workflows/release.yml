@@ -68,7 +68,6 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release/Wydatki.exe
-            release/Wydatki
             release/update-manifest.json
             release/update-manifest.sig
             release/*.deb

@@ -10,7 +10,6 @@ API and updater. The first changelog entry and release tag must match that versi
 | Installation | Update mechanism |
 | --- | --- |
 | Windows x86-64, writable user directory | Independently running helper, verified EXE, atomic file replacement |
-| Linux x86-64, user directory | Same mechanism, verified standalone binary |
 | Fedora/RPM | `pkexec dnf install -y <verified local RPM>` |
 | Debian/Ubuntu/DEB | `pkexec apt-get install -y <verified local DEB>` |
 | macOS, architecture published by the release runner | Verified ZIP, preserved framework symlinks, atomic `renamex_np(RENAME_SWAP)` bundle exchange |
