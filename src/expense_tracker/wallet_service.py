@@ -58,7 +58,9 @@ def _held_before_statements(connection: sqlite3.Connection, account: str, curren
 
     A statement's running balance reveals money that predates the imported history. Without a
     balance, the smallest starting amount that never lets the account go below zero is used.
-    It is recomputed on every read, so importing older statements shrinks it on its own.
+    It is recomputed on every read, so importing older statements shrinks it on its own. The
+    newest balance anchors it: an older statement separated by a gap would otherwise leave the
+    gap's movements out of today's balance.
     """
     rows = sorted(
         connection.execute(
@@ -70,7 +72,7 @@ def _held_before_statements(connection: sqlite3.Connection, account: str, curren
     )
     if not rows:
         return None
-    anchor = next((row for row in rows if row["balance"] is not None), None)
+    anchor = next((row for row in reversed(rows) if row["balance"] is not None), None)
     if anchor is not None:
         stamp = _ordering(anchor)[0]
         moved = sum((_decimal(row["amount"]) for row in rows if _ordering(row)[0] <= stamp), Decimal(0))
