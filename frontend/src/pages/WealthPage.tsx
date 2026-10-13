@@ -105,11 +105,11 @@ function Overview({
   const last = data.snapshots.at(-1);
   const change = Number(last?.change ?? 0);
   const active = data.assets.filter((asset) => asset.is_active);
-  // Zero is a real amount, unlike a missing one, but an emptied account would only clutter the list.
+  // An emptied account or one left out of the latest snapshot would only clutter the list.
   const zero = active.filter(
     (asset) => {
       const balance = displayedBalance(asset, last?.day);
-      return balance !== null && Number(balance.amount) === 0;
+      return balance === null ? Boolean(last) : Number(balance.amount) === 0;
     },
   );
   const current = active
@@ -176,7 +176,7 @@ function Overview({
           ))}
         </ul>
         <AssetGroup
-          title="Zerowe"
+          title="Zerowe i puste"
           assets={zero}
           lastDay={last?.day}
           onEdit={onEdit}
