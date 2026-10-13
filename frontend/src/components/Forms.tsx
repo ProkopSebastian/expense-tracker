@@ -284,7 +284,7 @@ export function CategorySelect({
         <Popover.Content
           sideOffset={6}
           collisionPadding={8}
-          className="z-60 w-[min(22rem,90vw)] overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-xl"
+          className="z-60 max-h-(--radix-popover-content-available-height) w-[min(22rem,90vw)] overflow-y-auto rounded-xl border border-line bg-surface text-ink shadow-xl"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             searchInputRef.current?.focus();

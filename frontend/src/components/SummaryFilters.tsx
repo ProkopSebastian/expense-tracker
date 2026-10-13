@@ -79,7 +79,7 @@ export default function SummaryFilters({
           <Popover.Root>
             <Popover.Trigger
               aria-label={`Wybierz miesiąc, obecnie ${monthLabel(currentMonth)}`}
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-accent-soft"
+              className="inline-flex min-h-9 w-52 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-accent-soft"
             >
               <CalendarDays size={16} className="text-accent" />
               {monthLabel(currentMonth)}
