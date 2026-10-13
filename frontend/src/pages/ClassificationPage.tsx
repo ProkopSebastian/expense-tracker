@@ -224,10 +224,13 @@ function RelationSuggestion({
   onChanged: () => void;
 }) {
   const action = useAction(onChanged);
+  const extension = relation.kind === "group_extension";
   return (
     <article className="flex flex-col justify-between gap-3 px-5 py-4 sm:flex-row sm:items-start">
       <div className="min-w-0">
-        <strong className="text-sm font-medium">{relation.payload.title}</strong>
+        <strong className="text-sm font-medium">
+          {extension ? `Dopisać do „${relation.payload.title}”?` : relation.payload.title}
+        </strong>
         <ul className="mt-2 space-y-1 text-sm">
           {relation.members.map((member) => (
             <li
@@ -254,9 +257,15 @@ function RelationSuggestion({
           <span className="line-clamp-2">{relation.payload.rationale}</span>
         </p>
         <p className="mt-2 text-xs text-muted">
-          {relation.payload.kind === "own_transfer"
-            ? "Nie liczy się do wydatków ani wpływów."
-            : `W podsumowaniu jako jeden wydatek: ${money(relation.payload.personal_amount, relation.payload.currency)}.`}
+          {extension
+            ? relation.cost_after == null
+              ? "Część transakcji nie ma kursu, więc koszt grupy trzeba podać ręcznie."
+              : relation.cost_before == null
+                ? `Koszt grupy po dopisaniu: ${money(relation.cost_after, relation.cost_currency!)}.`
+                : `Koszt grupy: ${money(relation.cost_before, relation.cost_currency!)} → ${money(relation.cost_after, relation.cost_currency!)}.`
+            : relation.payload.kind === "own_transfer"
+              ? "Nie liczy się do wydatków ani wpływów."
+              : `W podsumowaniu jako jeden wydatek: ${money(relation.payload.personal_amount, relation.payload.currency)}.`}
         </p>
         <Notice error={action.error} />
       </div>
@@ -267,12 +276,12 @@ function RelationSuggestion({
           onClick={() =>
             action.run(
               () => request(`/suggestions/${relation.id}/approve`, "POST"),
-              "Grupa utworzona.",
+              extension ? "Dopisano do grupy." : "Grupa utworzona.",
             )
           }
         >
           <Link2 size={15} />
-          Połącz
+          {extension ? "Dopisz" : "Połącz"}
         </button>
         <button
           className={REJECT_BUTTON_CLASS}

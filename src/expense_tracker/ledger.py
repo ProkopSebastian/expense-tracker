@@ -101,7 +101,7 @@ def rejected_merchant_suggestion_transaction_ids(connection: sqlite3.Connection)
 
 def pending_relation_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
     rows = connection.execute(
-        "SELECT payload_json FROM suggestions WHERE kind = 'relation' AND status = 'suggested'"
+        "SELECT payload_json FROM suggestions WHERE kind IN ('relation', 'group_extension') AND status = 'suggested'"
     ).fetchall()
     ids: set[int] = set()
     for row in rows:

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from ..config import settings
 from ..ledger import (
+    approved_cases,
     categories,
     merchant_key,
     merchant_text,
@@ -23,6 +24,8 @@ from ..ledger import (
 )
 from ..ledger_view import display_title
 from .contracts import (
+    GroupContext,
+    GroupMemberContext,
     MerchantInput,
     TransactionContext,
     build_merchant_analysis_model,
@@ -39,6 +42,8 @@ from .redaction import redact_text
 
 MAX_MERCHANTS_PER_REQUEST = 20
 MAX_RELATION_TRANSACTIONS = 100
+MAX_RELATION_GROUPS = 30
+MAX_GROUP_MEMBERS_SHOWN = 5
 
 
 @dataclass
@@ -142,11 +147,12 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
         )
         for row in rows
     ]
+    groups = _group_context(connection)
     category_keys_tuple = tuple(str(category["key"]) for category in categories(connection))
     response, _ = _request(
         build_relation_analysis_model(category_keys_tuple),
         RELATION_INSTRUCTIONS,
-        relation_input(categories(connection), payload),
+        relation_input(categories(connection), payload, groups),
         0,
     )
     transaction_ids = {int(row["id"]) for row in rows}
@@ -171,8 +177,49 @@ def analyze_relations(connection: sqlite3.Connection) -> int:
         if _save_suggestion(connection, "relation", payload):
             claimed_ids.update(item_ids)
             saved += 1
+    titles = {group.case_id: group.title for group in groups}
+    for extension in response.extensions:
+        item_ids = set(extension.transaction_ids)
+        if extension.case_id not in titles or len(item_ids) != len(extension.transaction_ids):
+            continue
+        if not item_ids.issubset(transaction_ids) or item_ids & claimed_ids:
+            continue
+        payload = {**extension.model_dump(), "title": titles[extension.case_id]}
+        if _save_suggestion(connection, "group_extension", payload):
+            claimed_ids.update(item_ids)
+            saved += 1
     connection.commit()
     return saved
+
+
+def _group_context(connection: sqlite3.Connection) -> list[GroupContext]:
+    cases = [case for case in approved_cases(connection) if case["kind"] != "wallet_exchange"][:MAX_RELATION_GROUPS]
+    members: dict[int, list[sqlite3.Row]] = defaultdict(list)
+    for row in transactions(connection):
+        if row["case_id"]:
+            members[int(row["case_id"])].append(row)
+    return [
+        GroupContext(
+            case_id=int(case["id"]),
+            title=redact_text(str(case["title"])),
+            kind=str(case["kind"]),
+            category_key=str(case["category_key"]) if case["category_key"] else None,
+            currency=str(case["currency"]),
+            first_date=min(str(row["booking_date"]) for row in members[int(case["id"])]),
+            last_date=max(str(row["booking_date"]) for row in members[int(case["id"])]),
+            members=[
+                GroupMemberContext(
+                    date=str(row["booking_date"]),
+                    amount=float(Decimal(str(row["amount"]))),
+                    currency=str(row["currency"]),
+                    description=redact_text(str(row["description"])),
+                )
+                for row in members[int(case["id"])][:MAX_GROUP_MEMBERS_SHOWN]
+            ],
+        )
+        for case in cases
+        if members[int(case["id"])]
+    ]
 
 
 def _request(model: type[BaseModel], instructions: str, input_text: str, max_tool_calls: int) -> tuple[Any, int]:

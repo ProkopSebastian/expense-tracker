@@ -405,6 +405,8 @@ def _approve(
             db, sid, entry.category_key, entry.remember,
             commit=commit, apply_remembered_rules=apply_remembered_rules,
         )
+    elif suggestion["kind"] == "group_extension":
+        service.approve_group_extension(db, sid)
     else:
         ledger.approve_suggestion(db, sid, commit=commit)
     return {"message": "Sugestia zatwierdzona."}

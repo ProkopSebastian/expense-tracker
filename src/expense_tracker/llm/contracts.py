@@ -31,6 +31,24 @@ class TransactionContext(StrictModel):
     category_status: str | None
 
 
+class GroupMemberContext(StrictModel):
+    date: str
+    amount: float
+    currency: str
+    description: str
+
+
+class GroupContext(StrictModel):
+    case_id: int
+    title: str
+    kind: str
+    category_key: str | None
+    currency: str
+    first_date: str
+    last_date: str
+    members: list[GroupMemberContext]
+
+
 def build_merchant_analysis_model(category_keys: tuple[str, ...]) -> type[BaseModel]:
     category_type = Literal[category_keys]
     classification = create_model(
@@ -63,8 +81,17 @@ def build_relation_analysis_model(category_keys: tuple[str, ...]) -> type[BaseMo
         confidence=(float, Field(ge=0, le=1)),
         rationale=(str, Field(min_length=1, max_length=300)),
     )
+    extension = create_model(
+        "GroupExtensionDynamic",
+        __base__=StrictModel,
+        case_id=(int, ...),
+        transaction_ids=(list[int], Field(min_length=1, max_length=12)),
+        confidence=(float, Field(ge=0, le=1)),
+        rationale=(str, Field(min_length=1, max_length=300)),
+    )
     return create_model(
         "RelationAnalysisDynamic",
         __base__=StrictModel,
         suggestions=(list[suggestion], ...),
+        extensions=(list[extension], ...),
     )

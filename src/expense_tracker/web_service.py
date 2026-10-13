@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import unicodedata
@@ -169,6 +170,49 @@ def update_group(db: sqlite3.Connection, case_id: int, entry: GroupUpdate) -> No
                 "INSERT INTO case_members(case_id, transaction_id, role) VALUES (?, ?, ?)",
                 (case_id, tid, ledger.infer_case_member_role(entry.kind, amount)),
             )
+
+
+def approve_group_extension(db: sqlite3.Connection, suggestion_id: int) -> None:
+    row = db.execute(
+        "SELECT payload_json FROM suggestions WHERE id=? AND kind='group_extension' AND status='suggested'",
+        (suggestion_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("Sugestia została już rozpatrzona.")
+    payload = json.loads(row["payload_json"])
+    ids = [int(i) for i in payload["transaction_ids"]]
+    case = db.execute(
+        "SELECT id, kind, title, category_key, booked_on FROM cases WHERE id=? AND status='approved'",
+        (payload["case_id"],),
+    ).fetchone()
+    if case is None:
+        raise ValueError("Grupa nie istnieje lub została już rozwiązana.")
+    cost = suggested_group_cost(db, ids, case["id"])
+    if cost["missing"]:
+        # Without a rate the added amount would count as zero and understate the group.
+        raise ValueError("Część transakcji nie ma kursu. Dopisz je ręcznie przez „Dodaj do grupy” i podaj koszt.")
+    booked_on = case["booked_on"] or db.execute(
+        "SELECT MIN(t.booking_date) AS day FROM case_members m JOIN transactions t ON t.id = m.transaction_id "
+        "WHERE m.case_id=?",
+        (case["id"],),
+    ).fetchone()["day"]
+    update_group(
+        db,
+        case["id"],
+        GroupUpdate(
+            title=case["title"],
+            kind=case["kind"],
+            personal_amount=-Decimal(cost["total"]),
+            currency=cost["currency"],
+            category_key=case["category_key"] or "uncategorized_expense",
+            booked_on=booked_on,
+            add=ids,
+        ),
+    )
+    with db:
+        db.execute(
+            "UPDATE suggestions SET status='approved', decided_at=CURRENT_TIMESTAMP WHERE id=?", (suggestion_id,)
+        )
 
 
 def suggested_group_cost(db: sqlite3.Connection, transaction_ids: list[int], case_id: int | None) -> dict:
@@ -352,7 +396,16 @@ def account_coverage(db: sqlite3.Connection) -> list[dict]:
 
 
 def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
-    suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] == "relation"]
+    suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] in ("relation", "group_extension")]
+    for suggestion in suggestions:
+        if suggestion["kind"] == "group_extension":
+            payload = suggestion["payload"]
+            before = suggested_group_cost(db, [], payload["case_id"])
+            after = suggested_group_cost(db, [int(i) for i in payload["transaction_ids"]], payload["case_id"])
+            same_currency = before["currency"] == after["currency"]
+            suggestion["cost_before"] = str(-Decimal(before["total"])) if same_currency else None
+            suggestion["cost_after"] = None if after["missing"] else str(-Decimal(after["total"]))
+            suggestion["cost_currency"] = after["currency"]
     ids = {int(i) for s in suggestions for i in s["payload"]["transaction_ids"]}
     by_id = {
         row["id"]: row

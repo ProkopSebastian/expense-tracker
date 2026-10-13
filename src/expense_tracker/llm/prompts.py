@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 
-from .contracts import MerchantInput, TransactionContext
+from .contracts import GroupContext, MerchantInput, TransactionContext
 
-PROMPT_VERSION = "2026-09-merchant-and-relations-v4"
+PROMPT_VERSION = "2026-10-merchant-and-relations-v5"
 
 MERCHANT_INSTRUCTIONS = """Jesteś asystentem klasyfikującym transakcje bankowe w polskiej aplikacji
 budżetu domowego.
@@ -89,7 +89,15 @@ ZASADY
 3. category_key wybierz z katalogu "categories" albo zostaw null, jeśli nie jesteś pewien.
    Kategorie przypisane już do transakcji (pole category_key/category_status w danych
    wejściowych) są tylko kontekstem — nie zmieniaj ich w tym wywołaniu.
-4. Jedna transakcja może wystąpić w co najwyżej jednej Twojej sugestii.
+4. Jedna transakcja może wystąpić w co najwyżej jednej Twojej sugestii — nowej grupie albo
+   dopisaniu do istniejącej.
+
+ISTNIEJĄCE GRUPY (lista "groups")
+Użytkownik ma już grupy, np. wyjazd albo wspólny zakup. Jeśli transakcja z "transactions"
+wyraźnie należy do takiej grupy (to samo zdarzenie: pasujący opis lub kontrahent, waluta albo
+miejsce, data w zakresie dat grupy lub tuż obok), zwróć ją w "extensions" z "case_id" tej grupy
+i konkretnym uzasadnieniem. Nie dopisuj transakcji tylko dlatego, że pasuje kategorią albo datą.
+Gdy nie ma takich transakcji, zwróć pustą listę "extensions".
 
 PRZYKŁAD (nie zwracaj go, to tylko ilustracja)
 Transakcje: -800 PLN "Lot Warszawa-Lizbona" (konto revolut) oraz -50 PLN "Wyrównanie dla Ani"
@@ -105,7 +113,14 @@ def merchant_input(categories: list[dict[str, object]], merchants: list[Merchant
     )
 
 
-def relation_input(categories: list[dict[str, object]], transactions: list[TransactionContext]) -> str:
+def relation_input(
+    categories: list[dict[str, object]], transactions: list[TransactionContext], groups: list[GroupContext]
+) -> str:
     return json.dumps(
-        {"categories": categories, "transactions": [item.model_dump() for item in transactions]}, ensure_ascii=False
+        {
+            "categories": categories,
+            "transactions": [item.model_dump() for item in transactions],
+            "groups": [item.model_dump() for item in groups],
+        },
+        ensure_ascii=False,
     )

@@ -44,6 +44,9 @@ export interface Block extends Omit<TransactionRow, "id" | "amount"> {
 export interface Relation {
   id: number;
   kind: string;
+  cost_before?: string | null;
+  cost_after?: string | null;
+  cost_currency?: string;
   payload: {
     title: string;
     kind: string;
