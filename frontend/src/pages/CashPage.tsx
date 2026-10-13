@@ -156,7 +156,7 @@ function CountForm({
         {preview?.first && correction > 0 && (
           <p className="text-muted">
             Pierwsze liczenie tej waluty. Nadwyżkę {money(correction, currency)} zapiszę jako gotówkę
-            sprzed zapisów — nie liczy się jako przychód.
+            sprzed zapisów - nie liczy się jako przychód.
           </p>
         )}
         {asksCost && (

@@ -342,7 +342,7 @@ export default function ClassificationPage({
         setNotice(
           `AI sprawdziło sprzedawców: ${result.groups_processed ?? 0} (transakcji: ${result.transactions ?? 0}). ` +
             `Nowe propozycje: ${result.saved}. Wyszukiwania w internecie: ${result.web_searches ?? 0}.` +
-            (remaining ? ` Do sprawdzenia zostało sprzedawców: ${remaining} — kliknij „Zaproponuj kategorie” jeszcze raz.` : ""),
+            (remaining ? ` Do sprawdzenia zostało sprzedawców: ${remaining}.` : ""),
         );
       } else {
         setNotice(
@@ -521,8 +521,8 @@ export default function ClassificationPage({
         <p className="mb-5 flex items-center gap-2 text-sm text-muted" role="status">
           <LoaderCircle size={15} className="animate-spin text-accent motion-reduce:animate-none" />
           {activeKind === "merchants"
-            ? `AI analizuje transakcje z góry listy (${Math.min(analyzable.length, AI_BATCH)}) — to może potrwać do minuty.`
-            : "AI szuka powiązań między transakcjami — to może potrwać do minuty."}
+            ? `AI analizuje transakcje (${Math.min(analyzable.length, AI_BATCH)}). To może potrwać do minuty.`
+            : "AI szuka powiązań między transakcjami. To może potrwać do minuty."}
         </p>
       )}
       <div className="mb-6">
