@@ -4,7 +4,6 @@ import * as Popover from "@radix-ui/react-popover";
 import * as Toast from "@radix-ui/react-toast";
 import {
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -544,6 +543,8 @@ export function CategorySelect({
 // ISO 4217 codes ship with the platform; keeping a hand-written list here would only go stale.
 const CURRENCY_CODES = Intl.supportedValuesOf("currency");
 
+const CURRENCY_NAMES = new Intl.DisplayNames("pl", { type: "currency" });
+
 export function CurrencyInput({
   name,
   ariaLabel,
@@ -557,34 +558,84 @@ export function CurrencyInput({
   defaultValue?: string;
   onChange?: (value: string) => void;
 }) {
-  const listId = useId();
+  const [own, setOwn] = useState(defaultValue ?? "");
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const current = value ?? own;
+  const needle = normalizePolish(search);
+  const matches = CURRENCY_CODES.filter(
+    (code) => normalizePolish(code).includes(needle) || normalizePolish(CURRENCY_NAMES.of(code) ?? "").includes(needle),
+  );
+  function pick(code: string) {
+    setOwn(code);
+    onChange?.(code);
+    setOpen(false);
+  }
   return (
-    <>
-      <input
-        name={name}
-        aria-label={ariaLabel}
-        list={listId}
-        required
-        minLength={3}
-        maxLength={3}
-        pattern="[A-Za-z]{3}"
-        title="Trzyliterowy kod waluty, na przykład EUR albo MAD"
-        placeholder="EUR"
-        className="uppercase"
-        value={value}
-        defaultValue={defaultValue}
-        onChange={(event) => {
-          // The API accepts uppercase codes only, and CSS uppercase is cosmetic.
-          event.currentTarget.value = event.currentTarget.value.toUpperCase();
-          onChange?.(event.currentTarget.value);
-        }}
-      />
-      <datalist id={listId}>
-        {CURRENCY_CODES.map((code) => (
-          <option key={code} value={code} />
-        ))}
-      </datalist>
-    </>
+    <Popover.Root
+      // Modal gives the list its own scroll lock, so it scrolls even when opened from a dialog.
+      modal
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setSearch("");
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label={ariaLabel}
+          className="flex min-h-10 min-w-0 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left text-sm text-ink transition hover:border-accent/40 data-[state=open]:border-accent"
+        >
+          <span className={`min-w-0 flex-1 truncate ${current ? "" : "text-muted"}`}>{current || "Wybierz"}</span>
+          <ChevronDown size={16} className="shrink-0 text-muted" />
+        </button>
+      </Popover.Trigger>
+      {name && <input type="hidden" name={name} value={current} />}
+      <Popover.Portal>
+        <Popover.Content
+          sideOffset={6}
+          collisionPadding={8}
+          className="z-60 flex max-h-(--radix-popover-content-available-height) w-[min(18rem,90vw)] flex-col overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-xl"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            searchInputRef.current?.focus();
+          }}
+        >
+          <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+            <Search size={15} className="shrink-0 text-muted" />
+            <input
+              ref={searchInputRef}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (matches[0]) pick(matches[0]);
+              }}
+              placeholder="Szukaj waluty…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {matches.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => pick(code)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-accent-soft ${code === current ? "font-semibold text-accent" : ""}`}
+              >
+                <span className="w-10 shrink-0">{code}</span>
+                <span className="min-w-0 flex-1 truncate text-xs text-muted">{CURRENCY_NAMES.of(code)}</span>
+                {code === current && <Check size={15} className="shrink-0" />}
+              </button>
+            ))}
+            {!matches.length && <p className="px-3 py-2 text-sm text-muted">Brak takiej waluty.</p>}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 export function Notice({
