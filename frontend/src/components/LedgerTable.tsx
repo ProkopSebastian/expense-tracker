@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Link2,
   LoaderCircle,
+  Pencil,
   Unlink,
 } from "lucide-react";
 import CategoryIcon from "./CategoryIcon";
@@ -28,11 +29,13 @@ export default function LedgerTable({
   canGroup,
   onOpenGroupModal,
   onDeleteSelected,
+  onAddToGroup,
   months,
   expanded,
   onExpandedChange,
   onEditRow,
   onDissolveCase,
+  onEditCase,
 }: {
   data: LedgerData | null;
   loading: boolean;
@@ -44,11 +47,13 @@ export default function LedgerTable({
   canGroup: boolean;
   onOpenGroupModal: () => void;
   onDeleteSelected: () => void;
+  onAddToGroup: () => void;
   months: Map<string, Block[]>;
   expanded: string[];
   onExpandedChange: (expanded: string[]) => void;
   onEditRow: (row: Block) => void;
   onDissolveCase: (caseId: number) => void;
+  onEditCase: (caseId: number) => void;
 }) {
   const toggleGroup = (key: string) =>
     onExpandedChange(
@@ -82,6 +87,9 @@ export default function LedgerTable({
             <Link2 size={16} />
             Połącz w grupę
           </button>
+          <button className="btn" onClick={onAddToGroup}>
+            Dodaj do grupy
+          </button>
 
         </div>
       )}
@@ -97,7 +105,7 @@ export default function LedgerTable({
                 <col />
                 <col className="w-56" />
                 <col className="w-44" />
-                <col className="w-16" />
+                <col className="w-24" />
               </colgroup>
               <thead>
                 <tr>
@@ -202,13 +210,24 @@ export default function LedgerTable({
                         </td>
                         <td onClick={(event) => event.stopPropagation()}>
                           {row.from_statement || row.from_cash_count ? null : row.case_id ? (
-                            <button
-                              className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
-                              aria-label={`Rozwiąż grupę ${row.description}`}
-                              onClick={() => onDissolveCase(row.case_id!)}
-                            >
-                              <Unlink size={16} />
-                            </button>
+                            <div className="flex">
+                              {row.case_kind !== "wallet_exchange" && (
+                                <button
+                                  className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                  aria-label={`Edytuj grupę ${row.description}`}
+                                  onClick={() => onEditCase(row.case_id!)}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                              )}
+                              <button
+                                className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"
+                                aria-label={`Rozwiąż grupę ${row.description}`}
+                                onClick={() => onDissolveCase(row.case_id!)}
+                              >
+                                <Unlink size={16} />
+                              </button>
+                            </div>
                           ) : (
                             <button
                               className="inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-accent-soft hover:text-accent"

@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS cases (
     title TEXT NOT NULL, category_key TEXT REFERENCES categories(key), personal_amount TEXT NOT NULL,
     currency TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('suggested', 'approved', 'rejected')),
     source TEXT NOT NULL CHECK(source IN ('manual', 'rule', 'llm')), explanation TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, booked_on TEXT
 );
 CREATE TABLE IF NOT EXISTS case_members (
     case_id INTEGER NOT NULL REFERENCES cases(id), transaction_id INTEGER NOT NULL UNIQUE REFERENCES transactions(id),
@@ -315,6 +315,12 @@ def _migrate_wallet_opening_rate(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE wallets ADD COLUMN opening_rate TEXT")
 
 
+def _migrate_case_booked_on(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(cases)")}
+    if "booked_on" not in columns:
+        connection.execute("ALTER TABLE cases ADD COLUMN booked_on TEXT")
+
+
 def _migrate_cash_flows_off_balance(connection: sqlite3.Connection) -> None:
     from .cash_flows import categorize_cash_flows
 
@@ -411,6 +417,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_cash_count_start_cost,
     _migrate_drop_cash_count_lines,
     _migrate_bank_account_names,
+    _migrate_case_booked_on,
 )
 
 

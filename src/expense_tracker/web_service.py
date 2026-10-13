@@ -11,7 +11,7 @@ from decimal import Decimal
 from . import cash_service, ledger
 from .cash_flows import OFF_BALANCE
 from .ledger_view import display_title, visible_counterparty
-from .web_models import CategoryEntry, Decision, GroupEntry, ManualEntry
+from .web_models import CategoryEntry, Decision, GroupEntry, GroupUpdate, ManualEntry
 
 HOME_CURRENCY = "PLN"
 
@@ -105,16 +105,9 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
     # Acquire the write lock before validation to prevent overlapping groups from concurrent requests.
     with db:
         db.execute("BEGIN IMMEDIATE")
-        currencies = set()
         for tid in ids:
             transaction_exists(db, tid)
-            row = db.execute("SELECT currency FROM transactions WHERE id=?", (tid,)).fetchone()
-            currencies.add(row["currency"])
-        # A group spanning currencies has no native unit, so its real cost is stated in złoty.
-        if len(currencies) > 1 and entry.currency != HOME_CURRENCY:
-            raise ValueError("Grupa łączy różne waluty, więc koszt podaj w złotówkach.")
-        if len(currencies) == 1 and entry.currency not in currencies | {HOME_CURRENCY}:
-            raise ValueError("Waluta kosztu musi pasować do transakcji albo być złotówką.")
+        _require_cost_currency(_currencies(db, ids), entry.currency)
         return ledger.create_case(
             db,
             entry.kind,
@@ -123,8 +116,93 @@ def add_group(db: sqlite3.Connection, entry: GroupEntry) -> int:
             Decimal(0) if entry.kind == "own_transfer" else entry.personal_amount,
             entry.currency,
             [(m.transaction_id, m.role) for m in entry.members],
+            booked_on=entry.booked_on,
             commit=False,
         )
+
+
+def _currencies(db: sqlite3.Connection, ids: list[int]) -> set[str]:
+    placeholders = ",".join("?" * len(ids))
+    rows = db.execute(f"SELECT currency FROM transactions WHERE id IN ({placeholders})", ids)
+    return {row["currency"] for row in rows}
+
+
+def _require_cost_currency(currencies: set[str], currency: str) -> None:
+    # A group spanning currencies has no native unit, so its real cost is stated in złoty.
+    if len(currencies) > 1 and currency != HOME_CURRENCY:
+        raise ValueError("Grupa łączy różne waluty, więc koszt podaj w złotówkach.")
+    if len(currencies) == 1 and currency not in currencies | {HOME_CURRENCY}:
+        raise ValueError("Waluta kosztu musi pasować do transakcji albo być złotówką.")
+
+
+def _member_ids(db: sqlite3.Connection, case_id: int) -> list[int]:
+    rows = db.execute("SELECT transaction_id FROM case_members WHERE case_id=?", (case_id,))
+    return [row["transaction_id"] for row in rows]
+
+
+def update_group(db: sqlite3.Connection, case_id: int, entry: GroupUpdate) -> None:
+    category_exists(db, entry.category_key)
+    if len(entry.add) != len(set(entry.add)):
+        raise ValueError("Każda transakcja może wystąpić w grupie tylko raz.")
+    own = entry.kind == "own_transfer"
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        case = db.execute("SELECT kind FROM cases WHERE id=? AND status='approved'", (case_id,)).fetchone()
+        if case is None:
+            raise ValueError("Grupa nie istnieje lub została już rozwiązana.")
+        if case["kind"] == "wallet_exchange":
+            raise ValueError("Wymiany walut nie da się edytować.")
+        for tid in entry.add:
+            transaction_exists(db, tid)
+        _require_cost_currency(_currencies(db, _member_ids(db, case_id) + entry.add), entry.currency)
+        db.execute(
+            """UPDATE cases SET kind=?, title=?, category_key=?, personal_amount=?, currency=?, booked_on=?
+            WHERE id=?""",
+            (
+                entry.kind, entry.title, "transfer_own" if own else entry.category_key,
+                "0" if own else str(entry.personal_amount), entry.currency, str(entry.booked_on), case_id,
+            ),
+        )
+        for tid in entry.add:
+            amount = Decimal(db.execute("SELECT amount FROM transactions WHERE id=?", (tid,)).fetchone()["amount"])
+            db.execute(
+                "INSERT INTO case_members(case_id, transaction_id, role) VALUES (?, ?, ?)",
+                (case_id, tid, ledger.infer_case_member_role(entry.kind, amount)),
+            )
+
+
+def suggested_group_cost(db: sqlite3.Connection, transaction_ids: list[int], case_id: int | None) -> dict:
+    from . import wallet_service
+
+    in_pln = wallet_service.pln_equivalents(db) | cash_service.cash_state(db).values
+    members = _member_ids(db, case_id) if case_id is not None else []
+    case = (
+        db.execute("SELECT personal_amount, currency FROM cases WHERE id=?", (case_id,)).fetchone() if members else None
+    )
+    currencies = _currencies(db, members + transaction_ids)
+    if case is not None and case["currency"] != HOME_CURRENCY and currencies == {case["currency"]}:
+        currency = case["currency"]
+    else:
+        currency = currencies.pop() if len(currencies) == 1 and case is None else HOME_CURRENCY
+    total, missing = Decimal(0), 0
+    if case is not None:
+        # The group already states a real cost; additions are counted on top of it, not re-derived.
+        cost = Decimal(case["personal_amount"])
+        if case["currency"] != currency:
+            rate = wallet_service.group_cost_rates(db, in_pln).get(case_id)
+            if rate is None:
+                missing += 1
+            cost = cost * (rate or 0)
+        total -= cost
+    for tid in transaction_ids:
+        row = db.execute("SELECT amount, currency FROM transactions WHERE id=?", (tid,)).fetchone()
+        if row["currency"] == currency:
+            total += Decimal(row["amount"])
+        elif tid in in_pln:
+            total += in_pln[tid]
+        else:
+            missing += 1
+    return {"currency": currency, "total": str(total.quantize(Decimal("0.01"))), "missing": missing}
 
 
 def ledger_blocks(
@@ -188,6 +266,7 @@ def ledger_blocks(
                 "date": case["booking_date"],
                 "account": "Grupa",
                 "description": case["title"],
+                "case_kind": case["kind"],
                 "counterparty": "",
                 "amount": None,
                 "real_amount": str(-Decimal(case["personal_amount"])),

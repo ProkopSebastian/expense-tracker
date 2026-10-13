@@ -31,6 +31,7 @@ from .web_models import (
     CategoryEntry,
     Decision,
     GroupEntry,
+    GroupUpdate,
     ManualEntry,
     SnapshotEntry,
     TransactionIds,
@@ -166,6 +167,17 @@ def decision(tid: int, entry: Decision, db: DB):
 @router.post("/cases", status_code=201)
 def group(entry: GroupEntry, db: DB):
     return {"id": service.add_group(db, entry)}
+
+
+@router.get("/cases/cost")
+def group_cost(db: DB, transaction_id: Annotated[list[int] | None, Query()] = None, case_id: int | None = None):
+    return service.suggested_group_cost(db, transaction_id or [], case_id)
+
+
+@router.put("/cases/{case_id}")
+def update_group(case_id: int, entry: GroupUpdate, db: DB):
+    service.update_group(db, case_id, entry)
+    return {"message": "Grupa zapisana."}
 
 
 @router.delete("/cases/{case_id}")

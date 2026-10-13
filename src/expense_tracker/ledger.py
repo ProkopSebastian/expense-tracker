@@ -137,8 +137,9 @@ def transactions(connection: sqlite3.Connection) -> list[dict[str, object]]:
 
 def approved_cases(connection: sqlite3.Connection) -> list[dict[str, object]]:
     rows = connection.execute(
-        """SELECT cases.id, cases.title, cases.category_key, categories.label AS category_label,
-                  cases.personal_amount, cases.currency, MIN(transactions.booking_date) AS booking_date,
+        """SELECT cases.id, cases.kind, cases.title, cases.category_key, categories.label AS category_label,
+                  cases.personal_amount, cases.currency,
+                  COALESCE(cases.booked_on, MIN(transactions.booking_date)) AS booking_date,
                   cases.kind = 'wallet_exchange'
                       AND SUM(transactions.transaction_type = 'Exchange') = COUNT(*) AS from_statement
            FROM cases
@@ -343,13 +344,15 @@ def create_case(
     *,
     source: DecisionSource = "manual",
     explanation: str | None = None,
+    booked_on: date | None = None,
     commit: bool = True,
 ) -> int:
     with connection if commit else nullcontext():
         cursor = connection.execute(
-            """INSERT INTO cases(kind, title, category_key, personal_amount, currency, status, source, explanation)
-            VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)""",
-            (kind, title, category_key, str(personal_amount), currency, source, explanation),
+            """INSERT INTO cases(kind, title, category_key, personal_amount, currency, status, source, explanation,
+            booked_on) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?)""",
+            (kind, title, category_key, str(personal_amount), currency, source, explanation,
+             str(booked_on) if booked_on else None),
         )
         case_id = int(cursor.lastrowid)
         connection.executemany(

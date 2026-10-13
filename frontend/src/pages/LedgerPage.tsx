@@ -1,6 +1,6 @@
 import { useCallback, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
-import type { Category, LedgerData, Block } from "../domain";
+import type { Category, LedgerData, Block, GroupCase } from "../domain";
 import { useResource, useAction, useSessionState, useLoadMoreSentinel } from "../hooks";
 import { buildCategoryTree, Notice } from "../components/Forms";
 import {
@@ -9,7 +9,12 @@ import {
 } from "../components/TransactionForms";
 import LedgerFilterBar from "../components/LedgerFilterBar";
 import LedgerTable, { LEDGER_PAGE_SIZE } from "../components/LedgerTable";
-import { EditCategoryModal, DissolveGroupModal, DeleteTransactionsModal } from "../components/LedgerModals";
+import {
+  EditCategoryModal,
+  DissolveGroupModal,
+  DeleteTransactionsModal,
+  PickGroupModal,
+} from "../components/LedgerModals";
 import { ForeignWithdrawalForm, type Withdrawal } from "../components/CashForms";
 
 export default function LedgerPage({
@@ -36,9 +41,10 @@ export default function LedgerPage({
     [expanded, setExpanded] = useSessionState<string[]>("ledger.expanded", []),
     [editing, setEditing] = useState<Block | null>(null),
     [editCategory, setEditCategory] = useState(""),
-    [modal, setModal] = useState<"manual" | "group" | null>(
+    [modal, setModal] = useState<"manual" | "group" | "pick-group" | null>(
       null,
     ),
+    [groupEdit, setGroupEdit] = useState<{ group: GroupCase; add: Block[] } | null>(null),
     [dissolve, setDissolve] = useState<number | null>(null),
     [deleting, setDeleting] = useState<Block[] | null>(null),
     [foreign, setForeign] = useState<Withdrawal | null>(null),
@@ -169,6 +175,7 @@ export default function LedgerPage({
           canGroup={canGroup}
           onOpenGroupModal={() => setModal("group")}
           onDeleteSelected={() => setDeleting(selected)}
+          onAddToGroup={() => setModal("pick-group")}
           months={months}
           expanded={expanded}
           onExpandedChange={setExpanded}
@@ -177,6 +184,10 @@ export default function LedgerPage({
             setEditCategory(row.category_key ?? "");
           }}
           onDissolveCase={setDissolve}
+          onEditCase={(caseId) => {
+            const group = data?.cases.find((item) => item.id === caseId);
+            if (group) setGroupEdit({ group, add: [] });
+          }}
         />
       </section>
       {editing && (
@@ -234,6 +245,26 @@ export default function LedgerPage({
           categories={categories}
           selected={selected}
           onClose={() => setModal(null)}
+          action={action}
+        />
+      )}
+      {modal === "pick-group" && (
+        <PickGroupModal
+          groups={data?.cases ?? []}
+          count={selected.length}
+          onClose={() => setModal(null)}
+          onPick={(group) => {
+            setModal(null);
+            setGroupEdit({ group, add: selected });
+          }}
+        />
+      )}
+      {groupEdit && (
+        <GroupForm
+          categories={categories}
+          selected={groupEdit.add}
+          existing={groupEdit.group}
+          onClose={() => setGroupEdit(null)}
           action={action}
         />
       )}

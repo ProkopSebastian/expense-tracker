@@ -35,6 +35,7 @@ export interface Block extends Omit<TransactionRow, "id" | "amount"> {
   real_amount: string;
   valuation_missing?: string | null;
   from_statement?: boolean;
+  case_kind?: string;
   off_balance?: boolean;
   from_cash_count?: boolean;
   case_id: number | null;
@@ -63,12 +64,16 @@ export interface LedgerData {
   blocks: Block[];
   total: number;
   currencies: string[];
-  cases: {
-    id: number;
-    title: string;
-    personal_amount: string;
-    currency: string;
-  }[];
+  cases: GroupCase[];
+}
+export interface GroupCase {
+  id: number;
+  kind: string;
+  title: string;
+  category_key: string | null;
+  personal_amount: string;
+  currency: string;
+  booking_date: string;
 }
 export interface ClassificationRow {
   key: string;

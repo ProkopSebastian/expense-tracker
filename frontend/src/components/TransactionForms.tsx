@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import type { Category, Block } from "../domain";
-import { request, type Action } from "../hooks";
+import type { Category, Block, GroupCase } from "../domain";
+import { request, useResource, type Action } from "../hooks";
 import { money } from "../api";
 import { Modal, CategorySelect, CurrencyInput, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
@@ -204,60 +204,65 @@ function defaultRole(kind: string, amount: number) {
 }
 export function GroupForm({
   selected,
+  existing,
   categories,
   onClose,
   action,
 }: {
   selected: Block[];
+  existing?: GroupCase;
   categories: Category[];
   onClose: () => void;
   action: Action;
 }) {
-  const [kind, setKind] = useState("shared_purchase"),
-    [category, setCategory] = useState(""),
+  const [kind, setKind] = useState(existing?.kind ?? "shared_purchase"),
+    [category, setCategory] = useState(existing?.category_key ?? ""),
     [categoryMissing, setCategoryMissing] = useState(false),
     [overrides, setOverrides] = useState<Record<number, string>>({});
-  const currencies = [...new Set(selected.map((row) => row.currency))];
-  const mixed = currencies.length > 1;
-  // A group spanning currencies has no native unit; złoty is the only common one.
-  const currency = mixed ? "PLN" : currencies[0];
-  // A złoty row carries no separate converted value because it already is one.
-  const inPln = (row: Block) =>
-    row.currency === "PLN" ? Number(row.amount) : Number(row.pln_amount ?? 0);
-  const total = selected.reduce(
-    (sum, row) => sum + (mixed ? inPln(row) : Number(row.amount)),
-    0,
+  const costQuery = new URLSearchParams();
+  selected.forEach((row) => costQuery.append("transaction_id", String(row.id)));
+  if (existing) costQuery.append("case_id", String(existing.id));
+  const { data: cost } = useResource<{ currency: string; total: string; missing: number }>(
+    `/cases/cost?${costQuery}`,
   );
-  const unconvertible = selected.filter(
-    (row) => mixed && row.currency !== "PLN" && row.pln_amount == null,
-  );
+  const total = Number(cost?.total ?? 0);
+  const mixed = cost?.currency === "PLN" && selected.some((row) => row.currency !== "PLN");
+  const firstDate = selected.map((row) => row.date).sort()[0];
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!cost) return;
     const f = new FormData(e.currentTarget);
     const amount = String(f.get("amount") || "0");
     if (kind !== "own_transfer" && !category) {
       setCategoryMissing(true);
       return;
     }
-    const ok = await action.run(() =>
-      request("/cases", "POST", {
-        title: f.get("title"),
-        kind,
-        category_key: kind === "own_transfer" ? "transfer_own" : category,
-        currency,
-        personal_amount:
-          f.get("direction") === "income" ? `-${amount}` : amount,
-        members: selected.map((row) => ({
-          transaction_id: row.id,
-          role: overrides[row.id!] ?? defaultRole(kind, Number(row.amount)),
-        })),
-      }),
+    const fields = {
+      title: f.get("title"),
+      kind,
+      category_key: kind === "own_transfer" ? "transfer_own" : category,
+      currency: cost.currency,
+      personal_amount: f.get("direction") === "income" ? `-${amount}` : amount,
+      booked_on: f.get("booked_on"),
+    };
+    const ok = await action.run(
+      () =>
+        existing
+          ? request(`/cases/${existing.id}`, "PUT", { ...fields, add: selected.map((row) => row.id) })
+          : request("/cases", "POST", {
+              ...fields,
+              members: selected.map((row) => ({
+                transaction_id: row.id,
+                role: overrides[row.id!] ?? defaultRole(kind, Number(row.amount)),
+              })),
+            }),
+      existing ? "Grupa zapisana." : "Grupa utworzona.",
     );
     if (ok) onClose();
   }
   return (
     <Modal
-      title="Połącz transakcje w grupę"
+      title={existing ? "Edytuj grupę" : "Połącz transakcje w grupę"}
       onClose={onClose}
       busy={action.busy}
     >
@@ -267,9 +272,12 @@ export function GroupForm({
       >
         <Notice error={action.error} />
         <p className="text-sm leading-relaxed text-muted">
-          {selected.length} transakcje · suma przepływów {money(total, currency)}
-          {mixed && " po Twoich kursach"}. W podsumowaniu grupa będzie jedną
-          pozycją na kwotę Twojego rzeczywistego kosztu.
+          {existing
+            ? selected.length > 0 &&
+              `Dopisywane transakcje: ${selected.length}. Podany koszt obejmuje dotychczasowy koszt grupy i te transakcje.`
+            : cost &&
+              `${selected.length} transakcje · suma przepływów ${money(total, cost.currency)}${mixed ? " po Twoich kursach" : ""}.`}{" "}
+          W podsumowaniu grupa będzie jedną pozycją na kwotę Twojego rzeczywistego kosztu.
         </p>
         {mixed && (
           <ul className="rounded-xl border border-line px-4 py-3 text-sm [&_li]:flex [&_li]:justify-between [&_li]:gap-4 [&_li]:py-1">
@@ -292,21 +300,33 @@ export function GroupForm({
             ))}
           </ul>
         )}
-        {unconvertible.length > 0 && (
+        {(cost?.missing ?? 0) > 0 && (
           <p className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed bg-danger/10 text-danger">
             Część transakcji nie ma kursu, więc suma w złotówkach jest niepełna.
             Zasil najpierw ich portfel albo podaj saldo otwarcia.
           </p>
         )}
-        <label>
-          Nazwa grupy
-          <input
-            name="title"
-            required
-            maxLength={500}
-            placeholder="Na przykład: wspólna kolacja"
-          />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+          <label>
+            Nazwa grupy
+            <input
+              name="title"
+              required
+              maxLength={500}
+              defaultValue={existing?.title}
+              placeholder="Na przykład: wspólna kolacja"
+            />
+          </label>
+          <label>
+            Data
+            <input
+              name="booked_on"
+              type="date"
+              required
+              defaultValue={existing?.booking_date ?? firstDate}
+            />
+          </label>
+        </div>
         <label>
           Rodzaj grupy
           <AppSelect
@@ -340,57 +360,61 @@ export function GroupForm({
               />
               {categoryMissing && <small className="text-danger!">Wybierz kategorię.</small>}
             </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label>
-                Kierunek
-                <AppSelect
-                  ariaLabel="Kierunek"
-                  name="direction"
-                  defaultValue={total > 0 ? "income" : "expense"}
-                  options={[
-                    { value: "expense", label: "Wydatek" },
-                    { value: "income", label: "Zwrot na moją korzyść" },
-                  ]}
-                />
-              </label>
-              <label>
-                Twój rzeczywisty koszt ({currency})
-                <input
-                  name="amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  defaultValue={Math.abs(total).toFixed(2)}
-                />
-              </label>
-            </div>
+            {cost && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label>
+                  Kierunek
+                  <AppSelect
+                    ariaLabel="Kierunek"
+                    name="direction"
+                    defaultValue={total > 0 ? "income" : "expense"}
+                    options={[
+                      { value: "expense", label: "Wydatek" },
+                      { value: "income", label: "Zwrot na moją korzyść" },
+                    ]}
+                  />
+                </label>
+                <label>
+                  Twój rzeczywisty koszt ({cost.currency})
+                  <input
+                    name="amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    defaultValue={Math.abs(total).toFixed(2)}
+                  />
+                </label>
+              </div>
+            )}
           </>
         )}
-        <details>
-          <summary>Role transakcji</summary>
-          <p className="text-sm leading-relaxed text-muted">
-            Opisowe role nie zmieniają podanej kwoty kosztu.
-          </p>
-          {selected.map((row) => (
-            <label key={row.id}>
-              {row.description} · {money(row.amount!, currency)}
-              <AppSelect
-                ariaLabel={`Rola transakcji ${row.description}`}
-                value={
-                  overrides[row.id!] ?? defaultRole(kind, Number(row.amount))
-                }
-                onValueChange={(value) =>
-                  setOverrides({ ...overrides, [row.id!]: value })
-                }
-                options={Object.entries(roles).map(([value, label]) => ({
-                  value,
-                  label,
-                }))}
-              />
-            </label>
-          ))}
-        </details>
+        {!existing && (
+          <details>
+            <summary>Role transakcji</summary>
+            <p className="text-sm leading-relaxed text-muted">
+              Opisowe role nie zmieniają podanej kwoty kosztu.
+            </p>
+            {selected.map((row) => (
+              <label key={row.id}>
+                {row.description} · {money(row.amount!, row.currency)}
+                <AppSelect
+                  ariaLabel={`Rola transakcji ${row.description}`}
+                  value={
+                    overrides[row.id!] ?? defaultRole(kind, Number(row.amount))
+                  }
+                  onValueChange={(value) =>
+                    setOverrides({ ...overrides, [row.id!]: value })
+                  }
+                  options={Object.entries(roles).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                />
+              </label>
+            ))}
+          </details>
+        )}
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button
             type="button"
@@ -402,9 +426,9 @@ export function GroupForm({
           </button>
           <button
             className="btn-primary"
-            disabled={action.busy}
+            disabled={action.busy || !cost}
           >
-            {action.busy ? "Zapisuję…" : "Utwórz grupę"}
+            {action.busy ? "Zapisuję…" : existing ? "Zapisz grupę" : "Utwórz grupę"}
           </button>
         </footer>
       </form>

@@ -61,6 +61,17 @@ class GroupEntry(BaseModel):
     currency: Currency
     category_key: Text
     members: list[Member] = Field(min_length=2, max_length=1000)
+    booked_on: date | None = None
+
+
+class GroupUpdate(BaseModel):
+    title: Text
+    kind: Kind
+    personal_amount: Money
+    currency: Currency
+    category_key: Text
+    booked_on: date
+    add: list[int] = Field(default_factory=list, max_length=1000)
 
 
 class WalletOpeningRate(BaseModel):
