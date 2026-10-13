@@ -132,7 +132,7 @@ export default function LedgerFilterBar({
         ]}
       />
       <Popover.Root>
-        <Popover.Trigger className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm hover:bg-accent-soft">
+        <Popover.Trigger className="min-w-32 rounded-xl border border-line bg-surface px-3 py-2.5 text-sm hover:bg-accent-soft">
           Kategorie{category.length ? ` (${category.length})` : ""}
         </Popover.Trigger>
         <Popover.Portal>
@@ -204,12 +204,16 @@ export default function LedgerFilterBar({
           <X size={14} />
         </button>
       )}
-      {onClear && (
-        <button className="btn" onClick={onClear}>
-          <X size={15} />
-          Wyczyść filtry
-        </button>
-      )}
+      {/* Always laid out, so that the first filter does not reflow the bar and move an open picker. */}
+      <button
+        className={`btn ${onClear ? "" : "invisible"}`}
+        disabled={!onClear}
+        aria-hidden={!onClear}
+        onClick={onClear}
+      >
+        <X size={15} />
+        Wyczyść filtry
+      </button>
     </div>
   );
 }
