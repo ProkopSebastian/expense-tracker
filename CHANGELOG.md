@@ -1,3 +1,19 @@
+## v0.7.2 — 13.10.2026
+
+- feat: AI proponuje kategorie dla transakcji widocznych na górze listy „Bez kategorii” i szuka w internecie nieznanych sprzedawców
+- feat: AI może zaproponować dopisanie transakcji do istniejącej grupy
+- feat: w historii jeden checkbox zaznacza wszystkie wyniki filtra
+- feat: aktualizacje mają osobną zakładkę w ustawieniach
+- fix: przełączanie stron nie miga - odwiedzone strony pokazują dane od razu
+- fix: w czasie analizy AI widać, że trwa, a wynik jest opisany jednym zdaniem
+- fix: odrzucona propozycja AI wraca do analizy po zmianie instrukcji dla AI
+- fix: usunięte transakcje wracają po ponownym wgraniu wyciągu
+- fix: okienko kategorii w filtrze historii nie przeskakuje po zaznaczeniu
+- fix: „Cofnij” opisuje usunięcie transakcji i zmianę grupy po polsku
+- fix: podsumowanie zostaje przy słupkach po zmianie miesiąca
+- fix: w majątku składniki bez kwoty w ostatniej wycenie są zwinięte razem z zerowymi
+- fix: pierwsze liczenie gotówki wyjaśnia, co stanie się z nadwyżką
+
 ## v0.7.1 — 13.10.2026
 
 - feat: grupy można edytować — nazwę, kategorię, koszt i datę — oraz dopisywać do nich transakcje
