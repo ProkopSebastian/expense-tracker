@@ -136,7 +136,7 @@ def ledger_blocks(
 
     raw = ledger.transactions(db)
     cases = ledger.approved_cases(db)
-    in_pln = wallet_service.pln_equivalents(db)
+    in_pln = wallet_service.pln_equivalents(db) | cash_service.cash_state(db).values
 
     foreign_cash = {
         row["transaction_id"]: (row["currency"], row["amount"])
