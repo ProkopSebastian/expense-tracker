@@ -21,7 +21,6 @@ _FINANCIAL_TABLES = (
     "cases",
     "wallets",
     "import_batches",
-    "deleted_transactions",
     "transactions",
 )
 

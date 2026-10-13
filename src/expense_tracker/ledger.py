@@ -475,7 +475,7 @@ def delete_manual_transaction(connection: sqlite3.Connection, transaction_id: in
 def delete_transactions(connection: sqlite3.Connection, transaction_ids: list[int]) -> None:
     placeholders = ",".join("?" * len(transaction_ids))
     rows = connection.execute(
-        f"SELECT id, transaction_type, fingerprint, source_key FROM transactions WHERE id IN ({placeholders})",
+        f"SELECT id, transaction_type FROM transactions WHERE id IN ({placeholders})",
         transaction_ids,
     ).fetchall()
     if len(rows) != len(set(transaction_ids)):
@@ -487,11 +487,6 @@ def delete_transactions(connection: sqlite3.Connection, transaction_ids: list[in
         raise ValueError(f"Transakcja jest w grupie „{title}”. Najpierw rozwiąż grupę.")
     deleted = set(transaction_ids)
     with connection:
-        # Remembered so that importing an overlapping statement does not bring them back.
-        connection.executemany(
-            "INSERT OR IGNORE INTO deleted_transactions(fingerprint, source_key) VALUES (?, ?)",
-            [(row["fingerprint"], row["source_key"]) for row in rows if row["transaction_type"] != MANUAL_ENTRY],
-        )
         for suggestion in pending_suggestions(connection):
             if deleted & {int(i) for i in suggestion["payload"]["transaction_ids"]}:
                 connection.execute("UPDATE suggestions SET status = 'rejected' WHERE id = ?", (suggestion["id"],))

@@ -155,8 +155,8 @@ export function DeleteTransactionsModal({
         <Notice error={action.error} />
         <p>
           {rows.length === 1
-            ? "Zniknie z historii i podsumowań. Przy kolejnym imporcie wyciągu nie zostanie dodana ponownie."
-            : "Znikną z historii i podsumowań. Przy kolejnym imporcie wyciągu nie zostaną dodane ponownie."}
+            ? "Zniknie z historii i podsumowań. Ponowne wgranie wyciągu ją przywróci."
+            : "Znikną z historii i podsumowań. Ponowne wgranie wyciągu je przywróci."}
         </p>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-line pt-5">
           <button className="btn" onClick={onClose}>
