@@ -22,6 +22,7 @@ from .database import Database
 from .llm import service as ai
 from .preferences import AIPreferences, save_preferences
 from .web_models import (
+    AnalysisSelection,
     AssetCreate,
     AssetUpdate,
     BatchApproval,
@@ -457,7 +458,9 @@ def sync(request: Request):
 
 
 @router.post("/ai/{kind}")
-def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
+def analyze(
+    kind: Literal["merchants", "relations"], request: Request, db: DB, selection: AnalysisSelection | None = None
+):
     if not settings.openai_api_key:
         raise HTTPException(503, "Brakuje klucza AI w konfiguracji aplikacji.")
     lock = request.app.state.ai_lock
@@ -465,7 +468,7 @@ def analyze(kind: Literal["merchants", "relations"], request: Request, db: DB):
         raise HTTPException(409, "Analiza AI już trwa. Poczekaj na jej zakończenie.")
     try:
         if kind == "merchants":
-            return asdict(ai.analyze_merchants(db))
+            return asdict(ai.analyze_merchants(db, selection.transaction_ids if selection else None))
         return {"saved": ai.analyze_relations(db)}
     except AuthenticationError as error:
         logger.warning("AI authentication failed (status=%s, code=%s)", error.status_code, error.code)

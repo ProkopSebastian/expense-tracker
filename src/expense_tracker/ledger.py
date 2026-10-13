@@ -88,9 +88,12 @@ def pending_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) 
     return ids
 
 
-def rejected_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
+def rejected_merchant_suggestion_transaction_ids(connection: sqlite3.Connection, prompt_version: str) -> set[int]:
+    # A rejection only says that this version of the instructions got it wrong.
     rows = connection.execute(
-        "SELECT payload_json FROM suggestions WHERE kind = 'merchant_classification' AND status = 'rejected'"
+        """SELECT payload_json FROM suggestions
+        WHERE kind = 'merchant_classification' AND status = 'rejected' AND prompt_version = ?""",
+        (prompt_version,),
     ).fetchall()
     ids: set[int] = set()
     for row in rows:

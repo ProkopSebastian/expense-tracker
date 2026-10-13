@@ -12,6 +12,7 @@ from decimal import Decimal
 from . import cash_service, ledger
 from .cash_flows import OFF_BALANCE
 from .ledger_view import display_title, visible_counterparty
+from .llm.prompts import PROMPT_VERSION
 from .web_models import CategoryEntry, Decision, GroupEntry, GroupUpdate, ManualEntry
 
 HOME_CURRENCY = "PLN"
@@ -438,6 +439,7 @@ def classification_rows(db: sqlite3.Connection) -> list[dict]:
     raw = ledger.transactions(db)
     by_id = {row["id"]: row for row in raw}
     suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] == "merchant_classification"]
+    rejected = ledger.rejected_merchant_suggestion_transaction_ids(db, PROMPT_VERSION)
     covered = set()
     rows = []
     for s in suggestions:
@@ -486,6 +488,7 @@ def classification_rows(db: sqlite3.Connection) -> list[dict]:
                 "rationale": "",
                 "confidence": None,
                 "remember": False,
+                "ai_rejected": row["id"] in rejected,
             }
         )
     return rows

@@ -41,6 +41,7 @@ from .prompts import (
 from .redaction import redact_text
 
 MAX_MERCHANTS_PER_REQUEST = 20
+MAX_MERCHANT_WEB_SEARCHES = 10
 MAX_RELATION_TRANSACTIONS = 100
 MAX_RELATION_GROUPS = 30
 MAX_GROUP_MEMBERS_SHOWN = 5
@@ -52,9 +53,12 @@ class MerchantAnalysisResult:
     groups_processed: int
     groups_remaining: int
     web_searches: int
+    transactions: int = 0
 
 
-def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
+def analyze_merchants(
+    connection: sqlite3.Connection, transaction_ids: list[int] | None = None
+) -> MerchantAnalysisResult:
     # Both expenses (negative) and income (positive) are sent — the LLM is told to pick an
     # income-kind category for positive amounts instead of skipping them entirely. Transactions
     # with a pending suggestion are excluded, or a repeat click would re-ask the LLM about them
@@ -63,7 +67,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     # spends another paid call for the same likely answer.
     excluded = pending_merchant_suggestion_transaction_ids(
         connection
-    ) | rejected_merchant_suggestion_transaction_ids(connection)
+    ) | rejected_merchant_suggestion_transaction_ids(connection, PROMPT_VERSION)
     rows = [
         row
         for row in transactions(connection)
@@ -73,7 +77,18 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
     for row in rows:
         groups[(merchant_key(merchant_text(row)), str(row["currency"]))].append(row)
     all_groups = list(groups.values())
-    merchant_groups = all_groups[:MAX_MERCHANTS_PER_REQUEST]
+    if transaction_ids is None:
+        merchant_groups = all_groups[:MAX_MERCHANTS_PER_REQUEST]
+    else:
+        # The page sends the rows the user sees at the top of the list, in that order.
+        by_id = {int(row["id"]): row for row in rows}
+        order: list[tuple[str, str]] = []
+        for transaction_id in transaction_ids:
+            row = by_id.get(transaction_id)
+            key = (merchant_key(merchant_text(row)), str(row["currency"])) if row else None
+            if key and key not in order:
+                order.append(key)
+        merchant_groups = [groups[key] for key in order][:MAX_MERCHANTS_PER_REQUEST]
     if not merchant_groups:
         return MerchantAnalysisResult(saved=0, groups_processed=0, groups_remaining=0, web_searches=0)
     payload = [
@@ -92,7 +107,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
         build_merchant_analysis_model(category_keys_tuple),
         MERCHANT_INSTRUCTIONS,
         merchant_input(categories(connection), payload),
-        4,
+        MAX_MERCHANT_WEB_SEARCHES,
     )
     category_keys = set(category_keys_tuple)
     is_income_by_id = {int(row["id"]): Decimal(str(row["amount"])) > 0 for group in merchant_groups for row in group}
@@ -122,6 +137,7 @@ def analyze_merchants(connection: sqlite3.Connection) -> MerchantAnalysisResult:
         groups_processed=len(merchant_groups),
         groups_remaining=len(all_groups) - len(merchant_groups),
         web_searches=web_searches,
+        transactions=sum(len(group) for group in merchant_groups),
     )
 
 

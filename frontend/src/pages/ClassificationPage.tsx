@@ -31,14 +31,8 @@ function transactionDirection(totals: Record<string, string>) {
   return "mixed";
 }
 
-function StatBadge({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm text-muted">
-      <strong className="font-semibold text-accent">{value}</strong>
-      {label}
-    </span>
-  );
-}
+// The page asks about what the user sees first; the backend caps the merchants per request.
+const AI_BATCH = 20;
 
 const ITEM_COLUMNS =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(12rem,1.3fr)_9rem] lg:gap-x-6";
@@ -149,6 +143,7 @@ function ClassificationItem({
             </Popover.Root>
           )}
           {row.counterparty !== "—" ? ` · ${row.counterparty}` : ""}
+          {row.ai_rejected && " · AI: propozycja odrzucona"}
         </div>
       </div>
       <div className="text-right">
@@ -319,12 +314,6 @@ export default function ClassificationPage({
   );
   const action = useAction(onChanged);
   const [notice, setNotice] = useState(""),
-    [merchantStats, setMerchantStats] = useState<{
-      processed: number;
-      saved: number;
-      remaining: number;
-      searches: number;
-    } | null>(null),
     [activeKind, setActiveKind] = useState<"merchants" | "relations" | null>(
       null,
     ),
@@ -335,7 +324,6 @@ export default function ClassificationPage({
   const [isLoadingMore, startLoadingMore] = useTransition();
   async function analyze(kind: "merchants" | "relations") {
     setNotice("");
-    setMerchantStats(null);
     setActiveKind(kind);
     await action.run(async () => {
       const result = await request<{
@@ -343,14 +331,19 @@ export default function ClassificationPage({
         groups_processed?: number;
         groups_remaining?: number;
         web_searches?: number;
-      }>(`/ai/${kind}`, "POST");
+        transactions?: number;
+      }>(
+        `/ai/${kind}`,
+        "POST",
+        kind === "merchants" ? { transaction_ids: analyzable.slice(0, AI_BATCH).map((row) => row.transaction_id) } : undefined,
+      );
       if (kind === "merchants") {
-        setMerchantStats({
-          processed: result.groups_processed ?? 0,
-          saved: result.saved,
-          remaining: result.groups_remaining ?? 0,
-          searches: result.web_searches ?? 0,
-        });
+        const remaining = result.groups_remaining ?? 0;
+        setNotice(
+          `AI sprawdziło sprzedawców: ${result.groups_processed ?? 0} (transakcji: ${result.transactions ?? 0}). ` +
+            `Nowe propozycje: ${result.saved}. Wyszukiwania w internecie: ${result.web_searches ?? 0}.` +
+            (remaining ? ` Do sprawdzenia zostało sprzedawców: ${remaining} — kliknij „Zaproponuj kategorie” jeszcze raz.` : ""),
+        );
       } else {
         setNotice(
           `Nowe sugestie powiązań: ${result.saved}.`,
@@ -365,6 +358,7 @@ export default function ClassificationPage({
         .includes(query.toLocaleLowerCase()),
     ) ?? [];
   const suggestions = rows.filter((row) => row.suggestion_id);
+  const analyzable = rows.filter((row) => row.transaction_id !== null && !row.ai_rejected);
   const confident = suggestions.filter(
     (row) => (row.confidence ?? 0) >= 0.9 && row.category_key,
   );
@@ -458,11 +452,15 @@ export default function ClassificationPage({
             disabled={
               !aiEnabled ||
               action.busy ||
-              !data?.rows.some((row) => row.transaction_id)
+              !analyzable.length
             }
             onClick={() => analyze("merchants")}
           >
-            <Sparkles size={15} />
+            {action.busy && activeKind === "merchants" ? (
+              <LoaderCircle size={15} className="animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Sparkles size={15} />
+            )}
             {action.busy && activeKind === "merchants"
               ? "Analiza trwa…"
               : "Zaproponuj kategorie"}
@@ -519,13 +517,13 @@ export default function ClassificationPage({
         extra={assigned ? { label: "Zapamiętaj dla sprzedawcy", onClick: rememberAssigned } : undefined}
       />
       {activeKind && <Notice error={action.error} notice={notice} />}
-      {merchantStats && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          <StatBadge label="Sprawdzono sprzedawców" value={merchantStats.processed} />
-          <StatBadge label="Nowe sugestie" value={merchantStats.saved} />
-          <StatBadge label="Pozostało" value={merchantStats.remaining} />
-          <StatBadge label="Wyszukiwania w internecie" value={merchantStats.searches} />
-        </div>
+      {action.busy && activeKind && (
+        <p className="mb-5 flex items-center gap-2 text-sm text-muted" role="status">
+          <LoaderCircle size={15} className="animate-spin text-accent motion-reduce:animate-none" />
+          {activeKind === "merchants"
+            ? `AI analizuje transakcje z góry listy (${Math.min(analyzable.length, AI_BATCH)}) — to może potrwać do minuty.`
+            : "AI szuka powiązań między transakcjami — to może potrwać do minuty."}
+        </p>
       )}
       <div className="mb-6">
         {(data?.relations.length ?? 0) > 0 && (

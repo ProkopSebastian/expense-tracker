@@ -92,6 +92,7 @@ export interface ClassificationRow {
   rationale: string;
   confidence: number | null;
   remember: boolean;
+  ai_rejected?: boolean;
 }
 export interface Wallet {
   id: number;

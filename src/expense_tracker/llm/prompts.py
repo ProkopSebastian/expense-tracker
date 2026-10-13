@@ -41,9 +41,11 @@ TWARDE ZASADY
    Wybierz uncategorized_expense (dla wydatku) albo income (dla wpływu) i confidence < 0.4.
 8. should_create_rule=true ustawiaj TYLKO gdy confidence >= 0.7 — tylko wtedy każda przyszła
    transakcja o identycznym opisie powinna dostawać tę kategorię bez pytania ponownie.
-9. Wyszukiwania internetowego używaj wyłącznie, gdy sama nazwa sprzedawcy jest niejednoznaczna
-   i wymaga sprawdzenia (mało znana firma, skrót, nazwa w innym języku) — nie szukaj dla
-   oczywistych, dobrze znanych przypadków.
+9. Jeśli po samej nazwie nie wiesz, czym jest sprzedawca (mała lokalna firma, nazwa z numerem
+   filii albo kasy, skrót, imię i nazwisko z miastem jako nazwa firmy), NAJPIERW wyszukaj go
+   w internecie: nazwa bez numerów kart i referencji plus miasto. Dopiero potem wybierz
+   kategorię albo uncategorized_expense. Nie szukaj dla oczywistych, dobrze znanych marek.
+   Kilka transakcji tej samej sieci (np. różne filie) sprawdź jednym wyszukiwaniem.
 10. Nie analizuj, nie streszczaj i nie komentuj danych osobowych (adresy, numery kont, imiona i
     nazwiska) w polu rationale — używaj ich tylko jako sygnału do rozpoznania kontekstu.
 

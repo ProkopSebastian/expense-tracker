@@ -146,13 +146,14 @@ def test_classification_suggestions_and_ai_adapter(tmp_path, monkeypatch):
 
         monkeypatch.setattr(settings, "openai_api_key", SecretStr("test-only"))
         monkeypatch.setattr(
-            "expense_tracker.web_routes.ai.analyze_merchants", lambda db: MerchantAnalysisResult(1, 2, 3, 4)
+            "expense_tracker.web_routes.ai.analyze_merchants", lambda db, selection: MerchantAnalysisResult(1, 2, 3, 4)
         )
         assert client.post("/api/ai/merchants").json() == {
             "saved": 1,
             "groups_processed": 2,
             "groups_remaining": 3,
             "web_searches": 4,
+            "transactions": 0,
         }
         client.app.state.ai_lock.acquire()
         assert client.post("/api/ai/relations").status_code == 409
@@ -181,7 +182,7 @@ def test_ai_errors_have_actionable_messages(client, monkeypatch, kind, expected_
         "connection": APIConnectionError(request=request),
     }
 
-    def fail_analysis(db):
+    def fail_analysis(db, selection):
         raise errors[kind]
 
     monkeypatch.setattr("expense_tracker.web_routes.ai.analyze_merchants", fail_analysis)
