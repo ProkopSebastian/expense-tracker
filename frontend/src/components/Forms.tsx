@@ -1,6 +1,7 @@
 import CategoryIcon, { curatedIcons } from "./CategoryIcon";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
+import * as Toast from "@radix-ui/react-toast";
 import {
   useEffect,
   useId,
@@ -601,6 +602,10 @@ export function Notice({
   onUndo?: () => void;
   onDismiss?: () => void;
 }) {
+  const [closed, setClosed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) setClosed(null);
+  }, [notice]);
   return (
     <>
       {error && (
@@ -613,41 +618,45 @@ export function Notice({
         </div>
       )}
       {notice && (
-        <div
-          role="status"
-          className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed [&_svg]:shrink-0 bg-success/10 text-success"
+        <Toast.Root
+          open={closed !== notice}
+          onOpenChange={(open) => {
+            if (open) return;
+            setClosed(notice);
+            onDismiss?.();
+          }}
+          duration={Infinity}
+          className="rounded-xl bg-surface shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in motion-reduce:animate-none"
         >
-          <CheckCircle2 size={17} />
-          <span className="whitespace-pre-line">{notice}</span>
-          {extra && (
-            <button
-              type="button"
-              className="ml-auto rounded-md bg-success/15 px-2 py-1 font-medium hover:bg-success/25"
-              onClick={extra.onClick}
-            >
-              {extra.label}
-            </button>
-          )}
-          {onUndo && undoLabel && (
-            <button
-              type="button"
-              className={`${extra ? "" : "ml-auto "}rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline`}
-              onClick={onUndo}
-            >
-              Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
-            </button>
-          )}
-          {onDismiss && (
-            <button
-              type="button"
+          <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-sm leading-relaxed text-success [&_svg]:shrink-0">
+            <CheckCircle2 size={17} />
+            <Toast.Description className="whitespace-pre-line">{notice}</Toast.Description>
+            {extra && (
+              <Toast.Action
+                altText={extra.label}
+                className="ml-auto rounded-md bg-success/15 px-2 py-1 font-medium hover:bg-success/25"
+                onClick={extra.onClick}
+              >
+                {extra.label}
+              </Toast.Action>
+            )}
+            {onUndo && undoLabel && (
+              <Toast.Action
+                altText="Cofnij ostatnią zmianę"
+                className={`${extra ? "" : "ml-auto "}rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline`}
+                onClick={onUndo}
+              >
+                Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
+              </Toast.Action>
+            )}
+            <Toast.Close
               aria-label="Zamknij komunikat"
               className={`${extra || (onUndo && undoLabel) ? "" : "ml-auto "}grid size-7 place-items-center rounded-md hover:bg-success/15`}
-              onClick={onDismiss}
             >
               <X size={16} />
-            </button>
-          )}
-        </div>
+            </Toast.Close>
+          </div>
+        </Toast.Root>
       )}
     </>
   );

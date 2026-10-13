@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import * as Toast from "@radix-ui/react-toast";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { reportError } from "./errorReporting";
@@ -37,7 +38,13 @@ void loadTheme().finally(() => {
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <App />
+        <Toast.Provider label="Powiadomienie" swipeDirection="right">
+          <App />
+          <Toast.Viewport
+            label="Powiadomienia ({hotkey})"
+            className="fixed right-4 bottom-4 z-70 flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-2 outline-none sm:right-6 sm:bottom-6"
+          />
+        </Toast.Provider>
       </ErrorBoundary>
     </React.StrictMode>,
   );
