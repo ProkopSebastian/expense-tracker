@@ -153,7 +153,12 @@ function CountForm({
             <input type="date" required value={day} onChange={(event) => setDay(event.target.value)} />
           </label>
         </div>
-        {preview?.first && correction > 0 && <p className="text-muted">To będzie stan na start.</p>}
+        {preview?.first && correction > 0 && (
+          <p className="text-muted">
+            Pierwsze liczenie tej waluty. Nadwyżkę {money(correction, currency)} zapiszę jako gotówkę
+            sprzed zapisów — nie liczy się jako przychód.
+          </p>
+        )}
         {asksCost && (
           <label>
             Ile to kosztowało w złotówkach
@@ -413,7 +418,11 @@ function countDetails(count: CashCount) {
     if (unassigned < 0) parts.push(`przypisane o ${money(-unassigned, count.currency)} za dużo`);
   }
   if (Number(count.correction) > 0) {
-    parts.push(count.first ? "stan na start" : `korekta stanu +${money(count.correction, count.currency)}`);
+    parts.push(
+      count.first
+        ? `gotówka sprzed zapisów +${money(count.correction, count.currency)}`
+        : `korekta stanu +${money(count.correction, count.currency)}`,
+    );
   }
   return parts.length ? parts.join(" · ") : "zgadza się";
 }
