@@ -43,8 +43,8 @@ export default function SettingsDialog({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const [activeTab, setActiveTab] = useState<"appearance" | "data" | "help">(
-    ["available", "ready"].includes(updates.status?.state ?? "") ? "help" : "appearance",
+  const [activeTab, setActiveTab] = useState<"appearance" | "data" | "help" | "updates">(
+    ["available", "ready"].includes(updates.status?.state ?? "") ? "updates" : "appearance",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -111,6 +111,13 @@ export default function SettingsDialog({
               onClick={() => setActiveTab("help")}
             >
               Pomoc
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeTab === "updates"}
+              onClick={() => setActiveTab("updates")}
+            >
+              Aktualizacje
             </button>
           </div>
           {activeTab === "appearance" && (
@@ -347,9 +354,10 @@ export default function SettingsDialog({
             </div>
           )}
 
+          {activeTab === "updates" && <UpdatesPanel updates={updates} />}
+
           {activeTab === "help" && (
             <div className="space-y-5">
-              <UpdatesPanel updates={updates} />
               <p className="text-sm leading-relaxed text-muted">
                 <strong className="text-ink">Jak zacząć:</strong> wgraj wyciąg na
                 stronie Import — podsumowanie i kategorie zrobią się same.
