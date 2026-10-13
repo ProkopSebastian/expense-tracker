@@ -45,11 +45,11 @@ def _relation(category_key: object) -> dict[str, object]:
 
 def test_dynamic_relation_schema_allows_null_category() -> None:
     model = build_relation_analysis_model(CATEGORY_KEYS)
-    result = model.model_validate({"suggestions": [_relation(None)]})
+    result = model.model_validate({"suggestions": [_relation(None)], "extensions": []})
     assert result.suggestions[0].category_key is None
 
 
 def test_dynamic_relation_schema_rejects_unknown_category_key() -> None:
     model = build_relation_analysis_model(CATEGORY_KEYS)
     with pytest.raises(ValidationError):
-        model.model_validate({"suggestions": [_relation("made_up_category")]})
+        model.model_validate({"suggestions": [_relation("made_up_category")], "extensions": []})
