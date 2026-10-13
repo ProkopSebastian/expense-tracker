@@ -68,6 +68,8 @@ ACTION_LABELS: dict[tuple[str, str], str] = {
     ("PUT", "/api/transactions/{}/category"): "Zmiana kategorii transakcji",
     ("POST", "/api/cases"): "Utworzenie grupy transakcji",
     ("DELETE", "/api/cases/{}"): "Rozwiązanie grupy transakcji",
+    ("PUT", "/api/cases/{}"): "Zmiana grupy transakcji",
+    ("POST", "/api/transactions/delete"): "Usunięcie transakcji",
     ("POST", "/api/suggestions/{}/approve"): "Zatwierdzenie sugestii",
     ("POST", "/api/suggestions/approve-all"): "Hurtowe zatwierdzenie sugestii",
     ("POST", "/api/suggestions/{}/reject"): "Odrzucenie sugestii",
@@ -103,7 +105,7 @@ def describe_action(method: str, path: str) -> str:
     """Human-readable Polish label for what a mutating request did, for the undo notice."""
     generic = "/".join("{}" if segment.isdigit() else segment for segment in path.split("/"))
     label = ACTION_LABELS.get((method, generic))
-    return label or f"Zmiana danych ({method} {path})"
+    return label or "Zmiana danych"
 
 
 def record_undo(path: Path, backup: Path, label: str) -> None:
