@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import type { Asset, AssetKind, Snapshot } from "../domain";
-import { request, useAction } from "../hooks";
+import { request, useAction, useResource } from "../hooks";
 import { dayLabel, money } from "../api";
 import { CurrencyInput, Modal, Notice } from "./Forms";
 import AppSelect from "./AppSelect";
@@ -225,8 +225,17 @@ export function SnapshotForm({
       filled.map((asset) => asset.currency).filter((code) => code !== "PLN"),
     ),
   ].sort();
+  const ratesQuery = new URLSearchParams({ day });
+  currencies.forEach((currency) => ratesQuery.append("currency", currency));
+  const { data: official } = useResource<{ rates: Record<string, { rate: string; day: string }> }>(
+    day && currencies.length ? `/wealth/rates?${ratesQuery}` : null,
+  );
+  const officialOf = (currency: string) =>
+    rates[currency] === undefined && !snapshotRate(day, currency, editing)
+      ? official?.rates[currency]
+      : undefined;
   const rateOf = (currency: string) =>
-    rates[currency] ?? snapshotRate(day, currency, editing);
+    rates[currency] ?? (snapshotRate(day, currency, editing) || (officialOf(currency)?.rate.replace(".", ",") ?? ""));
   const valid =
     filled.every((asset) => isNumber(amounts[asset.id])) &&
     currencies.every((currency) =>
@@ -332,7 +341,11 @@ export function SnapshotForm({
               <span>
                 Kurs {currency} / PLN
                 <small className="block">
-                  {day ? `Dla wyceny na ${dayLabel(day)}.` : "Wybierz datę wyceny."}
+                  {officialOf(currency)
+                    ? `Kurs średni NBP z ${dayLabel(officialOf(currency)!.day)}.`
+                    : day
+                      ? `Dla wyceny na ${dayLabel(day)}.`
+                      : "Wybierz datę wyceny."}
                 </small>
               </span>
               <input

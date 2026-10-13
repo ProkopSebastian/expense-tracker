@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
-from . import cash_service, ledger, wallet_service, wealth_service
+from . import cash_service, ledger, nbp_rates, wallet_service, wealth_service
 from . import web_service as service
 from .api_dependencies import get_connection
 from .config import settings
@@ -315,6 +315,11 @@ def delete_cash_exchange(exchange_id: int, db: DB):
 @router.get("/wealth")
 def wealth(db: DB):
     return wealth_service.wealth_overview(db)
+
+
+@router.get("/wealth/rates")
+def official_rates(day: date, currency: Annotated[list[str], Query()]):
+    return {"rates": nbp_rates.official_rates(day, currency)}
 
 
 @router.post("/wealth/assets", status_code=201)
