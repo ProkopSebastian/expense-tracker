@@ -118,6 +118,7 @@ export default function LedgerFilterBar({
         onValueChange={onAccountChange}
         options={[
           { value: "all", label: "Wszystkie konta" },
+          { value: "Grupa", label: "Grupy" },
           ...accounts.map((name) => ({ value: name, label: name })),
         ]}
       />
