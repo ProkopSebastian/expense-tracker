@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 const FIELD_NAMES: Record<string, string> = {
   amount: "kwota",
@@ -50,32 +51,25 @@ export async function request<T>(
   return data as T;
 }
 export function useResource<T>(path: string | null, revision = 0) {
-  const [data, setData] = useState<T | null>(null),
-    [error, setError] = useState(""),
-    [loading, setLoading] = useState(true);
+  // Cached per path, so a page shows its last data at once and refreshes it in the background.
+  const query = useQuery({
+    queryKey: [path],
+    queryFn: ({ signal }) => request<T>(path!, "GET", undefined, signal),
+    enabled: path !== null,
+    placeholderData: keepPreviousData,
+  });
+  const { refetch } = query;
+  const shownRevision = useRef(revision);
   useEffect(() => {
-    if (path === null) {
-      setData(null);
-      setError("");
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    request<T>(path, "GET", undefined, controller.signal)
-      .then((value) => {
-        if (!controller.signal.aborted) setData(value);
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(error.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [path, revision]);
-  return { data, error, loading };
+    if (shownRevision.current === revision) return;
+    shownRevision.current = revision;
+    if (path !== null) void refetch();
+  }, [revision, path, refetch]);
+  return {
+    data: path === null ? null : (query.data ?? null),
+    error: query.error?.message ?? "",
+    loading: query.isFetching,
+  };
 }
 export function useAction(onSuccess?: () => void) {
   const [busy, setBusy] = useState(false),

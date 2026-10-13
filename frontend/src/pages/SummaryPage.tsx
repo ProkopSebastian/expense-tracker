@@ -1,8 +1,8 @@
-import { useSessionState } from "../hooks";
+import { useResource, useSessionState } from "../hooks";
 import BalanceTimeline from "../components/BalanceTimeline";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleHelp } from "lucide-react";
-import { fetchSummary, type Filters, type Summary } from "../api";
+import { type Filters, type Summary } from "../api";
 import SummaryFilters from "../components/SummaryFilters";
 import SummaryCards from "../components/SummaryCards";
 import BreakdownPanel from "../components/BreakdownPanel";
@@ -15,32 +15,12 @@ export default function SummaryPage({
   const [filters, setFilters] = useSessionState<Filters>("summary.filters", {
     mode: "month",
   });
-  const [data, setData] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    fetchSummary(filters, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch((cause) => {
-        if (!controller.signal.aborted)
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Brak połączenia z aplikacją.",
-          );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [filters, revision, externalRevision]);
+  const query = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  const { data, error, loading } = useResource<Summary>(`/summary?${query}`, revision + externalRevision);
 
   return (
     <>

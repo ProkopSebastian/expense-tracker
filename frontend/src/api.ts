@@ -10,29 +10,6 @@ export interface Filters {
   end?: string;
 }
 
-export async function fetchSummary(
-  filters: Filters,
-  signal: AbortSignal,
-): Promise<Summary> {
-  const query = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value) query.set(key, value);
-  });
-  const response = await fetch(`/api/summary?${query}`, { signal }).catch((error) => {
-    if (signal?.aborted) throw error;
-    throw new Error("Brak połączenia z aplikacją. Spróbuj ponownie za chwilę.");
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(
-      typeof body?.detail === "string"
-        ? body.detail
-        : "Nie udało się wczytać podsumowania.",
-    );
-  }
-  return response.json();
-}
-
 export function money(value: string | number, currency: string): string {
   // "ALL" is the aggregate view's pseudo-code and its totals are already in złoty.
   if (currency === "ALL") currency = "PLN";

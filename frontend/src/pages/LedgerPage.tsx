@@ -99,6 +99,7 @@ export default function LedgerPage({
   }
   const [isLoadingMore, startLoadingMore] = useTransition();
   const remaining = (data?.total ?? 0) - (data?.blocks.length ?? 0);
+  const loadingMore = loading && (data?.blocks.length ?? 0) < Math.min(shown, data?.total ?? 0);
   const loadMore = useCallback(
     () => startLoadingMore(() => setShown((count) => count + LEDGER_PAGE_SIZE)),
     [startLoadingMore, setShown],
@@ -192,6 +193,7 @@ export default function LedgerPage({
         <LedgerTable
           data={data}
           loading={loading}
+          loadingMore={loadingMore}
           remaining={remaining}
           onLoadMore={loadMore}
           loadMoreRef={sentinelRef}

@@ -21,6 +21,7 @@ const OFF_BALANCE_NOTES: Record<string, string> = {
 export default function LedgerTable({
   data,
   loading,
+  loadingMore,
   remaining,
   onLoadMore,
   loadMoreRef,
@@ -41,6 +42,7 @@ export default function LedgerTable({
 }: {
   data: LedgerData | null;
   loading: boolean;
+  loadingMore: boolean;
   remaining: number;
   onLoadMore: () => void;
   loadMoreRef: (node: Element | null) => void;
@@ -297,8 +299,8 @@ export default function LedgerTable({
       </div>
       {remaining > 0 && (
         <div className="flex justify-center p-4" ref={loadMoreRef}>
-          <button className="btn" disabled={loading} aria-busy={loading} onClick={onLoadMore}>
-            {loading ? (
+          <button className="btn" disabled={loadingMore} aria-busy={loadingMore} onClick={onLoadMore}>
+            {loadingMore ? (
               <>
                 <LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" />
                 Wczytuję…

@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Toast from "@radix-ui/react-toast";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { reportError } from "./errorReporting";
@@ -31,6 +32,11 @@ window.addEventListener("unhandledrejection", (event) => {
   showFatalError(message);
 });
 
+// A local desktop app: errors are shown at once and data refreshes when a page opens, not on focus.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+});
+
 const root = document.getElementById("root");
 if (!root) throw new Error("Brak elementu #root w stronie startowej.");
 const appRoot: HTMLElement = root;
@@ -38,13 +44,15 @@ void loadTheme().finally(() => {
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <Toast.Provider label="Powiadomienie" swipeDirection="right">
-          <App />
-          <Toast.Viewport
-            label="Powiadomienia ({hotkey})"
-            className="fixed right-4 bottom-4 z-70 flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-2 outline-none sm:right-6 sm:bottom-6"
-          />
-        </Toast.Provider>
+        <QueryClientProvider client={queryClient}>
+          <Toast.Provider label="Powiadomienie" swipeDirection="right">
+            <App />
+            <Toast.Viewport
+              label="Powiadomienia ({hotkey})"
+              className="fixed right-4 bottom-4 z-70 flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-2 outline-none sm:right-6 sm:bottom-6"
+            />
+          </Toast.Provider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </React.StrictMode>,
   );
