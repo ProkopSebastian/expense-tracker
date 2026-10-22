@@ -1,3 +1,7 @@
+## v0.7.3 — 22.10.2026
+
+- fix: saldo walutowego konta Revolut nie pokazuje pieniędzy, których nie ma, gdy płatności zrealizowały się w innej kolejności, niż je rozpoczęto
+
 ## v0.7.2 — 13.10.2026
 
 - feat: AI proponuje kategorie dla transakcji widocznych na górze listy „Bez kategorii” i szuka w internecie nieznanych sprzedawców
