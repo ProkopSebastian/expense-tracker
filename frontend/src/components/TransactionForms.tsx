@@ -222,9 +222,11 @@ export function GroupForm({
   const costQuery = new URLSearchParams();
   selected.forEach((row) => costQuery.append("transaction_id", String(row.id)));
   if (existing) costQuery.append("case_id", String(existing.id));
-  const { data: cost } = useResource<{ currency: string; total: string; missing: number }>(
+  const { data: cachedCost, loading: costLoading } = useResource<{ currency: string; total: string; missing: number }>(
     `/cases/cost?${costQuery}`,
   );
+  // The cost inputs are uncontrolled, so they must start from a fresh answer, not a cached one.
+  const cost = costLoading ? null : cachedCost;
   const total = Number(cost?.total ?? 0);
   const mixed = cost?.currency === "PLN" && selected.some((row) => row.currency !== "PLN");
   const firstDate = selected.map((row) => row.date).sort()[0];
