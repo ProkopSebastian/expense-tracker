@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeftRight, Banknote, HandCoins, Plus } from "lucide-react";
 import type { CashCount, CashData, CashExchange, CashFlow, CashPot, Category } from "../domain";
 import { request, useAction, useResource, type Action } from "../hooks";
-import { money } from "../api";
+import { dayLabel, money } from "../api";
 import { CategorySelect, CurrencyInput, Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
 import { WALLET_GRID_CLASS, rateLabel } from "../components/WalletParts";
@@ -13,10 +13,6 @@ const HOME = "PLN";
 const FORM_CLASS =
   "flex flex-col gap-5 p-5 sm:p-6 [&>p]:text-sm [&>p]:leading-relaxed [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm";
 const today = () => new Date().toLocaleDateString("en-CA");
-
-function dayLabel(value: string) {
-  return value.split("-").reverse().join(".");
-}
 
 function FormFooter({ busy, onClose, disabled, onDelete, deleteNote }: {
   busy: boolean;

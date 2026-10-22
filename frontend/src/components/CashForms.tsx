@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { request, type Action } from "../hooks";
-import { money } from "../api";
+import { dayLabel, money } from "../api";
 import { CurrencyInput, Modal, Notice } from "./Forms";
 
 export type Withdrawal = {
@@ -43,7 +43,7 @@ export function ForeignWithdrawalForm({
       >
         <Notice error={action.error} />
         <p className="text-muted">
-          {withdrawal.date.split("-").reverse().join(".")} ·{" "}
+          {dayLabel(withdrawal.date)} ·{" "}
           {money(withdrawal.bankAmount, withdrawal.bankCurrency)} z konta {withdrawal.account}
         </p>
         {!foreign && (

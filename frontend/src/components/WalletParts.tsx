@@ -1,7 +1,7 @@
 import { Banknote, Landmark } from "lucide-react";
 import type { Wallet, WalletEvent } from "../domain";
 import { useResource } from "../hooks";
-import { money, rateFormat } from "../api";
+import { dayLabel, money, rateFormat } from "../api";
 import { Notice } from "./Forms";
 
 export const WALLET_GRID_CLASS = "mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
@@ -99,7 +99,7 @@ export function WalletHistory({ wallet, revision }: { wallet: Wallet; revision: 
             {events.map((event) => (
               <tr key={event.transaction_id}>
                 <td className="text-muted tabular-nums">
-                  {event.date.split("-").reverse().join(".")}
+                  {dayLabel(event.date)}
                 </td>
                 <td className="w-full">{event.description}</td>
                 <td className="text-muted">

@@ -132,7 +132,7 @@ export function useLoadMoreSentinel(onReachEnd: () => void, enabled: boolean) {
   );
 }
 
-/** Keep view filters while navigating, without persisting transaction data. */
+// Keeps view filters while navigating, without persisting transaction data.
 export function useSessionState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => {
     try {

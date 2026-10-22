@@ -4,11 +4,11 @@ import { openLedger } from "../ledgerLink";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, FolderOpen, RefreshCw, Upload } from "lucide-react";
 import { request, useAction, useResource } from "../hooks";
+import { dayLabel } from "../api";
 import { Notice } from "../components/Forms";
 import AppSelect from "../components/AppSelect";
 import HelpPopover from "../components/HelpPopover";
 
-const dateLabel = (value: string) => value.split("-").reverse().join(".");
 const pluralRules = new Intl.PluralRules("pl-PL");
 const TRANSACTION_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = {
   one: "transakcja",
@@ -101,7 +101,7 @@ export default function DataPage({
                   <span className="text-muted">
                     {result.receipt.account}
                     {result.receipt.first_date && result.receipt.last_date &&
-                      ` · ${dateLabel(result.receipt.first_date)} – ${dateLabel(result.receipt.last_date)}`}
+                      ` · ${dayLabel(result.receipt.first_date)} – ${dayLabel(result.receipt.last_date)}`}
                   </span>
                   <span>
                     nowe: {result.receipt.inserted}
@@ -295,13 +295,13 @@ export default function DataPage({
                 >
                   <span className="truncate text-sm font-medium">{item.account}</span>
                   <span className="text-sm tabular-nums">
-                    dane do {dateLabel(item.last_date)}
+                    dane do {dayLabel(item.last_date)}
                   </span>
                   <span className="text-xs text-muted">
                     {transactionsLabel(item.transactions)}
                   </span>
                   <span className="text-right text-xs text-muted tabular-nums">
-                    od {dateLabel(item.first_date)}
+                    od {dayLabel(item.first_date)}
                   </span>
                 </li>
               ))}

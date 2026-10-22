@@ -1,14 +1,10 @@
 import { useState, type FormEvent } from "react";
 import type { Wallet } from "../domain";
 import { request, useAction, useResource, type Action } from "../hooks";
-import { money } from "../api";
+import { dayLabel, money } from "../api";
 import { Modal, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
 import { WALLET_GRID_CLASS, WalletHistory, WalletTile } from "../components/WalletParts";
-
-function dayLabel(value: string) {
-  return value.split("-").reverse().join(".");
-}
 
 function HeldBeforeForm({
   wallet,

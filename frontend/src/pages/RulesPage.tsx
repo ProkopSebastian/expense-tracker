@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useTransition } from "react";
 import { LoaderCircle, Pencil, Search, Trash2 } from "lucide-react";
 import type { Category, Rule } from "../domain";
+import { dayLabel } from "../api";
 import { request, useResource, useAction, useLoadMoreSentinel } from "../hooks";
 import { CategorySelect, Notice, Modal } from "../components/Forms";
 import CategoryIcon from "../components/CategoryIcon";
@@ -42,7 +43,7 @@ function RuleRow({
           <span className="truncate">{rule.category_label}</span>
         </span>
         <span className="hidden text-sm text-muted tabular-nums sm:block">
-          {rule.created_at.slice(0, 10).split("-").reverse().join(".")}
+          {dayLabel(rule.created_at.slice(0, 10))}
         </span>
         <span className="col-start-2 row-span-2 row-start-1 flex items-center justify-end sm:col-auto sm:row-auto">
           <button

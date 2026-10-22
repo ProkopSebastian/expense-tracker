@@ -3,7 +3,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, ChevronDown, Link2, LoaderCircle, Search, X } from "lucide-react";
 import type { Category, ClassificationRow, Relation } from "../domain";
 import { request, useResource, useAction, useLoadMoreSentinel, type Action } from "../hooks";
-import { money } from "../api";
+import { dayLabel, money } from "../api";
 import { CategorySelect, Notice } from "../components/Forms";
 import HelpPopover from "../components/HelpPopover";
 
@@ -233,7 +233,7 @@ function RelationSuggestion({
               className="grid grid-cols-[5.5rem_minmax(0,16rem)_7rem] justify-start gap-x-4"
             >
               <span className="text-muted tabular-nums">
-                {member.date.split("-").reverse().join(".")}
+                {dayLabel(member.date)}
               </span>
               <span className="truncate">{member.description}</span>
               <span
