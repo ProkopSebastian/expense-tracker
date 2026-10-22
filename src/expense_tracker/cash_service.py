@@ -154,7 +154,7 @@ def _replay(state: CashState) -> None:
     for _, _, _, kind, payload in sorted(events, key=lambda event: event[:3]):
         if kind == "flow":
             pot = _pot(state.pots, payload["currency"])
-            if payload["amount"] >= 0:
+            if payload["amount"] > 0:
                 pot.add(payload["amount"], payload["cost"])
             else:
                 value = pot.value(-payload["amount"])
