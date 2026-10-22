@@ -1,5 +1,3 @@
-"""Local HTTP adapter; business rules remain in the Python service modules."""
-
 from __future__ import annotations
 
 import asyncio

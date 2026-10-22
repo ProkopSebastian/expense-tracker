@@ -1,5 +1,3 @@
-"""Application operations shared by the HTTP interface, independent of UI widgets."""
-
 from __future__ import annotations
 
 import json

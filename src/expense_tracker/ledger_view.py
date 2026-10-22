@@ -91,10 +91,9 @@ def _summary_row(case: dict[str, object]) -> dict[str, object]:
 
 
 def build_rows(transactions: list[dict[str, object]], cases: list[dict[str, object]]) -> list[dict[str, object]]:
-    """Shape the ledger into one row per transaction. Approved-case members are grouped
-    adjacently right after a synthetic header/summary row (so the group reads top-down like a
-    header with its line items) while raw movements stay fully visible for audit; only the
-    case's real personal cost feeds category totals (matches reporting.actuals())."""
+    # Approved-case members follow a synthetic header row, so a group reads top-down like a header
+    # with its line items, while raw movements stay visible for audit. Only the case's real
+    # personal cost feeds category totals, matching reporting.actuals().
     cases_by_id = {int(case["id"]): case for case in cases}
     members_by_case: defaultdict[int, list[dict[str, object]]] = defaultdict(list)
     standalone: list[dict[str, object]] = []

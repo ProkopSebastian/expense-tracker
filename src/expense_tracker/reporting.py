@@ -76,11 +76,8 @@ def _merchant_display(description: str) -> str:
 
 
 def category_breakdown(items: list[dict[str, object]], categories: list[dict[str, object]]) -> dict[str, dict]:
-    """Three-level expense breakdown: top-level category -> subcategory -> merchant.
-
-    A decision made directly on a top-level category (no subcategory chosen) is bucketed
-    under a synthetic "Inne: <category>" subcategory so subcategory totals always sum to
-    the parent's total."""
+    # A decision made directly on a top-level category goes under a synthetic "Inne: <category>"
+    # subcategory, so subcategory totals always sum to the parent's total.
     by_key = {str(category["key"]): category for category in categories}
 
     def top_level(category_key: str) -> dict[str, object]:

@@ -1,5 +1,3 @@
-"""Conservative bank lifecycle matching, independent of presentation and classification."""
-
 from __future__ import annotations
 
 import hashlib
@@ -36,7 +34,7 @@ def source_key(transaction: Transaction) -> str | None:
 
 
 def reconcile(db: sqlite3.Connection, transaction: Transaction, fingerprint: str) -> bool:
-    """Return True when consumed (updated, identical, or inactive without a predecessor)."""
+    # True when consumed: updated, identical, or inactive without a predecessor.
     raw = transaction.raw or {}
     state = bank_state(raw)
     key = source_key(transaction)

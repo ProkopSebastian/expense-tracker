@@ -1,4 +1,4 @@
-"""Local AI preferences. Secrets never appear in API responses or distribution bundles."""
+# Secrets never appear in API responses or distribution bundles.
 
 import json
 from pathlib import Path

@@ -90,7 +90,7 @@ class ImportOutcome:
 
 
 def import_file(database: Database, path: Path, account: str | None = None) -> ImportOutcome | None:
-    """Import one export atomically; account separates multiple accounts at the same bank."""
+    # account separates multiple accounts at the same bank.
     bank = detect_file_format(path)
     if bank is None:
         raise ValueError(

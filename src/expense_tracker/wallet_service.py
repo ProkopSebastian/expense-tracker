@@ -1,5 +1,3 @@
-"""Pots of money the bank statements do not fully describe: cash, and foreign currency."""
-
 from __future__ import annotations
 
 import json
@@ -64,14 +62,11 @@ def _bank_accounts(connection: sqlite3.Connection) -> set[str]:
 
 
 def _held_before_statements(connection: sqlite3.Connection, account: str, currency: str) -> tuple[Decimal, str] | None:
-    """What the account already held before its earliest imported row, and that row's date.
-
-    A statement's running balance reveals money that predates the imported history. Without a
-    balance, the smallest starting amount that never lets the account go below zero is used.
-    It is recomputed on every read, so importing older statements shrinks it on its own. The
-    newest balance anchors it: an older statement separated by a gap would otherwise leave the
-    gap's movements out of today's balance.
-    """
+    # A statement's running balance reveals money that predates the imported history. Without a
+    # balance, the smallest starting amount that never lets the account go below zero is used.
+    # It is recomputed on every read, so importing older statements shrinks it on its own. The
+    # newest balance anchors it: an older statement separated by a gap would otherwise leave the
+    # gap's movements out of today's balance.
     rows = sorted(
         connection.execute(
             """SELECT id, booking_date, amount, balance, raw_json FROM transactions
@@ -322,11 +317,8 @@ def list_wallets(connection: sqlite3.Connection) -> list[dict[str, object]]:
 
 
 def pln_equivalents(connection: sqlite3.Connection) -> dict[int, Decimal]:
-    """What each foreign-currency transaction is worth in złoty, at the pot's own cost.
-
-    Only movements a wallet could value appear here. A currency with no recorded exchange is
-    absent rather than guessed, so callers can tell "nothing to convert" from "worth zero".
-    """
+    # A currency with no recorded exchange is absent rather than guessed, so callers can tell
+    # "nothing to convert" from "worth zero".
     values: dict[int, Decimal] = {}
     for state in wallet_states(connection).values():
         for event in state["history"]:
@@ -419,13 +411,9 @@ def _link_exchange(connection: sqlite3.Connection, *, wallet_id: int, source: sq
 
 
 def pair_exchanges(connection: sqlite3.Connection) -> int:
-    """Link the two halves of a bank-recorded currency exchange. Returns how many were linked.
-
-    Both halves carry the same start timestamp down to the second, so matching them is
-    bookkeeping rather than inference. Anything less than certain is left to the user: a moment
-    without exactly one outgoing and one incoming row is skipped whole, never resolved by
-    picking the closest candidate.
-    """
+    # Both halves carry the same start timestamp down to the second, so matching them is
+    # bookkeeping rather than inference. A moment without exactly one outgoing and one incoming
+    # row is skipped whole, never resolved by picking the closest candidate.
     rows = connection.execute(
         """SELECT t.id, t.account, t.amount, t.currency, t.raw_json
         FROM transactions t LEFT JOIN case_members cm ON cm.transaction_id = t.id

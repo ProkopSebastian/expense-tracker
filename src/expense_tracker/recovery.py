@@ -1,5 +1,3 @@
-"""SQLite-consistent backups and guarded, single-step undo of local writes."""
-
 from __future__ import annotations
 
 import hashlib
@@ -102,7 +100,6 @@ ACTION_LABELS: dict[tuple[str, str], str] = {
 
 
 def describe_action(method: str, path: str) -> str:
-    """Human-readable Polish label for what a mutating request did, for the undo notice."""
     generic = "/".join("{}" if segment.isdigit() else segment for segment in path.split("/"))
     label = ACTION_LABELS.get((method, generic))
     return label or "Zmiana danych"

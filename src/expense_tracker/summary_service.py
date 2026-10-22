@@ -1,4 +1,4 @@
-"""UI-independent summary use case. Money stays decimal through the API boundary."""
+# Money stays decimal through the API boundary.
 
 from __future__ import annotations
 
@@ -66,12 +66,9 @@ def _nodes(level: dict) -> list[BreakdownNode]:
 
 
 def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[tuple[str, str]]]:
-    """Restate every item in złoty, leaving out what no real transaction can value.
-
-    Nothing here invents a rate. An amount whose currency was never exchanged on record is
-    dropped and reported with its date and code, so the total is visibly incomplete instead of
-    quietly wrong.
-    """
+    # Nothing here invents a rate. An amount whose currency was never exchanged on record is
+    # dropped and reported with its date and code, so the total is visibly incomplete instead of
+    # quietly wrong.
     from .cash_service import cash_state
     from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
 

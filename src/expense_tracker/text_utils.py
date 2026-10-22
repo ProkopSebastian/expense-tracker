@@ -9,8 +9,7 @@ _CARD_OPERATION_TYPES = {"płatności kartą", "card payment", "card refund"}
 
 
 def clean_description(text: str) -> str:
-    """Strip card-masking noise (e.g. "Nr karty ...4724") and a trailing embedded amount
-    from a raw bank description, for display only — the stored description is untouched."""
+    # For display only; the stored description is untouched.
     cleaned = _CARD_SUFFIX.sub("", text)
     cleaned = _TRAILING_AMOUNT.sub("", cleaned)
     cleaned = " ".join(cleaned.split())

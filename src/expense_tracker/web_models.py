@@ -1,5 +1,3 @@
-"""Validated HTTP request contracts, separate from application operations."""
-
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal
