@@ -77,15 +77,31 @@ def update_merchant_rule(connection: sqlite3.Connection, rule_id: int, category_
     connection.commit()
 
 
+def live_merchant_suggestions(connection: sqlite3.Connection) -> list[dict[str, object]]:
+    # Same condition as approval: once any of its transactions is classified or grouped, the
+    # suggestion can no longer be approved, so it must not be offered either.
+    settled = {
+        int(row[0])
+        for row in connection.execute(
+            """SELECT transaction_id FROM transaction_decisions
+            UNION SELECT cm.transaction_id FROM case_members cm JOIN cases c ON c.id = cm.case_id
+            WHERE c.status = 'approved'"""
+        )
+    }
+    return [
+        suggestion
+        for suggestion in pending_suggestions(connection)
+        if suggestion["kind"] == "merchant_classification"
+        and settled.isdisjoint(int(i) for i in suggestion["payload"]["transaction_ids"])
+    ]
+
+
 def pending_merchant_suggestion_transaction_ids(connection: sqlite3.Connection) -> set[int]:
-    rows = connection.execute(
-        "SELECT payload_json FROM suggestions WHERE kind = 'merchant_classification' AND status = 'suggested'"
-    ).fetchall()
-    ids: set[int] = set()
-    for row in rows:
-        payload = json.loads(row["payload_json"])
-        ids.update(int(transaction_id) for transaction_id in payload["transaction_ids"])
-    return ids
+    return {
+        int(transaction_id)
+        for suggestion in live_merchant_suggestions(connection)
+        for transaction_id in suggestion["payload"]["transaction_ids"]
+    }
 
 
 def rejected_merchant_suggestion_transaction_ids(connection: sqlite3.Connection, prompt_version: str) -> set[int]:

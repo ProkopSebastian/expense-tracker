@@ -438,7 +438,7 @@ def relation_suggestions(db: sqlite3.Connection) -> list[dict]:
 def classification_rows(db: sqlite3.Connection) -> list[dict]:
     raw = ledger.transactions(db)
     by_id = {row["id"]: row for row in raw}
-    suggestions = [s for s in ledger.pending_suggestions(db) if s["kind"] == "merchant_classification"]
+    suggestions = ledger.live_merchant_suggestions(db)
     rejected = ledger.rejected_merchant_suggestion_transaction_ids(db, PROMPT_VERSION)
     covered = set()
     rows = []
