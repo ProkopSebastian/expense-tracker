@@ -93,7 +93,9 @@ def import_file(database: Database, path: Path, account: str | None = None) -> I
     """Import one export atomically; account separates multiple accounts at the same bank."""
     bank = detect_file_format(path)
     if bank is None:
-        raise ValueError("Nie rozpoznano formatu banku. Obsługiwane: Nest, Revolut, Erste, ING PDF i Velo PDF.")
+        raise ValueError(
+            "Nie rozpoznano formatu banku. Obsługiwane: Nest, Revolut, Erste oraz PDF z ING, Velo i PKO BP."
+        )
     default_account = DEFAULT_ACCOUNTS[bank]
     account = canonical_account(database.connection, account) if account else default_account
     original_hash = _file_hash(path)
