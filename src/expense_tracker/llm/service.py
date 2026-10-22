@@ -112,15 +112,17 @@ def analyze_merchants(
     category_keys = set(category_keys_tuple)
     is_income_by_id = {int(row["id"]): Decimal(str(row["amount"])) > 0 for group in merchant_groups for row in group}
     sent_ids = set(is_income_by_id)
+    claimed_ids: set[int] = set()
     saved = 0
     for item in response.classifications:
-        if not item.transaction_ids or not set(item.transaction_ids).issubset(sent_ids):
+        item_ids = set(item.transaction_ids)
+        if not item_ids or not item_ids.issubset(sent_ids) or item_ids & claimed_ids:
             continue
         if item.category_key in category_keys:
             category_key = item.category_key
         else:
             category_key = "income" if is_income_by_id.get(item.transaction_ids[0], False) else "uncategorized_expense"
-        saved += _save_suggestion(
+        if _save_suggestion(
             connection,
             "merchant_classification",
             {
@@ -130,7 +132,9 @@ def analyze_merchants(
                 "rationale": item.rationale,
                 "should_create_rule": item.should_create_rule,
             },
-        )
+        ):
+            claimed_ids.update(item_ids)
+            saved += 1
     connection.commit()
     return MerchantAnalysisResult(
         saved=saved,
