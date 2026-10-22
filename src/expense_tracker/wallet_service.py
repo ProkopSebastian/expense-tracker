@@ -40,9 +40,12 @@ def _ordering(row: sqlite3.Row) -> tuple[str, int]:
 
 def _balance_ordering(row: sqlite3.Row) -> tuple[str, int]:
     # Revolut's running balance follows completion, and a card payment completes a day or two
-    # after it starts, so a later-started payment can carry an earlier balance.
-    completed = str(json.loads(row["raw_json"] or "{}").get("Completed Date") or "")
-    return (completed, int(row["id"])) if completed else _ordering(row)
+    # after it starts, so a later-started payment can carry an earlier balance. A pending payment
+    # is in no running balance yet, so it comes after every completed one.
+    raw = json.loads(row["raw_json"] or "{}")
+    if "Completed Date" not in raw:
+        return _ordering(row)
+    return raw["Completed Date"] or "~", int(row["id"])
 
 
 def _wallets(connection: sqlite3.Connection) -> list[sqlite3.Row]:
