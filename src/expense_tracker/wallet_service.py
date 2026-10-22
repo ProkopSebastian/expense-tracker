@@ -38,6 +38,13 @@ def _ordering(row: sqlite3.Row) -> tuple[str, int]:
     return stamp, int(row["id"])
 
 
+def _balance_ordering(row: sqlite3.Row) -> tuple[str, int]:
+    # Revolut's running balance follows completion, and a card payment completes a day or two
+    # after it starts, so a later-started payment can carry an earlier balance.
+    completed = str(json.loads(row["raw_json"] or "{}").get("Completed Date") or "")
+    return (completed, int(row["id"])) if completed else _ordering(row)
+
+
 def _wallets(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     return connection.execute(
         "SELECT id, account, currency, opening_rate FROM wallets ORDER BY currency, account COLLATE NOCASE"
@@ -72,10 +79,10 @@ def _held_before_statements(connection: sqlite3.Connection, account: str, curren
     )
     if not rows:
         return None
-    anchor = next((row for row in reversed(rows) if row["balance"] is not None), None)
+    anchor = max((row for row in rows if row["balance"] is not None), key=_balance_ordering, default=None)
     if anchor is not None:
-        stamp = _ordering(anchor)[0]
-        moved = sum((_decimal(row["amount"]) for row in rows if _ordering(row)[0] <= stamp), Decimal(0))
+        stamp = _balance_ordering(anchor)[0]
+        moved = sum((_decimal(row["amount"]) for row in rows if _balance_ordering(row)[0] <= stamp), Decimal(0))
         held = _decimal(anchor["balance"]) - moved
     else:
         running = lowest = Decimal(0)
