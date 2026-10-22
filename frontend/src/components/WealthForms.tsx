@@ -227,9 +227,11 @@ export function SnapshotForm({
   ].sort();
   const ratesQuery = new URLSearchParams({ day });
   currencies.forEach((currency) => ratesQuery.append("currency", currency));
-  const { data: official } = useResource<{ rates: Record<string, { rate: string; day: string }> }>(
+  const { data: fetchedRates, placeholder } = useResource<{ rates: Record<string, { rate: string; day: string }> }>(
     day && currencies.length ? `/wealth/rates?${ratesQuery}` : null,
   );
+  // Rates answered for a previous day must not stand in for the chosen one.
+  const official = placeholder ? null : fetchedRates;
   const officialOf = (currency: string) =>
     rates[currency] === undefined && !snapshotRate(day, currency, editing)
       ? official?.rates[currency]

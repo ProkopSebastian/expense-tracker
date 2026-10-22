@@ -69,6 +69,7 @@ export function useResource<T>(path: string | null, revision = 0) {
     data: path === null ? null : (query.data ?? null),
     error: query.error?.message ?? "",
     loading: query.isFetching,
+    placeholder: query.isPlaceholderData,
   };
 }
 export function useAction(onSuccess?: () => void) {
