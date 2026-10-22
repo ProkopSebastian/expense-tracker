@@ -251,6 +251,7 @@ function ReceivedForm({
   action: Action;
 }) {
   const [category, setCategory] = useState(existing?.category_key ?? "income_other");
+  const currency = existing?.currency ?? HOME;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -260,7 +261,7 @@ function ReceivedForm({
         account: CASH_ACCOUNT,
         booking_date: fields.get("date"),
         amount: fields.get("amount"),
-        currency: HOME,
+        currency,
         description: fields.get("description"),
         category_key: category,
       }),
@@ -274,7 +275,7 @@ function ReceivedForm({
         <Notice error={action.error} />
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
-            Kwota (zł)
+            Kwota ({currency === HOME ? "zł" : currency})
             <input
               name="amount"
               type="number"
