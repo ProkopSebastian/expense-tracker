@@ -1,3 +1,14 @@
+## v0.7.4 — 22.10.2026
+
+- fix: edycja grupy pokazuje aktualny koszt i nie przywraca poprzedniego
+- fix: „Zatwierdź pewne” nie przerywa się na sugestii AI do transakcji, która ma już kategorię
+- fix: AI nie proponuje dwóch kategorii dla tej samej transakcji
+- fix: operacja na 0 zł oznaczona jako wypłata z bankomatu nie blokuje gotówki, podsumowania i historii
+- fix: edycja otrzymanej gotówki w obcej walucie zachowuje walutę
+- fix: wycena majątku nie używa kursu NBP z poprzednio wybranego dnia
+- fix: oczekujące płatności w Revolucie nie zawyżają salda konta walutowego
+- fix: komunikat o nieobsługiwanym pliku wymienia PKO BP
+
 ## v0.7.3 — 22.10.2026
 
 - fix: saldo walutowego konta Revolut nie pokazuje pieniędzy, których nie ma, gdy płatności zrealizowały się w innej kolejności, niż je rozpoczęto
