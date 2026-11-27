@@ -87,7 +87,6 @@ export default function DataPage({
         }}
         onDismiss={() => {
           setMessage("");
-          setResults([]);
           action.dismiss();
         }}
       />

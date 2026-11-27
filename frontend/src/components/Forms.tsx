@@ -653,10 +653,6 @@ export function Notice({
   onUndo?: () => void;
   onDismiss?: () => void;
 }) {
-  const [closed, setClosed] = useState<string | null>(null);
-  useEffect(() => {
-    if (!notice) setClosed(null);
-  }, [notice]);
   return (
     <>
       {error && (
@@ -669,47 +665,97 @@ export function Notice({
         </div>
       )}
       {notice && (
-        <Toast.Root
-          open={closed !== notice}
-          onOpenChange={(open) => {
-            if (open) return;
-            setClosed(notice);
-            onDismiss?.();
-          }}
-          duration={Infinity}
-          className="rounded-xl bg-surface shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in motion-reduce:animate-none"
-        >
-          <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-sm leading-relaxed text-success [&_svg]:shrink-0">
-            <CheckCircle2 size={17} />
-            <Toast.Description className="whitespace-pre-line">{notice}</Toast.Description>
-            {extra && (
-              <Toast.Action
-                altText={extra.label}
-                className="ml-auto rounded-md bg-success/15 px-2 py-1 font-medium hover:bg-success/25"
-                onClick={extra.onClick}
-              >
-                {extra.label}
-              </Toast.Action>
-            )}
-            {onUndo && undoLabel && (
-              <Toast.Action
-                altText="Cofnij ostatnią zmianę"
-                className={`${extra ? "" : "ml-auto "}rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline`}
-                onClick={onUndo}
-              >
-                Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
-              </Toast.Action>
-            )}
-            <Toast.Close
-              aria-label="Zamknij komunikat"
-              className={`${extra || (onUndo && undoLabel) ? "" : "ml-auto "}grid size-7 place-items-center rounded-md hover:bg-success/15`}
-            >
-              <X size={16} />
-            </Toast.Close>
-          </div>
-        </Toast.Root>
+        <SuccessToast
+          key={notice}
+          notice={notice}
+          undoLabel={onUndo ? undoLabel : null}
+          onUndo={onUndo}
+          onDismiss={onDismiss}
+          extra={extra}
+        />
       )}
     </>
+  );
+}
+function SuccessToast({
+  notice,
+  undoLabel,
+  onUndo,
+  onDismiss,
+  extra,
+}: {
+  notice: string;
+  extra?: { label: string; onClick: () => void };
+  undoLabel?: string | null;
+  onUndo?: () => void;
+  onDismiss?: () => void;
+}) {
+  const [open, setOpen] = useState(true),
+    [paused, setPaused] = useState(false);
+  const hasAction = Boolean(extra || undoLabel);
+  // A notice with a button stays twice as long, because Undo is not offered anywhere else.
+  const duration = hasAction ? 10_000 : 5_000;
+  return (
+    <Toast.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (next) return;
+        // Radix keeps the viewport paused when its last toast closes under the pointer, so the
+        // next toast would never count down; its own window-focus resume clears that state.
+        window.dispatchEvent(new FocusEvent("focus"));
+        setOpen(false);
+        onDismiss?.();
+      }}
+      duration={duration}
+      onPause={() => setPaused(true)}
+      onResume={() => setPaused(false)}
+      className="rounded-xl bg-surface shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in motion-reduce:animate-none"
+    >
+      <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/10 py-2.5 pr-2.5 pl-4 text-sm leading-relaxed text-success [&_svg]:shrink-0">
+        <CheckCircle2 size={17} />
+        <Toast.Description className="whitespace-pre-line">{notice}</Toast.Description>
+        {extra && (
+          <Toast.Action
+            altText={extra.label}
+            className="ml-auto rounded-md bg-success/15 px-2 py-1 font-medium hover:bg-success/25"
+            onClick={extra.onClick}
+          >
+            {extra.label}
+          </Toast.Action>
+        )}
+        {onUndo && undoLabel && (
+          <Toast.Action
+            altText="Cofnij ostatnią zmianę"
+            className={`${extra ? "" : "ml-auto "}rounded-md px-2 py-1 font-medium underline-offset-2 hover:underline`}
+            onClick={onUndo}
+          >
+            Cofnij: {undoLabel.charAt(0).toLocaleLowerCase("pl") + undoLabel.slice(1)}
+          </Toast.Action>
+        )}
+        <Toast.Close
+          aria-label="Zamknij komunikat"
+          className={`${hasAction ? "" : "ml-auto "}relative grid size-8 shrink-0 place-items-center rounded-full hover:bg-success/15`}
+        >
+          <svg viewBox="0 0 32 32" className="absolute inset-0 -rotate-90" aria-hidden="true">
+            <circle cx="16" cy="16" r="14.5" fill="none" strokeWidth="2" className="stroke-current opacity-20" />
+            {/* Keyed by duration: Radix restarts its timer when the duration changes, and so must the ring. */}
+            <circle
+              key={duration}
+              cx="16"
+              cy="16"
+              r="14.5"
+              fill="none"
+              strokeWidth="2"
+              pathLength={1}
+              strokeDasharray="1"
+              className={`animate-toast-countdown stroke-current motion-reduce:hidden ${paused ? "[animation-play-state:paused]" : ""}`}
+              style={{ animationDuration: `${duration}ms` }}
+            />
+          </svg>
+          <X size={15} />
+        </Toast.Close>
+      </div>
+    </Toast.Root>
   );
 }
 export function Modal({

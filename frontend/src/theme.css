@@ -298,6 +298,13 @@
   --color-danger: var(--app-danger);
   --color-warning: var(--app-warning);
   --color-info: var(--app-info);
+  --animate-toast-countdown: toast-countdown linear forwards;
+
+  @keyframes toast-countdown {
+    to {
+      stroke-dashoffset: 1;
+    }
+  }
 }
 
 @utility card {
