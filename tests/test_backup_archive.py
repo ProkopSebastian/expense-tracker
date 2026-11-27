@@ -41,7 +41,7 @@ def test_restoring_a_backup_brings_back_data_statements_and_settings(app_dirs, t
     add_coffee(database_path, "Kawa z kopii")
     (data_dir / "wyciag.csv").write_text("statement", encoding="utf-8")
     (config_dir / "appearance.json").write_text('{"theme": "forest"}', encoding="utf-8")
-    archive = tmp_path / "kopia.zip"
+    archive = tmp_path / "backup.zip"
     write_archive(database_path, data_dir, config_dir, archive)
 
     add_coffee(database_path, "Kawa po kopii")
@@ -62,9 +62,9 @@ def test_restoring_a_backup_brings_back_data_statements_and_settings(app_dirs, t
 def test_backup_from_a_newer_version_is_refused_without_touching_data(app_dirs, tmp_path):
     database_path, data_dir, config_dir = app_dirs
     add_coffee(database_path, "Moja kawa")
-    archive = tmp_path / "kopia.zip"
+    archive = tmp_path / "backup.zip"
     write_archive(database_path, data_dir, config_dir, archive)
-    newer = tmp_path / "nowsza.zip"
+    newer = tmp_path / "newer.zip"
     with ZipFile(archive) as source, ZipFile(newer, "w") as target:
         manifest = json.loads(source.read(MANIFEST)) | {"schema_version": len(_MIGRATIONS) + 1, "app_version": "9.0.0"}
         target.writestr(MANIFEST, json.dumps(manifest))
@@ -90,7 +90,7 @@ def test_backup_from_an_older_version_is_migrated_on_restore(app_dirs, tmp_path)
             INSERT INTO transactions (account, booking_date, amount, currency, description, raw_json, fingerprint)
             VALUES ('nest', '2026-01-05', '-9', 'PLN', 'Stara kawa', '{}', 'f1');
         """)
-    archive = tmp_path / "stara.zip"
+    archive = tmp_path / "older.zip"
     with ZipFile(archive, "w") as target:
         target.writestr(MANIFEST, json.dumps({"format": 1, "app_version": "0.1.0", "schema_version": 0}))
         target.write(legacy, DATABASE)

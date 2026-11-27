@@ -609,7 +609,7 @@ async def _with_uploaded_backup(request: Request, use):
 
     def run():
         with TemporaryDirectory() as directory:
-            path = Path(directory) / "kopia.zip"
+            path = Path(directory) / "backup.zip"
             path.write_bytes(body)
             return use(path)
 
@@ -641,7 +641,7 @@ def download_backup(request: Request):
     from .backup_archive import archive_name, write_archive
 
     directory = Path(mkdtemp())
-    target = directory / "kopia.zip"
+    target = directory / "backup.zip"
     write_archive(request.app.state.database_path, settings.data_dir, request.app.state.configuration_dir, target)
     return FileResponse(
         target, media_type="application/zip", filename=archive_name(),
