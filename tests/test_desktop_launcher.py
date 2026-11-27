@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 LAUNCHER_PATH = Path(__file__).parents[1] / "scripts" / "desktop_launcher.py"
 SPEC = importlib.util.spec_from_file_location("desktop_launcher", LAUNCHER_PATH)
@@ -42,3 +43,30 @@ def test_frozen_application_uses_the_production_data_directory(monkeypatch, tmp_
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
 
     assert desktop_launcher._runtime_data_directory() == tmp_path / "data" / "Wydatki"
+
+
+def test_window_reopens_where_it_was_on_the_same_monitors():
+    monitors = [
+        SimpleNamespace(x=0, y=0, width=2560, height=1440), SimpleNamespace(x=2560, y=0, width=1920, height=1080),
+    ]
+    saved = {
+        "mode": "maximized", "x": 2700, "y": 100, "width": 1800, "height": 1000,
+        "screens": desktop_launcher._screen_layout(monitors),
+    }
+
+    assert desktop_launcher._window_options(saved, monitors) == {
+        "maximized": True, "fullscreen": False, "x": 2700, "y": 100, "width": 1800, "height": 1000,
+    }
+
+
+def test_window_saved_on_a_disconnected_monitor_is_placed_by_the_system_and_fits():
+    laptop = SimpleNamespace(x=0, y=0, width=1440, height=900)
+    external = SimpleNamespace(x=1440, y=0, width=2560, height=1440)
+    saved = {
+        "mode": "normal", "x": 1600, "y": 100, "width": 2200, "height": 1300,
+        "screens": desktop_launcher._screen_layout([laptop, external]),
+    }
+
+    assert desktop_launcher._window_options(saved, [laptop]) == {
+        "maximized": False, "fullscreen": False, "width": 1440, "height": 900,
+    }

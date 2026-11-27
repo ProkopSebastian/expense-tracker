@@ -7,6 +7,7 @@ import html
 import importlib
 import json
 import logging
+import os
 import re
 import socket
 import sys
@@ -21,6 +22,8 @@ _linux_app = None
 # A fixed port keeps the frontend on the same origin across restarts, so the browser's
 # localStorage (onboarding tour seen, changelog last seen) actually persists between launches.
 _PREFERRED_PORT = 51837
+_WINDOW_SIZE = (1200, 820)
+_MIN_WINDOW_SIZE = (380, 500)
 
 
 def _bind_backend_listener() -> socket.socket:
@@ -91,6 +94,114 @@ def _prepare_runtime():
     faulthandler.enable(file=log, all_threads=True)
     logger.info("START Wydatki; frozen=%s; platform=%s", getattr(sys, "frozen", False), sys.platform)
     return paths, log_path, log
+
+
+def _screen_layout(screens) -> list[list[int]]:
+    return sorted([screen.x, screen.y, screen.width, screen.height] for screen in screens)
+
+
+def _current_screens(webview) -> list:
+    try:
+        return webview.screens
+    except Exception:
+        logger.exception("WINDOW screens unavailable")
+        return []
+
+
+def _read_window_state(path: Path) -> dict:
+    try:
+        saved = json.loads(path.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return {}
+    return saved if isinstance(saved, dict) else {}
+
+
+def _window_options(saved: dict, screens) -> dict[str, object]:
+    width, height = _WINDOW_SIZE
+    if all(isinstance(saved.get(key), int) and saved[key] > 0 for key in ("width", "height")):
+        width, height = saved["width"], saved["height"]
+    options: dict[str, object] = {
+        "maximized": saved.get("mode") == "maximized",
+        "fullscreen": saved.get("mode") == "fullscreen",
+    }
+    layout = _screen_layout(screens)
+    if saved.get("screens") == layout and all(isinstance(saved.get(key), int) for key in ("x", "y")):
+        options["x"], options["y"] = saved["x"], saved["y"]
+    elif layout:
+        # The saved position belongs to another set of monitors and may now be off-screen, so the
+        # system places the window, which must also fit on whichever screen it lands.
+        width = min(width, min(screen[2] for screen in layout))
+        height = min(height, min(screen[3] for screen in layout))
+    options["width"] = max(width, _MIN_WINDOW_SIZE[0])
+    options["height"] = max(height, _MIN_WINDOW_SIZE[1])
+    return options
+
+
+def _native_window_state(native) -> tuple[str | None, tuple[int | None, int | None, int, int] | None]:
+    # pywebview reports neither full screen nor the size a maximized window restores to, and its
+    # getters wait for the GUI thread that runs this, so the native window is asked directly.
+    # The position is in the coordinates create_window expects on each platform; a maximized,
+    # full-screen or minimized window keeps the last normal geometry and a minimized one its mode.
+    if sys.platform == "darwin":
+        import AppKit
+
+        if native.isMiniaturized():
+            return None, None
+        if native.styleMask() & AppKit.NSWindowStyleMaskFullScreen:
+            return "fullscreen", None
+        if native.isZoomed():
+            return "maximized", None
+        frame = native.frame()
+        content = native.contentRectForFrameRect_(frame).size
+        top = AppKit.NSScreen.screens()[0].frame().size.height - frame.origin.y - frame.size.height
+        return "normal", (int(frame.origin.x), int(top), int(content.width), int(content.height))
+    if sys.platform == "win32":
+        if native.is_fullscreen:
+            return "fullscreen", None
+        state = str(native.WindowState)
+        if state == "Minimized":
+            return None, None
+        if state == "Maximized":
+            return "maximized", None
+        bounds, scale = native.Bounds, native._scale
+        return "normal", tuple(int(value / scale) for value in (bounds.X, bounds.Y, bounds.Width, bounds.Height))
+    from qtpy.QtCore import Qt
+    from qtpy.QtWidgets import QApplication
+
+    state = native.windowState()
+    if state & Qt.WindowState.WindowFullScreen:
+        return "fullscreen", None
+    if state & Qt.WindowState.WindowMaximized:
+        return "maximized", None
+    if state & Qt.WindowState.WindowMinimized:
+        return None, None
+    if QApplication.platformName().startswith("wayland"):
+        # Wayland neither tells a window where it is nor lets it choose; the compositor places it.
+        return "normal", (None, None, native.width(), native.height())
+    primary, position = QApplication.primaryScreen().geometry(), native.pos()
+    return "normal", (position.x() - primary.x(), position.y() - primary.y(), native.width(), native.height())
+
+
+def _remember_window_state(webview, window, path: Path) -> None:
+    def save() -> None:
+        try:
+            mode, geometry = _native_window_state(window.native)
+            saved = _read_window_state(path)
+            if mode is not None:
+                saved["mode"] = mode
+            if geometry is not None:
+                x, y, width, height = geometry
+                saved = {key: value for key, value in saved.items() if key not in ("x", "y", "screens")}
+                saved |= {"width": width, "height": height}
+                if x is not None:
+                    saved |= {"x": x, "y": y, "screens": _screen_layout(_current_screens(webview))}
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(saved), encoding="utf-8")
+            temporary.replace(path)
+        except Exception:
+            logger.exception("WINDOW state not saved")
+
+    window.events.closing += save
 
 
 def _native_message(title: str, message: str) -> None:
@@ -168,6 +279,9 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
 
     icon_path = _icon_path()
     _configure_linux_app_identity(icon_path)
+    if sys.platform.startswith("linux"):
+        # Reading the screens before start() initialises pywebview, which would otherwise try GTK first.
+        os.environ["PYWEBVIEW_GUI"] = "qt"
 
     closing = threading.Event()
     state: dict[str, object] = {}
@@ -178,9 +292,15 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
         if server is not None:
             server.should_exit = True
 
+    window_state = paths.state_dir / "window.json"
     window = webview.create_window(
-        "Wydatki", html=_loading_page(), width=1200, height=820, min_size=(380, 500), text_select=True
+        "Wydatki",
+        html=_loading_page(),
+        min_size=_MIN_WINDOW_SIZE,
+        text_select=True,
+        **_window_options(_read_window_state(window_state), _current_screens(webview)),
     )
+    _remember_window_state(webview, window, window_state)
     updater = UpdateManager(paths.state_dir, window.destroy) if getattr(sys, "frozen", False) else None
     window.events.closed += close_server
 
@@ -256,14 +376,12 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
 
         threading.Thread(target=monitor_server, name="expense-tracker-monitor", daemon=True).start()
 
-    gui = "qt" if sys.platform.startswith("linux") else None
     logger.info("WINDOW starting with icon %s", icon_path)
     # pywebview defaults to private_mode=True, which discards localStorage (onboarding tour seen,
     # changelog last seen) on every launch; give it a real, persistent profile directory instead.
     webview.start(
         start_backend,
         icon=str(icon_path) if icon_path.exists() else None,
-        gui=gui,
         private_mode=False,
         storage_path=str(paths.state_dir / "webview"),
     )
