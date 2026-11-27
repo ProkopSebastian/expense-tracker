@@ -57,8 +57,9 @@ export default function CategoryBarChart({
   handlers.current = { onSelect, onHover, bars };
 
   useEffect(() => {
-    if (!container.current) return;
-    const instance = echarts.init(container.current, undefined, {
+    const element = container.current;
+    if (!element) return;
+    const instance = echarts.init(element, undefined, {
       renderer: "svg",
     });
     chart.current = instance;
@@ -72,21 +73,20 @@ export default function CategoryBarChart({
     });
     instance.on("globalout", () => handlers.current.onHover(null));
     const handleClick = (event: MouseEvent) => {
-      if (!container.current) return;
-      const rect = container.current.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       const point: [number, number] = [event.clientX - rect.left, event.clientY - rect.top];
       if (!instance.containPixel("grid", point)) return;
       const index = Math.round(Number(instance.convertFromPixel({ xAxisIndex: 0 }, point[0])));
       const node = handlers.current.bars[index];
       if (node && node.key !== OTHER_KEY) handlers.current.onSelect(node);
     };
-    container.current.addEventListener("click", handleClick);
+    element.addEventListener("click", handleClick);
     const observer = new ResizeObserver(() => instance.resize());
-    const observeResizes = () => observer.observe(container.current!);
+    const observeResizes = () => observer.observe(element);
     instance.on("finished", observeResizes);
     return () => {
       instance.off("finished", observeResizes);
-      container.current?.removeEventListener("click", handleClick);
+      element.removeEventListener("click", handleClick);
       observer.disconnect();
       instance.dispose();
       chart.current = null;
