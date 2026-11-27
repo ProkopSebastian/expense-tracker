@@ -1,4 +1,4 @@
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Sparkles, Check, ChevronDown, Link2, LoaderCircle, Search, X } from "lucide-react";
 import type { Category, ClassificationRow, Relation } from "../domain";
@@ -35,48 +35,107 @@ function transactionDirection(totals: Record<string, string>) {
 const AI_BATCH = 20;
 
 const ITEM_COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(12rem,1.3fr)_9rem] lg:gap-x-6";
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 lg:grid-cols-[minmax(0,2fr)_8rem_minmax(14rem,1.4fr)_auto] lg:gap-x-6";
 const APPROVE_BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent hover:text-white";
-const ICON_APPROVE_CLASS =
-  "inline-grid size-8 place-items-center rounded-lg text-accent transition hover:bg-accent hover:text-white disabled:text-muted disabled:hover:bg-transparent";
+  "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent-soft disabled:hover:text-accent";
 const REJECT_BUTTON_CLASS =
-  "inline-grid size-8 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger";
+  "inline-grid size-8 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50";
 
 type Assigned = { transactionId: number; categoryKey: string; description: string };
+type Choice = { category: string; remember: boolean };
+
+function defaultChoice(row: ClassificationRow): Choice {
+  return { category: row.category_key ?? "", remember: row.remember };
+}
+
+function AiProposal({
+  row,
+  categories,
+  changed,
+}: {
+  row: ClassificationRow;
+  categories: Category[];
+  changed: boolean;
+}) {
+  const confidence = row.confidence !== null ? `${Math.round(row.confidence * 100)}%` : null;
+  const proposed = categories.find((item) => item.key === row.category_key)?.label;
+  const summary = changed && proposed
+    ? `AI: ${proposed}${confidence ? ` · ${confidence}` : ""}`
+    : proposed
+      ? `Propozycja AI${confidence ? ` · ${confidence}` : ""}`
+      : "AI nie wie, wybierz kategorię";
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        className="inline-flex max-w-full items-center gap-1 rounded px-3 text-xs text-muted hover:text-accent disabled:hover:text-muted"
+        aria-label={`${summary}. Dlaczego?`}
+        disabled={!row.rationale}
+      >
+        <Sparkles size={13} className="shrink-0 text-accent" />
+        <span className="truncate">{summary}</span>
+        {row.rationale && <ChevronDown size={13} className="shrink-0" />}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          sideOffset={6}
+          className="z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm leading-relaxed text-muted shadow-xl"
+        >
+          {row.rationale}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
 
 function ClassificationItem({
   row,
   categories,
   action,
+  choice,
+  onChoice,
   onAssigned,
+  onDecided,
 }: {
   row: ClassificationRow;
   categories: Category[];
   action: Action;
+  choice: Choice;
+  onChoice: (choice: Choice) => void;
   onAssigned: (assigned: Assigned | null) => void;
+  onDecided: () => void;
 }) {
-  const [category, setCategory] = useState(row.category_key ?? ""),
-    [remember, setRemember] = useState(row.remember);
+  const suggestionId = row.suggestion_id;
+  const { category, remember } = choice;
+  const label = (key: string) => categories.find((item) => item.key === key)?.label ?? key;
+  // Without a proposal, picking the category is the decision itself, so it is saved at once.
   async function assign(categoryKey: string) {
     if (!categoryKey) return;
-    setCategory(categoryKey);
+    onChoice({ ...choice, category: categoryKey });
     onAssigned(null);
-    const label = categories.find((item) => item.key === categoryKey)?.label ?? categoryKey;
     const saved = await action.run(
-      () =>
-        request(
-          row.suggestion_id
-            ? `/suggestions/${row.suggestion_id}/approve`
-            : `/transactions/${row.transaction_id}/category`,
-          row.suggestion_id ? "POST" : "PUT",
-          { category_key: categoryKey, remember },
-        ),
-      `${row.description}: ${label}${remember ? " · zapamiętano dla sprzedawcy" : ""}.`,
+      () => request(`/transactions/${row.transaction_id}/category`, "PUT", { category_key: categoryKey, remember: false }),
+      `${row.description}: ${label(categoryKey)}.`,
     );
-    if (!saved) setCategory(row.category_key ?? "");
-    else if (row.transaction_id !== null && !remember)
+    if (!saved) onChoice(choice);
+    else if (row.transaction_id !== null)
       onAssigned({ transactionId: row.transaction_id, categoryKey, description: row.description });
+  }
+  async function approve() {
+    onAssigned(null);
+    const saved = await action.run(
+      () => request(`/suggestions/${suggestionId}/approve`, "POST", { category_key: category, remember }),
+      `${row.description}: ${label(category)}${remember ? " · zapamiętano dla sprzedawcy" : ""}.`,
+    );
+    if (saved) onDecided();
+  }
+  async function reject() {
+    onAssigned(null);
+    const saved = await action.run(
+      () => request(`/suggestions/${suggestionId}/reject`, "POST"),
+      "Sugestia odrzucona.",
+    );
+    if (saved) onDecided();
   }
   const income = transactionDirection(row.totals) === "income";
   const amount = Object.entries(row.totals)
@@ -85,35 +144,9 @@ function ClassificationItem({
   return (
     <article className={`${ITEM_COLUMNS} py-3`}>
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-sm font-medium leading-relaxed wrap-anywhere">
-            {row.description}
-          </strong>
-          {row.suggestion_id && (
-            <Popover.Root>
-              <Popover.Trigger
-                className="inline-flex items-center gap-1 rounded text-xs whitespace-nowrap text-muted hover:text-accent disabled:hover:text-muted"
-                aria-label="Dlaczego ta kategoria?"
-                disabled={!row.rationale}
-              >
-                <Sparkles size={13} className="text-accent" />
-                {row.confidence !== null
-                  ? `${Math.round(row.confidence * 100)}%`
-                  : "AI"}
-                {row.rationale && <ChevronDown size={13} />}
-              </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content
-                  align="start"
-                  sideOffset={6}
-                  className="z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 text-sm leading-relaxed text-muted shadow-xl"
-                >
-                  {row.rationale}
-                </Popover.Content>
-              </Popover.Portal>
-            </Popover.Root>
-          )}
-        </div>
+        <strong className="text-sm font-medium leading-relaxed wrap-anywhere">
+          {row.description}
+        </strong>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs leading-relaxed text-muted">
           {row.date}
           {row.count > 1 && row.members && (
@@ -154,59 +187,56 @@ function ClassificationItem({
           {amount}
         </strong>
       </div>
-      <div className="col-span-2 flex min-w-0 lg:col-span-1 [&>span]:w-full">
+      <div className="col-span-2 flex min-w-0 flex-col items-start gap-0.5 max-lg:-ml-3 sm:col-span-1 [&>span]:w-full">
         <CategorySelect
           inline
           categories={categories}
           value={category}
-          onChange={assign}
+          onChange={(key) => (suggestionId ? onChoice({ ...choice, category: key }) : assign(key))}
           label={`Kategoria ${row.description}`}
         />
+        {suggestionId && (
+          <AiProposal row={row} categories={categories} changed={category !== (row.category_key ?? "")} />
+        )}
       </div>
-      <div className="col-span-2 flex items-center gap-1 lg:col-span-1 lg:justify-end">
-        {row.suggestion_id && (
+      {suggestionId ? (
+        <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:justify-end">
           <label
-            className="mr-auto flex items-center gap-2 text-xs text-muted lg:mr-1"
+            className="mr-auto flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted transition hover:bg-accent-soft hover:text-ink max-sm:-ml-2 sm:mr-0"
             title="Kolejne płatności u tego sprzedawcy dostaną tę kategorię same."
           >
             <input
               type="checkbox"
+              className="size-4"
               checked={remember}
-              onChange={(event) => setRemember(event.target.checked)}
+              onChange={(event) => onChoice({ ...choice, remember: event.target.checked })}
               aria-label={`Zapamiętaj dla sprzedawcy ${row.description}`}
             />
             Zapamiętaj
           </label>
-        )}
-        {row.suggestion_id && (
           <button
-            className={ICON_APPROVE_CLASS}
+            className={APPROVE_BUTTON_CLASS}
+            data-approve
             disabled={!category || action.busy}
             aria-label={`Zatwierdź kategorię dla ${row.description}`}
-            title="Zatwierdź"
-            onClick={() => assign(category)}
+            onClick={() => void approve()}
           >
-            <Check size={17} />
+            <Check size={15} />
+            Zatwierdź
           </button>
-        )}
-        {row.suggestion_id && (
           <button
             className={REJECT_BUTTON_CLASS}
             disabled={action.busy}
             aria-label={`Odrzuć sugestię dla ${row.description}`}
             title="Odrzuć"
-            onClick={() => {
-              onAssigned(null);
-              action.run(
-                () => request(`/suggestions/${row.suggestion_id}/reject`, "POST"),
-                "Sugestia odrzucona.",
-              );
-            }}
+            onClick={() => void reject()}
           >
             <X size={16} />
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="hidden sm:block" />
+      )}
     </article>
   );
 }
@@ -359,11 +389,23 @@ export default function ClassificationPage({
     ) ?? [];
   const suggestions = rows.filter((row) => row.suggestion_id);
   const analyzable = rows.filter((row) => row.transaction_id !== null && !row.ai_rejected);
+  const [choices, setChoices] = useState<Record<string, Choice>>({});
+  const choiceFor = (row: ClassificationRow) => choices[row.key] ?? defaultChoice(row);
   const confident = suggestions.filter(
-    (row) => (row.confidence ?? 0) >= 0.9 && row.category_key,
+    (row) => (row.confidence ?? 0) >= 0.9 && choiceFor(row).category,
   );
   const bulk = useAction(onChanged);
   const [assigned, setAssigned] = useState<Assigned | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [decided, setDecided] = useState<{ slot: number; before: typeof data } | null>(null);
+  // Once a decided suggestion leaves the refreshed list, the next one takes its place and gets the
+  // focus, so a long review can go on from the keyboard without hunting for the next row.
+  useEffect(() => {
+    if (!decided || decided.before === data) return;
+    const buttons = list.current?.querySelectorAll<HTMLButtonElement>("[data-approve]") ?? [];
+    buttons[Math.min(decided.slot, buttons.length - 1)]?.focus();
+    setDecided(null);
+  }, [data, decided]);
   function rememberAssigned() {
     if (!assigned) return;
     setAssigned(null);
@@ -383,8 +425,8 @@ export default function ClassificationPage({
         request("/suggestions/approve-all", "POST", {
           items: confident.map((row) => ({
             id: row.suggestion_id,
-            category_key: row.category_key,
-            remember: row.remember,
+            category_key: choiceFor(row).category,
+            remember: choiceFor(row).remember,
           })),
         }),
       `Zatwierdzono ${confident.length} sugestii.`,
@@ -412,14 +454,14 @@ export default function ClassificationPage({
       title: "Sugestie AI",
       count: suggestions.length,
       bulk: confident.length > 0,
-      remember: true,
+      suggestions: true,
       rows: visibleRows.filter((row) => row.suggestion_id),
     },
     {
       title: "Bez kategorii",
       count: unclassified.length,
       bulk: false,
-      remember: false,
+      suggestions: false,
       rows: visibleRows.filter((row) => !row.suggestion_id),
     },
   ];
@@ -574,17 +616,20 @@ export default function ClassificationPage({
                 >
                   <span>Sprzedawca</span>
                   <span className="text-right">Kwota</span>
-                  <span>Kategoria</span>
-                  <span className="text-right">{group.remember && "Dla sprzedawcy"}</span>
+                  <span className="px-3">Kategoria</span>
+                  <span />
                 </div>
-                <div className="divide-y divide-line/40">
-                  {group.rows.map((row) => (
+                <div className="divide-y divide-line/40" ref={group.suggestions ? list : undefined}>
+                  {group.rows.map((row, index) => (
                     <ClassificationItem
                       key={row.key}
                       row={row}
                       categories={categories}
                       action={bulk}
+                      choice={choiceFor(row)}
+                      onChoice={(choice) => setChoices((current) => ({ ...current, [row.key]: choice }))}
                       onAssigned={setAssigned}
+                      onDecided={() => setDecided({ slot: index, before: data })}
                     />
                   ))}
                 </div>
