@@ -55,6 +55,13 @@ class Pot:
     def value(self, amount: Decimal) -> Decimal | None:
         return (amount * self.average_cost).quantize(MONEY) if self.average_cost is not None else None
 
+    def take(self, amount: Decimal) -> tuple[Decimal | None, Decimal]:
+        # Only cash the pot holds has a known cost. Whatever goes beyond it is a deficit the records
+        # do not explain, so it stays unvalued instead of borrowing an earlier, unrelated rate.
+        covered = min(amount, max(self.balance, Decimal(0)))
+        self.balance -= amount
+        return (self.value(covered) if covered else None), amount - covered
+
 
 @dataclass
 class CashState:
@@ -63,6 +70,7 @@ class CashState:
     counts: list[Count] = field(default_factory=list)
     exchanges: list[dict] = field(default_factory=list)
     values: dict[int, Decimal] = field(default_factory=dict)
+    partial: dict[int, Decimal | None] = field(default_factory=dict)
 
 
 def _flows(connection: sqlite3.Connection) -> list[dict]:
@@ -147,24 +155,31 @@ def _pot(pots: dict[str, Pot], currency: str) -> Pot:
 
 
 def _replay(state: CashState) -> None:
-    # A count is the truth at the end of its day, so it comes after that day's movements.
-    events = [(flow["date"], 0, flow["transaction_id"], "flow", flow) for flow in state.flows]
-    events += [(exchange["date"], 0, -exchange["id"], "exchange", exchange) for exchange in state.exchanges]
-    events += [(count.counted_on, 1, count.id, "count", count) for count in state.counts]
+    # Cash records carry a day, not a time, so a day is one moment: the cash it brings in is there
+    # for its exchanges and spending, and a count is the truth at its end.
+    events = [
+        (flow["date"], 0 if flow["amount"] > 0 else 2, flow["transaction_id"], "flow", flow) for flow in state.flows
+    ]
+    events += [(exchange["date"], 1, exchange["id"], "exchange", exchange) for exchange in state.exchanges]
+    events += [(count.counted_on, 3, count.id, "count", count) for count in state.counts]
     for _, _, _, kind, payload in sorted(events, key=lambda event: event[:3]):
         if kind == "flow":
             pot = _pot(state.pots, payload["currency"])
             if payload["amount"] > 0:
                 pot.add(payload["amount"], payload["cost"])
-            else:
-                value = pot.value(-payload["amount"])
-                if value is not None and payload["kind"] == "entry":
-                    state.values[payload["transaction_id"]] = -value
-                pot.balance += payload["amount"]
+                continue
+            value, uncovered = pot.take(-payload["amount"])
+            if payload["kind"] != "entry":
+                continue
+            if uncovered:
+                state.partial[payload["transaction_id"]] = -value if value is not None else None
+            elif value is not None:
+                state.values[payload["transaction_id"]] = -value
         elif kind == "exchange":
             given = _pot(state.pots, payload["given_currency"])
-            cost = given.value(payload["given_amount"])
-            given.balance -= payload["given_amount"]
+            cost, uncovered = given.take(payload["given_amount"])
+            if uncovered:
+                cost = None
             received = payload["received_amount"]
             if payload["received_currency"] == HOME_CURRENCY:
                 # Złoty is held at face value; what it differs from the sold currency's cost is a

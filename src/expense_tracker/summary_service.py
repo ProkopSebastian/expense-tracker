@@ -72,8 +72,9 @@ def _converted_to_home(connection, items: list[dict]) -> tuple[list[dict], list[
     from .cash_service import cash_state
     from .wallet_service import HOME_CURRENCY, group_cost_rates, partial_pln_equivalents, pln_equivalents
 
-    per_transaction = pln_equivalents(connection) | cash_state(connection).values
-    partial = partial_pln_equivalents(connection)
+    cash = cash_state(connection)
+    per_transaction = pln_equivalents(connection) | cash.values
+    partial = partial_pln_equivalents(connection) | cash.partial
     per_group = group_cost_rates(connection, per_transaction)
     converted: list[dict] = []
     missing: list[tuple[str, str]] = []
