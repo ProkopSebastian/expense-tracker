@@ -61,7 +61,8 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
             if origin and origin not in allowed:
                 return JSONResponse({"detail": "Niedozwolone źródło żądania."}, status_code=403)
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path.startswith("/api/"):
-            if request.url.path.startswith("/api/updates"):
+            # Exporting only reads, and must not hold back other writes while its save dialog is open.
+            if request.url.path.startswith("/api/updates") or request.url.path == "/api/backup/export":
                 return await call_next(request)
             from starlette.concurrency import run_in_threadpool
 
@@ -73,7 +74,12 @@ def create_app(database_path: Path | None = None, configuration_dir: Path | None
                     return JSONResponse(
                         {"detail": "Trwa przygotowanie aktualizacji. Zaczekaj na ponowny start."}, status_code=409,
                     )
-                if request.url.path in {"/api/settings/reset-data", "/api/settings/appearance"}:
+                # A restore replaces everything and keeps its own copy of what it replaced; inspecting a
+                # copy changes nothing. Neither belongs to the single-step undo.
+                if request.url.path in {
+                    "/api/settings/reset-data", "/api/settings/appearance",
+                    "/api/backup/inspect", "/api/backup/restore",
+                }:
                     return await call_next(request)
                 backup = await run_in_threadpool(backup_database, path, "action")
                 response = await call_next(request)

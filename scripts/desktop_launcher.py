@@ -321,6 +321,19 @@ def _run_desktop(webview, log_path: Path, paths) -> None:
         if updater is not None:
             app.state.updater = updater
 
+        def choose_backup_path(name: str) -> Path | None:
+            chosen = window.create_file_dialog(
+                webview.FileDialog.SAVE, directory=str(Path.home()), save_filename=name,
+                file_types=("Kopia Wydatków (*.zip)",),
+            )
+            if not chosen:
+                return None
+            return Path(chosen if isinstance(chosen, str) else chosen[0])
+
+        # pywebview's Qt 6 backend cannot accept downloads, so the backup is saved through the
+        # native save dialog on every platform.
+        app.state.choose_backup_path = choose_backup_path
+
         listener = _bind_backend_listener()
         port = listener.getsockname()[1]
         base_url = f"http://127.0.0.1:{port}"

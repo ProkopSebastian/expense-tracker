@@ -13,6 +13,7 @@ import {
 import { request, useAction } from "../hooks";
 import {
   DARK_THEMES,
+  loadTheme,
   themeOptions,
   useResolvedTheme,
   useTheme,
@@ -20,6 +21,7 @@ import {
 } from "../theme";
 import { changelog } from "../changelog";
 import { Modal, Notice } from "./Forms";
+import BackupPanel from "./BackupPanel";
 import ChangelogList from "./ChangelogList";
 import UpdatesPanel from "./UpdatesPanel";
 import type { UpdateController } from "../updates";
@@ -285,6 +287,14 @@ export default function SettingsDialog({
                   </div>
                 )}
               </section>
+
+              <BackupPanel
+                onBusyChange={setBusy}
+                onRestored={() => {
+                  void loadTheme();
+                  onChanged();
+                }}
+              />
 
               <section
                 aria-labelledby="reset-heading"

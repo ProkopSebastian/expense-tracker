@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import Path as FastAPIPath
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
@@ -587,3 +588,87 @@ def reset_data(entry: ResetDataConfirmation, request: Request):
         "message": "Dane finansowe zostały usunięte.",
         "api_key_preserved": bool(settings.openai_api_key),
     }
+
+
+async def _backup_upload(request: Request) -> bytes:
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 500 * 1024 * 1024:
+            raise HTTPException(413, "Plik kopii jest za duży.")
+    if not body:
+        raise ValueError("Plik jest pusty.")
+    return bytes(body)
+
+
+async def _with_uploaded_backup(request: Request, use):
+    from tempfile import TemporaryDirectory
+
+    from starlette.concurrency import run_in_threadpool
+
+    body = await _backup_upload(request)
+
+    def run():
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "kopia.zip"
+            path.write_bytes(body)
+            return use(path)
+
+    return await run_in_threadpool(run)
+
+
+@router.post("/backup/export")
+def export_backup(request: Request):
+    from .backup_archive import archive_name, write_archive
+
+    name = archive_name()
+    choose = getattr(request.app.state, "choose_backup_path", None)
+    if choose is None:
+        return {"status": "download", "url": f"/api/backup/{name}"}
+    target = choose(name)
+    if target is None:
+        return {"status": "cancelled"}
+    write_archive(request.app.state.database_path, settings.data_dir, request.app.state.configuration_dir, target)
+    return {"status": "saved", "path": str(target)}
+
+
+@router.get("/backup/{name}")
+def download_backup(
+    name: Annotated[str, FastAPIPath(pattern=r"^Wydatki-kopia-\d{4}-\d{2}-\d{2}\.zip$")], request: Request,
+):
+    from tempfile import mkdtemp
+
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+
+    from .backup_archive import write_archive
+
+    directory = Path(mkdtemp())
+    target = directory / name
+    write_archive(request.app.state.database_path, settings.data_dir, request.app.state.configuration_dir, target)
+    return FileResponse(
+        target, media_type="application/zip", filename=name,
+        background=BackgroundTask(lambda: (target.unlink(missing_ok=True), directory.rmdir())),
+    )
+
+
+@router.post("/backup/inspect")
+async def inspect_backup(request: Request):
+    from .backup_archive import inspect_archive, summarize
+
+    backup = await _with_uploaded_backup(request, inspect_archive)
+    current = summarize(request.app.state.database_path, settings.data_dir)
+    return {"backup": asdict(backup), "current": asdict(current)}
+
+
+@router.post("/backup/restore")
+async def restore_backup(request: Request):
+    from .backup_archive import restore_archive
+
+    safety = await _with_uploaded_backup(
+        request,
+        lambda path: restore_archive(
+            path, request.app.state.database_path, settings.data_dir, request.app.state.configuration_dir,
+        ),
+    )
+    return {"message": "Dane zostały przywrócone z kopii.", "safety_copy": str(safety.resolve())}
