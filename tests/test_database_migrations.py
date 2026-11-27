@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
+
+import pytest
 
 from expense_tracker.database import Database
 
@@ -116,3 +119,28 @@ def test_nest_date_migration_preserves_classification_and_reimport(tmp_path: Pat
     assert db.insert_transactions(import_nest_csv(export)) == (0, 1)
     assert list(tmp_path.glob("nest-previous-backups/startup-*.sqlite3"))
     db.close()
+
+
+def test_interrupted_migration_leaves_the_database_openable(tmp_path: Path, monkeypatch) -> None:
+    from expense_tracker import database as database_module
+
+    path = tmp_path / "legacy.sqlite3"
+    _make_legacy_database(path)
+
+    def power_cut(transaction):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(database_module, "fingerprint", power_cut)
+    with pytest.raises(KeyboardInterrupt):
+        Database(path)
+    with closing(sqlite3.connect(path)) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(transactions)")}
+        assert "source_key" not in columns
+    monkeypatch.undo()
+
+    database = Database(path)
+    try:
+        assert database.connection.execute("SELECT description FROM transactions").fetchone()[0] == "Kawa"
+        assert database.connection.execute("PRAGMA user_version").fetchone()[0] == len(database_module._MIGRATIONS)
+    finally:
+        database.close()

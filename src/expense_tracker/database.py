@@ -189,8 +189,12 @@ def _migrate_bank_dates(connection: sqlite3.Connection) -> None:
 
     from .importers import _column, _parse_date
 
-    connection.execute("ALTER TABLE transactions ADD COLUMN source_key TEXT")
-    connection.execute("ALTER TABLE transactions ADD COLUMN bank_status TEXT NOT NULL DEFAULT 'COMPLETED'")
+    # An older version interrupted mid-migration may have committed these columns already.
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(transactions)")}
+    if "source_key" not in columns:
+        connection.execute("ALTER TABLE transactions ADD COLUMN source_key TEXT")
+    if "bank_status" not in columns:
+        connection.execute("ALTER TABLE transactions ADD COLUMN bank_status TEXT NOT NULL DEFAULT 'COMPLETED'")
     for row in connection.execute("SELECT * FROM transactions").fetchall():
         raw = json.loads(row["raw_json"])
         day = date.fromisoformat(row["booking_date"])
@@ -212,7 +216,7 @@ def _migrate_bank_dates(connection: sqlite3.Connection) -> None:
             "UPDATE transactions SET booking_date=?,fingerprint=?,source_key=?,bank_status=? WHERE id=?",
             (str(day), fingerprint(transaction), source_key(transaction), bank_state(raw), row["id"]),
         )
-    connection.execute("CREATE INDEX idx_transactions_source ON transactions(source_key)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_transactions_source ON transactions(source_key)")
 
 
 def _migrate_merchant_and_parser_version(connection: sqlite3.Connection) -> None:
@@ -272,38 +276,31 @@ def _migrate_wallet_exchange_case_kind(connection: sqlite3.Connection) -> None:
         return
     # Build the replacement under a temporary name and drop the original, never the reverse:
     # renaming `cases` while foreign keys are enforced rewrites case_members' REFERENCES clause
-    # to follow it, which silently detaches every membership. Foreign keys stay off for the
-    # swap so the rename leaves other tables' clauses alone, and cannot be toggled mid-
-    # transaction, hence the commit first.
-    connection.commit()
-    connection.execute("PRAGMA foreign_keys=OFF")
-    try:
-        connection.execute("""
-            CREATE TABLE cases_rebuilt (
-                id INTEGER PRIMARY KEY,
-                kind TEXT NOT NULL CHECK(kind IN (
-                    'own_transfer', 'shared_purchase', 'reimbursement', 'refund', 'payment_dispute',
-                    'wallet_exchange'
-                )),
-                title TEXT NOT NULL, category_key TEXT REFERENCES categories(key),
-                personal_amount TEXT NOT NULL, currency TEXT NOT NULL,
-                status TEXT NOT NULL CHECK(status IN ('suggested', 'approved', 'rejected')),
-                source TEXT NOT NULL CHECK(source IN ('manual', 'rule', 'llm')), explanation TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        connection.execute("""
-            INSERT INTO cases_rebuilt
-            SELECT id, kind, title, category_key, personal_amount, currency, status, source, explanation, created_at
-            FROM cases
-        """)
-        connection.execute("DROP TABLE cases")
-        connection.execute("ALTER TABLE cases_rebuilt RENAME TO cases")
-        if connection.execute("PRAGMA foreign_key_check").fetchall():
-            raise sqlite3.IntegrityError("Migracja grup transakcji naruszyłaby powiązania.")
-        connection.commit()
-    finally:
-        connection.execute("PRAGMA foreign_keys=ON")
+    # to follow it, which silently detaches every membership. The migration runner keeps
+    # foreign keys off for this swap, so the rename leaves other tables' clauses alone.
+    connection.execute("""
+        CREATE TABLE cases_rebuilt (
+            id INTEGER PRIMARY KEY,
+            kind TEXT NOT NULL CHECK(kind IN (
+                'own_transfer', 'shared_purchase', 'reimbursement', 'refund', 'payment_dispute',
+                'wallet_exchange'
+            )),
+            title TEXT NOT NULL, category_key TEXT REFERENCES categories(key),
+            personal_amount TEXT NOT NULL, currency TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('suggested', 'approved', 'rejected')),
+            source TEXT NOT NULL CHECK(source IN ('manual', 'rule', 'llm')), explanation TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    connection.execute("""
+        INSERT INTO cases_rebuilt
+        SELECT id, kind, title, category_key, personal_amount, currency, status, source, explanation, created_at
+        FROM cases
+    """)
+    connection.execute("DROP TABLE cases")
+    connection.execute("ALTER TABLE cases_rebuilt RENAME TO cases")
+    if connection.execute("PRAGMA foreign_key_check").fetchall():
+        raise sqlite3.IntegrityError("Migracja grup transakcji naruszyłaby powiązania.")
 
 
 def _migrate_wallet_opening_rate(connection: sqlite3.Connection) -> None:
@@ -421,6 +418,7 @@ _MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _migrate_case_booked_on,
     _migrate_drop_deleted_transactions,
 )
+_TABLE_REBUILDS = frozenset({_migrate_wallet_exchange_case_kind})
 
 
 def fingerprint(transaction: Transaction) -> str:
@@ -497,13 +495,23 @@ class Database:
         self.connection.close()
 
     def _apply_migrations(self) -> None:
-        current_version = self.connection.execute("PRAGMA user_version").fetchone()[0]
-        for index, migration in enumerate(_MIGRATIONS):
-            if index < current_version:
-                continue
-            migration(self.connection)
-            self.connection.execute(f"PRAGMA user_version = {index + 1}")
-        self.connection.commit()
+        connection = self.connection
+        current_version = connection.execute("PRAGMA user_version").fetchone()[0]
+        for version, migration in enumerate(_MIGRATIONS[current_version:], start=current_version + 1):
+            # sqlite3 commits DDL at once outside a transaction, so each migration and its version
+            # bump share an explicit one; an interruption then leaves the previous version intact.
+            # Foreign keys cannot be switched inside a transaction, hence before it.
+            rebuild = migration in _TABLE_REBUILDS
+            if rebuild:
+                connection.execute("PRAGMA foreign_keys=OFF")
+            try:
+                with connection:
+                    connection.execute("BEGIN")
+                    migration(connection)
+                    connection.execute(f"PRAGMA user_version = {version}")
+            finally:
+                if rebuild:
+                    connection.execute("PRAGMA foreign_keys=ON")
 
     def insert_transaction(self, transaction: Transaction) -> int | None:
         return insert_transaction(self.connection, transaction)
