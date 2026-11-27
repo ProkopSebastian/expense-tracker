@@ -1,3 +1,13 @@
+## v0.8.0 — 27.11.2026
+
+- feat: okno otwiera się tak, jak zostało zamknięte - w tym samym rozmiarze, zmaksymalizowane albo na pełnym ekranie
+- feat: komunikaty znikają same; kółko wokół X pokazuje, ile czasu zostało, a najechanie myszą wstrzymuje odliczanie
+- feat: przy sugestiach AI zmiana kategorii tylko zmienia wybór - zapisuje się dopiero po kliknięciu „Zatwierdź”, a potem od razu można przejść do następnej sugestii
+- feat: kopia zapasowa całej aplikacji w jednym pliku, do zapisania np. na dysku zewnętrznym i wczytania także na innym komputerze (Ustawienia → Dane i prywatność)
+- fix: wydatek z gotówki większy niż stan gotówki nie dostaje kursu z dawnej wypłaty, tylko jest oznaczony jako bez kursu
+- fix: gotówka wypłacona danego dnia pokrywa wydatki z tego samego dnia, niezależnie od kolejności wpisania
+- fix: przerwana aktualizacja bazy danych nie blokuje uruchomienia aplikacji
+
 ## v0.7.4 — 22.10.2026
 
 - fix: edycja grupy pokazuje aktualny koszt i nie przywraca poprzedniego
