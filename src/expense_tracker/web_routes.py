@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi import Path as FastAPIPath
 from openai import APIConnectionError, APIStatusError, AuthenticationError, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel
 
@@ -624,7 +623,7 @@ def export_backup(request: Request):
     name = archive_name()
     choose = getattr(request.app.state, "choose_backup_path", None)
     if choose is None:
-        return {"status": "download", "url": f"/api/backup/{name}"}
+        return {"status": "download", "url": "/api/backup/download"}
     target = choose(name)
     if target is None:
         return {"status": "cancelled"}
@@ -632,22 +631,20 @@ def export_backup(request: Request):
     return {"status": "saved", "path": str(target)}
 
 
-@router.get("/backup/{name}")
-def download_backup(
-    name: Annotated[str, FastAPIPath(pattern=r"^Wydatki-kopia-\d{4}-\d{2}-\d{2}\.zip$")], request: Request,
-):
+@router.get("/backup/download")
+def download_backup(request: Request):
     from tempfile import mkdtemp
 
     from fastapi.responses import FileResponse
     from starlette.background import BackgroundTask
 
-    from .backup_archive import write_archive
+    from .backup_archive import archive_name, write_archive
 
     directory = Path(mkdtemp())
-    target = directory / name
+    target = directory / "kopia.zip"
     write_archive(request.app.state.database_path, settings.data_dir, request.app.state.configuration_dir, target)
     return FileResponse(
-        target, media_type="application/zip", filename=name,
+        target, media_type="application/zip", filename=archive_name(),
         background=BackgroundTask(lambda: (target.unlink(missing_ok=True), directory.rmdir())),
     )
 
